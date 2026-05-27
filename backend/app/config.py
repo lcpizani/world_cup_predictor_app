@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     ALLOW_ADMIN_MATCH_UPDATES: bool = False
     # football-data.org API key for match/result sync
     FOOTBALL_API_KEY: str = ""
+    CORS_ORIGINS: str = "http://localhost:3000"
 
     model_config = {
         "env_file": ".env",

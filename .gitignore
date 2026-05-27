@@ -219,3 +219,7 @@ __marimo__/
 
 # prompts to create
 prompts
+
+# ds store
+.DS_Store
+**/.DS_Store

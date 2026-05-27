@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import auth, tournaments, matches, predictions, admin
 from app.services.scheduler import start_scheduler, stop_scheduler
+from app.config import settings
 
 
 @asynccontextmanager
@@ -19,7 +20,7 @@ app = FastAPI(title="World Cup Predictor API", version="0.1.0", lifespan=lifespa
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS.split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
