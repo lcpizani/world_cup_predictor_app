@@ -2,7 +2,7 @@ name: Deploy Backend
 
 on:
   push:
-    branches: [main]
+    branches: [dev]
     paths:
       - 'backend/**'
       - '.github/workflows/deploy-backend.yml'
@@ -37,6 +37,10 @@ jobs:
 
       - name: Run Alembic migrations
         run: |
+          # Update image on existing job, or create it on first deploy.
+          # DATABASE_URL must be set manually on this job via:
+          #   gcloud run jobs update migrate --set-env-vars="DATABASE_URL=..."
+          # (see DEPLOYMENT.md Phase 6 for instructions)
           gcloud run jobs update migrate \
             --image=${{ env.IMAGE }}:${{ github.sha }} \
             --region=${{ env.REGION }} || \
@@ -45,7 +49,6 @@ jobs:
             --region=${{ env.REGION }} \
             --service-account=backend-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com \
             --add-cloudsql-instances=${{ secrets.INSTANCE_CONNECTION_NAME }} \
-            --set-secrets=DATABASE_URL=DATABASE_URL:latest \
             --command=alembic \
             --args=upgrade,head
           gcloud run jobs execute migrate --region=${{ env.REGION }} --wait
@@ -57,7 +60,6 @@ jobs:
             --region=${{ env.REGION }} \
             --service-account=backend-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com \
             --add-cloudsql-instances=${{ secrets.INSTANCE_CONNECTION_NAME }} \
-            --set-secrets=DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,FOOTBALL_API_KEY=FOOTBALL_API_KEY:latest \
-            --set-env-vars=ENVIRONMENT=production,ALLOW_ADMIN_MATCH_UPDATES=false,CORS_ORIGINS=${{ secrets.FRONTEND_URL }} \
+            --update-env-vars=ENVIRONMENT=production,ALLOW_ADMIN_MATCH_UPDATES=false \
             --allow-unauthenticated \
             --port=8080

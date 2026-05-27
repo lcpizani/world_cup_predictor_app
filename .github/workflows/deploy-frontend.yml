@@ -2,7 +2,7 @@ name: Deploy Frontend
 
 on:
   push:
-    branches: [main]
+    branches: [dev]
     paths:
       - 'frontend/**'
       - '.github/workflows/deploy-frontend.yml'
@@ -41,6 +41,6 @@ jobs:
           gcloud run deploy frontend \
             --image=${{ env.IMAGE }}:${{ github.sha }} \
             --region=${{ env.REGION }} \
-            --set-env-vars=NODE_ENV=production,BACKEND_URL=${{ secrets.BACKEND_URL }} \
+            --update-env-vars=NODE_ENV=production \
             --allow-unauthenticated \
             --port=3000
