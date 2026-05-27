@@ -1,0 +1,72 @@
+steps:
+  # Build the backend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -f
+      - backend/Dockerfile
+      - -t
+      - $_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/backend:$COMMIT_SHA
+      - -t
+      - $_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/backend:latest
+      - .
+
+  # Push both tags
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [push, '$_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/backend:$COMMIT_SHA']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [push, '$_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/backend:latest']
+
+  # Update the migration job image, or create it on first deploy.
+  # DATABASE_URL must already be set on the job manually (see DEPLOYMENT.md Phase 6b).
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        gcloud run jobs update migrate \
+          --image=$_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/backend:$COMMIT_SHA \
+          --region=$_REGION \
+        || \
+        gcloud run jobs create migrate \
+          --image=$_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/backend:$COMMIT_SHA \
+          --region=$_REGION \
+          --service-account=backend-sa@$PROJECT_ID.iam.gserviceaccount.com \
+          --command=alembic \
+          --args=upgrade,head
+
+  # Run migrations
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args:
+      - gcloud
+      - run
+      - jobs
+      - execute
+      - migrate
+      - --region=$_REGION
+      - --wait
+
+  # Deploy backend to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args:
+      - gcloud
+      - run
+      - deploy
+      - backend
+      - --image=$_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/backend:$COMMIT_SHA
+      - --region=$_REGION
+      - --service-account=backend-sa@$PROJECT_ID.iam.gserviceaccount.com
+      - --update-env-vars=ENVIRONMENT=production,ALLOW_ADMIN_MATCH_UPDATES=false
+      - --allow-unauthenticated
+      - --port=8080
+
+substitutions:
+  _REGION: us-central1
+
+images:
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/backend:$COMMIT_SHA'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/backend:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

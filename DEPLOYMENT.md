@@ -35,7 +35,7 @@ Before you start, have these ready:
 - [ ] GCP account (you have this)
 - [ ] `gcloud` CLI installed — [install guide](https://cloud.google.com/sdk/docs/install)
 - [ ] `football-data.org` API key (you have this)
-- [ ] Access to your GitHub repo settings (to add secrets)
+- [ ] Access to your GitHub repo (to connect it to Cloud Build)
 
 ---
 
@@ -69,6 +69,7 @@ gcloud services enable \
   run.googleapis.com \
   compute.googleapis.com \
   artifactregistry.googleapis.com \
+  cloudbuild.googleapis.com \
   iam.googleapis.com
 ```
 
@@ -183,50 +184,76 @@ gcloud iam service-accounts create backend-sa \
 
 No extra roles are needed — the backend connects to PostgreSQL over TCP using a password.
 
-### 3.2 Create the GitHub Actions service account
+### 3.2 Grant Cloud Build the roles it needs
+
+Newer GCP projects use the **Compute Engine default service account** for Cloud Build (not a dedicated Cloud Build SA). Get your project number and grant it the permissions Cloud Build needs:
 
 ```bash
-gcloud iam service-accounts create github-actions-sa \
-  --display-name="GitHub Actions CI/CD"
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
 
-# Grant all roles it needs
 for role in \
   roles/artifactregistry.writer \
   roles/run.admin \
-  roles/iam.serviceAccountUser; do
+  roles/iam.serviceAccountUser \
+  roles/logging.logWriter; do
   gcloud projects add-iam-policy-binding $PROJECT_ID \
-    --member="serviceAccount:github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com" \
+    --member="serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
     --role="$role"
 done
 ```
 
-### 3.3 Export the GitHub Actions key
-
-```bash
-gcloud iam service-accounts keys create github-sa-key.json \
-  --iam-account=github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com
-```
-
-> ⚠️ Keep `github-sa-key.json` safe and **never commit it to git**. You'll paste its contents into GitHub in the next phase.
-
 ---
 
-## Phase 4 — GitHub Secrets
+## Phase 4 — Connect GitHub to Cloud Build
 
-Go to your GitHub repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
+This is what replaces GitHub Actions — Cloud Build watches your `dev` branch and deploys automatically on every push.
 
-You only need **5 secrets**:
+### 4.1 Connect your GitHub repo
 
-| Secret name | Value |
-|---|---|
-| `GCP_PROJECT_ID` | Your project ID (e.g. `worldcup-predictor-123`) |
-| `GCP_REGION` | Your region (e.g. `us-central1`) |
-| `GCP_SA_KEY` | Full contents of `github-sa-key.json` (paste the entire JSON) |
-| `DB_HOST` | External IP of the VM from Step 2.5 (e.g. `34.123.45.67`) |
-| `NEXT_PUBLIC_API_URL` | Set to `http://placeholder` for now — update after first deploy |
+1. Go to [console.cloud.google.com/cloud-build/triggers](https://console.cloud.google.com/cloud-build/triggers)
+2. Click **Connect Repository**
+3. Select **GitHub** as the source
+4. Authenticate and select your repo
+5. Click **Done** (don't create a trigger yet — you'll do that via CLI below)
 
-> **Why is `NEXT_PUBLIC_API_URL` still a GitHub secret?**
-> Next.js bakes `NEXT_PUBLIC_*` variables into the static build at compile time — it's not a runtime env var. The workflow passes it as a Docker build arg, so it must be known before the image is built. You'll update it with the real backend URL after the first deploy.
+### 4.2 Create the backend trigger
+
+```bash
+gcloud builds triggers create github \
+  --name=deploy-backend \
+  --repo-name=YOUR_GITHUB_REPO_NAME \
+  --repo-owner=YOUR_GITHUB_USERNAME \
+  --branch-pattern='^dev$' \
+  --build-config=cloudbuild-backend.yaml \
+  --included-files='backend/**,cloudbuild-backend.yaml' \
+  --substitutions=_REGION=$REGION
+```
+
+### 4.3 Create the frontend trigger
+
+```bash
+gcloud builds triggers create github \
+  --name=deploy-frontend \
+  --repo-name=YOUR_GITHUB_REPO_NAME \
+  --repo-owner=YOUR_GITHUB_USERNAME \
+  --branch-pattern='^dev$' \
+  --build-config=cloudbuild-frontend.yaml \
+  --included-files='frontend/**,cloudbuild-frontend.yaml' \
+  --substitutions=_REGION=$REGION,_NEXT_PUBLIC_API_URL=http://placeholder
+```
+
+> **`_NEXT_PUBLIC_API_URL` starts as a placeholder.** Next.js bakes this URL into the static bundle at build time, so it must be set before the image is built. You'll update it after the first deploy once you know your backend URL (see Phase 6.3).
+
+### 4.4 Update `_NEXT_PUBLIC_API_URL` after first deploy
+
+Once you have the real backend URL (Phase 5.2), update the frontend trigger:
+
+```bash
+gcloud builds triggers update deploy-frontend \
+  --substitutions=_REGION=$REGION,_NEXT_PUBLIC_API_URL=https://your-backend-url.run.app
+```
+
+Then push any small change to `frontend/` on `dev` to trigger a rebuild with the real URL baked in.
 
 ---
 
@@ -239,7 +266,7 @@ git checkout -b dev
 git push origin dev
 ```
 
-This triggers both pipelines for the first time. Watch them in GitHub → **Actions**.
+This triggers both Cloud Build pipelines for the first time. Watch them at [console.cloud.google.com/cloud-build/builds](https://console.cloud.google.com/cloud-build/builds).
 
 > The first deploy will fail or produce a non-functional app — that's expected. The backend needs its env vars set (Phase 6) before it can connect to the database.
 
@@ -298,14 +325,16 @@ gcloud run services update frontend \
   --set-env-vars="BACKEND_URL=$BACKEND_URL"
 ```
 
-### 6.3 Update `NEXT_PUBLIC_API_URL` in GitHub and redeploy frontend
+### 6.3 Update `_NEXT_PUBLIC_API_URL` in Cloud Build and redeploy frontend
 
-Now that you know the real backend URL, update the GitHub secret:
+Now that you know the real backend URL, update the trigger substitution (as described in Phase 4.4):
 
-1. Go to GitHub → **Settings** → **Secrets** → update `NEXT_PUBLIC_API_URL` to your real backend URL
-2. Trigger a frontend redeploy by pushing to `dev` (or trigger manually from GitHub Actions)
+```bash
+gcloud builds triggers update deploy-frontend \
+  --substitutions=_REGION=$REGION,_NEXT_PUBLIC_API_URL=$BACKEND_URL
+```
 
-This rebuilds the frontend image with the correct backend URL baked into the Next.js bundle.
+Then push any small change to `frontend/` on `dev` to trigger a rebuild with the correct URL baked into the Next.js bundle.
 
 ---
 
