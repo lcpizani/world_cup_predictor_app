@@ -48,7 +48,6 @@ jobs:
             --image=${{ env.IMAGE }}:${{ github.sha }} \
             --region=${{ env.REGION }} \
             --service-account=backend-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com \
-            --add-cloudsql-instances=${{ secrets.INSTANCE_CONNECTION_NAME }} \
             --command=alembic \
             --args=upgrade,head
           gcloud run jobs execute migrate --region=${{ env.REGION }} --wait
@@ -59,7 +58,6 @@ jobs:
             --image=${{ env.IMAGE }}:${{ github.sha }} \
             --region=${{ env.REGION }} \
             --service-account=backend-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com \
-            --add-cloudsql-instances=${{ secrets.INSTANCE_CONNECTION_NAME }} \
             --update-env-vars=ENVIRONMENT=production,ALLOW_ADMIN_MATCH_UPDATES=false \
             --allow-unauthenticated \
             --port=8080
