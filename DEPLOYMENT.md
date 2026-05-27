@@ -6,7 +6,7 @@ A step-by-step guide to deploying the World Cup Predictor on Google Cloud Platfo
 - Frontend (Next.js) → Cloud Run, public URL
 - Backend (FastAPI) → Cloud Run, public URL
 - Database (PostgreSQL 16) → Docker container on a Compute Engine VM
-- Auto-deploy on every push to `dev`
+- Auto-deploy on every push to `dev` via Cloud Run continuous deployment
 - Environment variables set directly in Cloud Run (no Secret Manager needed)
 
 **Time to complete:** ~60 minutes the first time.
@@ -24,7 +24,7 @@ main  ──►  your working branch — test here, never auto-deploys
 ```
 
 - **`main`** — day-to-day work, experiments, testing locally. Nothing deploys from here.
-- **`dev`** — tested changes only. Every push triggers the GCP pipelines.
+- **`dev`** — tested changes only. Every push triggers Cloud Run to rebuild and redeploy.
 
 ---
 
@@ -35,7 +35,7 @@ Before you start, have these ready:
 - [ ] GCP account (you have this)
 - [ ] `gcloud` CLI installed — [install guide](https://cloud.google.com/sdk/docs/install)
 - [ ] `football-data.org` API key (you have this)
-- [ ] Access to your GitHub repo (to connect it to Cloud Build)
+- [ ] Access to your GitHub repo (to connect it to Cloud Run)
 
 ---
 
@@ -139,7 +139,7 @@ docker run -d \
 exit
 ```
 
-> ⚠️ Save `YOUR_DB_PASSWORD` securely — you'll need it in Phase 4 and Phase 6.
+> ⚠️ Save `YOUR_DB_PASSWORD` securely — you'll need it in Phase 6.
 
 ### 2.4 Open port 5432 in the firewall
 
@@ -153,7 +153,7 @@ gcloud compute firewall-rules create allow-postgres \
   --description="Allow PostgreSQL access to the DB VM"
 ```
 
-> 🔒 The only protection here is your database password — make sure it's strong (16+ random characters). If you want extra security, replace `0.0.0.0/0` with a specific IP range later.
+> 🔒 The only protection here is your database password — make sure it's strong (16+ random characters).
 
 ### 2.5 Get the VM's external IP
 
@@ -171,10 +171,6 @@ It will look like: `34.123.45.67`
 
 ## Phase 3 — Service Accounts
 
-You need two service accounts:
-- **`backend-sa`** — the identity your running app uses on Cloud Run
-- **`github-actions-sa`** — the identity GitHub Actions uses (pushes images, deploys)
-
 ### 3.1 Create the backend runtime service account
 
 ```bash
@@ -182,11 +178,11 @@ gcloud iam service-accounts create backend-sa \
   --display-name="World Cup Backend Runtime"
 ```
 
-No extra roles are needed — the backend connects to PostgreSQL over TCP using a password.
+No extra roles needed — the backend connects to PostgreSQL over TCP using a password.
 
 ### 3.2 Grant Cloud Build the roles it needs
 
-Newer GCP projects use the **Compute Engine default service account** for Cloud Build (not a dedicated Cloud Build SA). Get your project number and grant it the permissions Cloud Build needs:
+Cloud Run's continuous deployment uses Cloud Build internally. Grant the Compute Engine default service account (which Cloud Build uses in newer GCP projects) the permissions it needs:
 
 ```bash
 PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
@@ -204,75 +200,44 @@ done
 
 ---
 
-## Phase 4 — Connect GitHub to Cloud Build
+## Phase 4 — Connect GitHub to Cloud Run
 
-This is what replaces GitHub Actions — Cloud Build watches your `dev` branch and deploys automatically on every push.
+Cloud Run's continuous deployment watches your `dev` branch and rebuilds + redeploys automatically on every push. No workflow files needed — it uses the Dockerfiles directly.
 
-### 4.1 Connect your GitHub repo
+### 4.1 Create the backend service
 
-1. Go to [console.cloud.google.com/cloud-build/triggers](https://console.cloud.google.com/cloud-build/triggers)
-2. Click **Connect Repository**
-3. Select **GitHub** as the source
-4. Authenticate and select your repo
-5. Click **Done** (don't create a trigger yet — you'll do that via CLI below)
+1. Go to [console.cloud.google.com/run](https://console.cloud.google.com/run) → **Create Service**
+2. Select **"Continuously deploy from a repository"** → **Set up with Cloud Build**
+3. Connect your GitHub account and select your repo
+4. Set **Branch** to `^dev$`
+5. **Build type** → `Dockerfile`
+6. **Source location** → `/backend`
+7. **Dockerfile location** → `/backend/Dockerfile`
+8. Click **Next** and configure the service:
+   - **Service name** → `backend`
+   - **Region** → your region
+   - **Authentication** → Allow unauthenticated invocations
+   - **Service account** → `backend-sa`
+   - **Port** → `8080`
+9. Click **Create**
 
-### 4.2 Create the backend trigger
+> The first deploy will start but the backend won't be functional yet — it needs env vars (Phase 6) to connect to the database.
 
-```bash
-gcloud builds triggers create github \
-  --name=deploy-backend \
-  --repo-name=YOUR_GITHUB_REPO_NAME \
-  --repo-owner=YOUR_GITHUB_USERNAME \
-  --branch-pattern='^dev$' \
-  --build-config=cloudbuild-backend.yaml \
-  --included-files='backend/**,cloudbuild-backend.yaml' \
-  --substitutions=_REGION=$REGION
-```
+### 4.2 Create the frontend service
 
-### 4.3 Create the frontend trigger
-
-```bash
-gcloud builds triggers create github \
-  --name=deploy-frontend \
-  --repo-name=YOUR_GITHUB_REPO_NAME \
-  --repo-owner=YOUR_GITHUB_USERNAME \
-  --branch-pattern='^dev$' \
-  --build-config=cloudbuild-frontend.yaml \
-  --included-files='frontend/**,cloudbuild-frontend.yaml' \
-  --substitutions=_REGION=$REGION,_NEXT_PUBLIC_API_URL=http://placeholder
-```
-
-> **`_NEXT_PUBLIC_API_URL` starts as a placeholder.** Next.js bakes this URL into the static bundle at build time, so it must be set before the image is built. You'll update it after the first deploy once you know your backend URL (see Phase 6.3).
-
-### 4.4 Update `_NEXT_PUBLIC_API_URL` after first deploy
-
-Once you have the real backend URL (Phase 5.2), update the frontend trigger:
-
-```bash
-gcloud builds triggers update deploy-frontend \
-  --substitutions=_REGION=$REGION,_NEXT_PUBLIC_API_URL=https://your-backend-url.run.app
-```
-
-Then push any small change to `frontend/` on `dev` to trigger a rebuild with the real URL baked in.
+Repeat the same steps with:
+- **Source location** → `/frontend`
+- **Dockerfile location** → `/frontend/Dockerfile`
+- **Service name** → `frontend`
+- **Port** → `3000`
+- **Build argument** → add `NEXT_PUBLIC_API_URL` = `http://placeholder` (update after Phase 6)
+- No specific service account needed
 
 ---
 
-## Phase 5 — First Deploy
+## Phase 5 — Get your Cloud Run URLs
 
-### 5.1 Create the `dev` branch and push
-
-```bash
-git checkout -b dev
-git push origin dev
-```
-
-This triggers both Cloud Build pipelines for the first time. Watch them at [console.cloud.google.com/cloud-build/builds](https://console.cloud.google.com/cloud-build/builds).
-
-> The first deploy will fail or produce a non-functional app — that's expected. The backend needs its env vars set (Phase 6) before it can connect to the database.
-
-### 5.2 Get your Cloud Run URLs
-
-Once the deploy jobs finish (even if the app errors), the services exist and have URLs:
+Once the initial builds finish, grab both URLs:
 
 ```bash
 # Backend URL
@@ -286,32 +251,43 @@ gcloud run services describe frontend \
   --format='value(status.url)'
 ```
 
-Save both URLs — you'll use them in the next phase.
+Save both — you'll need them in Phase 6.
 
 ---
 
 ## Phase 6 — Set Environment Variables in Cloud Run
 
-This is where you configure everything the app needs to run. You're setting these **directly in Cloud Run**, not in GitHub.
+This is where you configure everything the app needs to run. Set these **directly in Cloud Run**.
 
 ### 6.1 Backend env vars
 
 ```bash
-BACKEND_URL="https://your-backend-url.run.app"    # from Phase 5.2
-FRONTEND_URL="https://your-frontend-url.run.app"  # from Phase 5.2
+BACKEND_URL="https://your-backend-url.run.app"    # from Phase 5
+FRONTEND_URL="https://your-frontend-url.run.app"  # from Phase 5
 DB_HOST="34.123.45.67"                            # VM external IP from Phase 2.5
 
 gcloud run services update backend \
   --region=$REGION \
-  --set-env-vars="DATABASE_URL=postgresql+psycopg2://worldcup:YOUR_DB_PASSWORD@$DB_HOST:5432/worldcup" \
-  --set-env-vars="JWT_SECRET=$(openssl rand -hex 32)" \
-  --set-env-vars="FOOTBALL_API_KEY=YOUR_FOOTBALL_API_KEY" \
-  --set-env-vars="CORS_ORIGINS=$FRONTEND_URL" \
-  --set-env-vars="ENVIRONMENT=production" \
-  --set-env-vars="ALLOW_ADMIN_MATCH_UPDATES=false"
+  --set-env-vars="DATABASE_URL=postgresql+psycopg2://worldcup:YOUR_DB_PASSWORD@$DB_HOST:5432/worldcup"
+
+gcloud run services update backend \
+  --region=$REGION \
+  --set-env-vars="JWT_SECRET=$(openssl rand -hex 32)"
+
+gcloud run services update backend \
+  --region=$REGION \
+  --set-env-vars="FOOTBALL_API_KEY=YOUR_FOOTBALL_API_KEY"
+
+gcloud run services update backend \
+  --region=$REGION \
+  --set-env-vars="CORS_ORIGINS=$FRONTEND_URL"
+
+gcloud run services update backend \
+  --region=$REGION \
+  --set-env-vars="ENVIRONMENT=production,ALLOW_ADMIN_MATCH_UPDATES=false"
 ```
 
-> 💡 Run each `--set-env-vars` flag separately to avoid shell quoting issues with the DATABASE_URL.
+> 💡 Each flag is run separately to avoid shell quoting issues with the DATABASE_URL.
 
 **Example DATABASE_URL:**
 `postgresql+psycopg2://worldcup:s3cr3t@34.123.45.67:5432/worldcup`
@@ -321,46 +297,33 @@ gcloud run services update backend \
 ```bash
 gcloud run services update frontend \
   --region=$REGION \
-  --set-env-vars="NODE_ENV=production" \
-  --set-env-vars="BACKEND_URL=$BACKEND_URL"
+  --set-env-vars="NODE_ENV=production,BACKEND_URL=$BACKEND_URL"
 ```
 
-### 6.3 Update `_NEXT_PUBLIC_API_URL` in Cloud Build and redeploy frontend
+### 6.3 Update `NEXT_PUBLIC_API_URL` and redeploy frontend
 
-Now that you know the real backend URL, update the trigger substitution (as described in Phase 4.4):
+Next.js bakes `NEXT_PUBLIC_*` variables into the bundle at build time, so you need to update the build argument in Cloud Run and trigger a redeploy:
 
-```bash
-gcloud builds triggers update deploy-frontend \
-  --substitutions=_REGION=$REGION,_NEXT_PUBLIC_API_URL=$BACKEND_URL
-```
+1. Go to [Cloud Run](https://console.cloud.google.com/run) → **frontend** service → **Edit & Deploy New Revision**
+2. Go to the **Variables & Secrets** tab → find the `NEXT_PUBLIC_API_URL` build arg
+3. Update it to your real backend URL
+4. Click **Deploy**
 
-Then push any small change to `frontend/` on `dev` to trigger a rebuild with the correct URL baked into the Next.js bundle.
+> After this, every push to `dev` will use the correct backend URL automatically.
 
 ---
 
-## Phase 6b — Set DATABASE_URL on the Migration Job
+## Phase 7 — Migrations
 
-The migration Cloud Run Job also needs DATABASE_URL to connect to the database. Set it once manually:
+Migrations run automatically on every backend deploy — the container starts by running `alembic upgrade head` before the server comes up (via `entrypoint.sh`).
 
-```bash
-gcloud run jobs update migrate \
-  --region=$REGION \
-  --set-env-vars="DATABASE_URL=postgresql+psycopg2://worldcup:YOUR_DB_PASSWORD@$DB_HOST:5432/worldcup"
-```
-
-> This is a one-time setup. Future deploys only update the job's image, not its env vars.
-
----
-
-## Phase 7 — Run Migrations
-
-Migrations run automatically on each backend deploy via a Cloud Run Job. But for the very first time, you can run them manually to confirm the database is reachable:
+To verify the first migration ran successfully, check the backend logs:
 
 ```bash
-gcloud run jobs execute migrate --region=$REGION --wait
+gcloud run services logs tail backend --region=$REGION
 ```
 
-If the job doesn't exist yet (first deploy), the workflow creates it automatically. Check GitHub Actions logs for confirmation.
+You should see `Running database migrations...` followed by `Starting server...`.
 
 ---
 
@@ -445,7 +408,7 @@ docker exec -it postgres psql -U worldcup -d worldcup
 
 ### Updating env vars after deploy
 
-Since env vars live in Cloud Run (not in GitHub), you can update them anytime without touching the code:
+Since env vars live in Cloud Run, you can update them anytime without touching the code:
 
 ```bash
 # Update a single env var
@@ -459,7 +422,7 @@ gcloud run services update backend \
   --update-env-vars="CORS_ORIGINS=https://new-frontend-url.run.app"
 ```
 
-> Use `--update-env-vars` (not `--set-env-vars`) when updating manually — it merges, rather than replacing everything.
+> Use `--update-env-vars` (not `--set-env-vars`) when updating manually — it merges rather than replacing everything.
 
 ### Useful commands
 
@@ -475,9 +438,6 @@ gcloud run services list --region=$REGION
 
 # Check VM status
 gcloud compute instances describe worldcup-db-vm --zone=$ZONE
-
-# Manually re-run migrations
-gcloud run jobs execute migrate --region=$REGION --wait
 ```
 
 ### Environment variables reference
@@ -488,9 +448,9 @@ gcloud run jobs execute migrate --region=$REGION --wait
 | `JWT_SECRET` | Cloud Run (manual) | Signs auth tokens |
 | `FOOTBALL_API_KEY` | Cloud Run (manual) | football-data.org API access |
 | `CORS_ORIGINS` | Cloud Run (manual) | Allowed frontend origins |
-| `ENVIRONMENT` | Workflow (`--update-env-vars`) | Set to `production` |
-| `ALLOW_ADMIN_MATCH_UPDATES` | Workflow (`--update-env-vars`) | `false` in production |
-| `NEXT_PUBLIC_API_URL` | GitHub secret → Docker build arg | Backend URL baked into frontend bundle |
+| `ENVIRONMENT` | Cloud Run (manual) | Set to `production` |
+| `ALLOW_ADMIN_MATCH_UPDATES` | Cloud Run (manual) | `false` in production |
+| `NEXT_PUBLIC_API_URL` | Cloud Run build arg | Backend URL baked into frontend bundle |
 | `BACKEND_URL` | Cloud Run (manual) | Internal backend reference for frontend |
 | `NODE_ENV` | Cloud Run (manual) | Set to `production` |
 
