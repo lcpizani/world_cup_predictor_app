@@ -1,0 +1,45 @@
+steps:
+  # Build the frontend image with the backend URL baked in at compile time
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -f
+      - frontend/Dockerfile
+      - --build-arg
+      - NEXT_PUBLIC_API_URL=$_NEXT_PUBLIC_API_URL
+      - -t
+      - $_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/frontend:$COMMIT_SHA
+      - -t
+      - $_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/frontend:latest
+      - frontend/
+
+  # Push both tags
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [push, '$_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/frontend:$COMMIT_SHA']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [push, '$_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/frontend:latest']
+
+  # Deploy frontend to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args:
+      - gcloud
+      - run
+      - deploy
+      - frontend
+      - --image=$_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/frontend:$COMMIT_SHA
+      - --region=$_REGION
+      - --update-env-vars=NODE_ENV=production
+      - --allow-unauthenticated
+      - --port=3000
+
+substitutions:
+  _REGION: us-central1
+  _NEXT_PUBLIC_API_URL: http://placeholder
+
+images:
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/frontend:$COMMIT_SHA'
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/worldcup-images/frontend:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
