@@ -223,3 +223,13 @@ prompts
 # ds store
 .DS_Store
 **/.DS_Store
+
+
+# claude codexopencode and openspec
+.claude
+.codex
+.opencode
+openspec
+
+# githubs service account keys
+github-sa-key.json
