@@ -1,0 +1,21 @@
+from typing import List
+from uuid import UUID
+
+from pydantic import BaseModel
+
+from app.schemas.user import UserResponse
+
+
+class LeaderboardEntry(BaseModel):
+    rank: int
+    user: UserResponse
+    total_points: int
+
+    model_config = {"from_attributes": True}
+
+
+class LeaderboardResponse(BaseModel):
+    tournament_id: UUID
+    entries: List[LeaderboardEntry]
+
+    model_config = {"from_attributes": True}
