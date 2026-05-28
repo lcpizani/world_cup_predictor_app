@@ -10,8 +10,8 @@ SCORING_RULES = {
 
 def _setup_tournament_with_finished_match(client, db):
     """Returns (creator_token, member_token, invite_code, match_id)."""
-    creator = register_user(client, "c@example.com", "creator", "pass")
-    creator_token = login_user(client, "c@example.com", "pass")
+    creator = register_user(client, "c@example.com", "creator", "password123")
+    creator_token = login_user(client, "c@example.com", "password123")
     grant_admin(db, "c@example.com")
 
     t = client.post("/tournaments", json={"name": "Pool", "scoring_rules": SCORING_RULES},
@@ -25,8 +25,8 @@ def _setup_tournament_with_finished_match(client, db):
     match_id = m["id"]
 
     # second member joins
-    register_user(client, "b@example.com", "bob", "pass")
-    member_token = login_user(client, "b@example.com", "pass")
+    register_user(client, "b@example.com", "bob", "password123")
+    member_token = login_user(client, "b@example.com", "password123")
     client.post("/tournaments/join", json={"invite_code": invite_code},
                 headers=auth_headers(member_token))
 
@@ -74,16 +74,16 @@ def test_member_compare_finished_match_shows_all_predictions(client, db):
 def test_non_member_compare_returns_403(client, db):
     _, _, invite_code, _ = _setup_tournament_with_finished_match(client, db)
 
-    register_user(client, "outsider@example.com", "outsider", "pass")
-    outsider_token = login_user(client, "outsider@example.com", "pass")
+    register_user(client, "outsider@example.com", "outsider", "password123")
+    outsider_token = login_user(client, "outsider@example.com", "password123")
 
     res = client.get(f"/tournaments/{invite_code}/compare", headers=auth_headers(outsider_token))
     assert res.status_code == 403
 
 
 def test_scheduled_match_hides_other_members_scores(client, db):
-    creator = register_user(client, "c2@example.com", "creator2", "pass")
-    creator_token = login_user(client, "c2@example.com", "pass")
+    creator = register_user(client, "c2@example.com", "creator2", "password123")
+    creator_token = login_user(client, "c2@example.com", "password123")
 
     t = client.post("/tournaments", json={"name": "Pool2", "scoring_rules": SCORING_RULES},
                     headers=auth_headers(creator_token)).json()
@@ -95,8 +95,8 @@ def test_scheduled_match_hides_other_members_scores(client, db):
     }, headers=auth_headers(creator_token)).json()
     match_id = m["id"]
 
-    register_user(client, "b2@example.com", "bob2", "pass")
-    member_token = login_user(client, "b2@example.com", "pass")
+    register_user(client, "b2@example.com", "bob2", "password123")
+    member_token = login_user(client, "b2@example.com", "password123")
     client.post("/tournaments/join", json={"invite_code": invite_code},
                 headers=auth_headers(member_token))
 

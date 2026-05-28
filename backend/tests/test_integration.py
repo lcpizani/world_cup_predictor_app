@@ -26,7 +26,7 @@ def test_register_login_me(client):
 def test_tournament_create_join_leaderboard_and_predictions(client):
     creator_email = "creator@example.com"
     creator_username = "creator"
-    creator_password = "creatorpass"
+    creator_password = "creatorpass1"
     creator = register_user(client, creator_email, creator_username, creator_password)
     creator_token = login_user(client, creator_email, creator_password)
 
@@ -70,7 +70,7 @@ def test_tournament_create_join_leaderboard_and_predictions(client):
     # second user joins tournament
     member_email = "bob@example.com"
     member_username = "bob"
-    member_password = "bobpass"
+    member_password = "bobpass123"
     member = register_user(client, member_email, member_username, member_password)
     member_token = login_user(client, member_email, member_password)
 
@@ -224,8 +224,8 @@ def test_match_result_application_updates_predictions_and_leaderboard(client, db
 
 
 def test_prediction_for_nonexistent_match_returns_404(client):
-    register_user(client, "loner@example.com", "loner", "lonerpass")
-    token = login_user(client, "loner@example.com", "lonerpass")
+    register_user(client, "loner@example.com", "loner", "lonerpass1")
+    token = login_user(client, "loner@example.com", "lonerpass1")
 
     response = client.post(
         "/predictions",
@@ -236,8 +236,8 @@ def test_prediction_for_nonexistent_match_returns_404(client):
 
 
 def test_duplicate_prediction_for_same_match_is_rejected(client):
-    creator = register_user(client, "dup_creator@example.com", "dupcreator", "duppass")
-    token = login_user(client, "dup_creator@example.com", "duppass")
+    creator = register_user(client, "dup_creator@example.com", "dupcreator", "duppass123")
+    token = login_user(client, "dup_creator@example.com", "duppass123")
 
     tournament_payload = {
         "name": "Dup Test Pool",

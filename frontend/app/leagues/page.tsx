@@ -205,7 +205,8 @@ function LeagueCard({ t, currentUserId }: { t: Tournament; currentUserId: string
   })
 
   function copyInvite() {
-    navigator.clipboard.writeText(t.invite_code)
+    const url = `${window.location.origin}/join/${t.invite_code}`
+    navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -269,9 +270,8 @@ function LeagueCard({ t, currentUserId }: { t: Tournament; currentUserId: string
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(240,180,41,0.2)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
         >
-          <span className="font-mono text-xs tracking-wider" style={{ color: '#5a6a82' }}>{t.invite_code}</span>
-          <span className={`text-[10px] font-medium transition-colors ${copied ? 'text-green-400' : 'text-[#3f5068]'}`}>
-            {copied ? '✓ copied' : 'copy'}
+          <span className="text-xs font-medium" style={{ color: '#5a6a82' }}>
+            {copied ? '✓ Link copied!' : '🔗 Copy invite link'}
           </span>
         </button>
 

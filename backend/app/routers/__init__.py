@@ -1,3 +1,3 @@
-"""API routers package for Phase 2."""
+"""API routers package."""
 
-__all__ = ["auth", "tournaments", "matches", "predictions"]
+__all__ = ["auth", "tournaments", "matches", "predictions", "users"]

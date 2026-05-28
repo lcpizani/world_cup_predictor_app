@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.logger import logger
+from app.models.tournament import Tournament
 from app.services import tournament as tournament_service
 from app.schemas.tournament import (
     TournamentCreate,
@@ -45,6 +46,15 @@ def join(request: JoinTournamentRequest, db: Session = Depends(get_db), current_
         raise
     logger.info("User joined tournament", user_id=str(current_user.id), tournament_id=str(result.tournament_id))
     return result
+
+
+@router.get("/{invite_code}/preview", status_code=status.HTTP_200_OK)
+def preview_tournament(invite_code: str, db: Session = Depends(get_db)) -> dict:
+    """Public endpoint — returns just the league name for an invite code, no auth required."""
+    tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
+    if not tournament:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite link not found")
+    return {"name": tournament.name}
 
 
 @router.get("/{invite_code}/leaderboard", response_model=LeaderboardResponse)

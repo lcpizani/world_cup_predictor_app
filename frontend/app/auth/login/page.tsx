@@ -47,6 +47,8 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const next = safeNext(searchParams.get('next'))
+  // If next points at a join link, that page handles unauthenticated users with a proper invite landing
+  const registerHref = next !== '/dashboard' ? `/auth/register?next=${encodeURIComponent(next)}` : '/auth/register'
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -153,7 +155,7 @@ function LoginForm() {
         <p className="text-sm text-center mt-6" style={{ color: '#3f5068' }}>
           No account?{' '}
           <Link
-            href={next !== '/dashboard' ? `/auth/register?next=${encodeURIComponent(next)}` : '/auth/register'}
+            href={registerHref}
             className="text-[#f0b429] hover:text-white transition-colors font-medium"
           >
             Register free

@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies import get_admin_user
 from app.logger import logger
@@ -14,6 +15,12 @@ from app.models.point_event import PointEvent
 from app.models.tournament import TournamentMember
 
 router = APIRouter()
+
+
+@router.get("/registration-invite", status_code=status.HTTP_200_OK)
+def get_registration_invite(admin=Depends(get_admin_user)) -> dict:
+    """Returns the platform-level invite code for admin to share as a registration link."""
+    return {"invite_code": settings.INVITE_CODE or ""}
 
 
 @router.post("/tournaments/{tournament_id}/recompute", status_code=status.HTTP_200_OK)

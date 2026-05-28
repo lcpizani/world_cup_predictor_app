@@ -3,10 +3,12 @@ import type {
   LeaderboardResponse,
   Match,
   Prediction,
+  PredictionHistoryItem,
   Tournament,
   TournamentCompareMatch,
   TournamentMember,
   User,
+  UserProfile,
 } from '@/types/api'
 
 const BASE_URL = typeof window === 'undefined'
@@ -39,9 +41,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   // ── Auth ──────────────────────────────────────────────────────────────────
   getMe: () => request<User>('/auth/me'),
+  updateMe: (data: { username?: string; display_name?: string }) =>
+    request<User>('/users/me', { method: 'PUT', body: JSON.stringify(data) }),
+
+  // ── Users ─────────────────────────────────────────────────────────────────
+  getUserProfile: (username: string) => request<UserProfile>(`/users/${username}`),
+  getUserPredictions: (username: string) => request<PredictionHistoryItem[]>(`/users/${username}/predictions`),
 
   // ── Tournaments ───────────────────────────────────────────────────────────
   listTournaments: () => request<Tournament[]>('/tournaments'),
+  getTournamentPreview: (code: string) => request<{ name: string }>(`/tournaments/${code}/preview`),
   getTournament: (code: string) => request<Tournament>(`/tournaments/${code}`),
   createTournament: (data: {
     name: string
@@ -101,6 +110,7 @@ export const api = {
     }),
 
   // ── Admin ─────────────────────────────────────────────────────────────────
+  getRegistrationInvite: () => request<{ invite_code: string }>('/admin/registration-invite'),
   applyResult: (match_id: string, home_score: number, away_score: number) =>
     request<Match>(`/matches/${match_id}/result`, {
       method: 'PUT',

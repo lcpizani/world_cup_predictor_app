@@ -17,7 +17,7 @@ const oswald = Oswald({
 })
 
 export const metadata: Metadata = {
-  title: 'World Cup Predictor',
+  title: 'WC Football Predictions',
   description: 'Predict match scores and compete with friends',
 }
 

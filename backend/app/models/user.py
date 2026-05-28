@@ -13,6 +13,7 @@ class User(Base):
     id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), nullable=False, unique=True, index=True)
     username = Column(String(100), nullable=False, unique=True)
+    display_name = Column(String(100), nullable=True)
     hashed_password = Column(String(255), nullable=False)
     avatar_url = Column(String(500), nullable=True)
     is_admin = Column(Boolean, nullable=False, server_default="false")

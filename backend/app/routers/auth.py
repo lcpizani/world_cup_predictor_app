@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from sqlalchemy.orm import Session
@@ -16,7 +16,14 @@ router = APIRouter()
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
-def register(request: Request, data: UserCreate, db: Session = Depends(get_db)):
+def register(
+    request: Request,
+    data: UserCreate,
+    db: Session = Depends(get_db),
+    invite_code: str = Query(default=""),
+):
+    if not auth_service.validate_invite_code(db, invite_code):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Registration is invite-only")
     try:
         user = auth_service.register_user(db, data)
     except HTTPException as exc:

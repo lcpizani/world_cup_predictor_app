@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const PROTECTED_PREFIXES = ['/dashboard', '/tournaments', '/admin', '/join']
+const PROTECTED_PREFIXES = ['/dashboard', '/tournaments', '/admin']
 
 export function proxy(req: NextRequest) {
   const token = req.cookies.get('auth_token')?.value
@@ -16,5 +16,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/tournaments/:path*', '/admin/:path*', '/join/:path*'],
+  matcher: ['/dashboard/:path*', '/tournaments/:path*', '/admin/:path*'],
 }
