@@ -37,7 +37,8 @@ app.add_middleware(
 )
 
 allowed_hosts = [h.strip() for h in settings.ALLOWED_HOSTS.split(",") if h.strip()]
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
+if allowed_hosts and allowed_hosts != ["*"]:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
 
 
 @app.middleware("http")
