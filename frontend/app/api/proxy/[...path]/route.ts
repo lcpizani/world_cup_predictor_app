@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8080'
 
-async function proxy(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
-  const { path } = await params
-  const url = new URL(`${BACKEND_URL}/${path.join('/')}`)
+async function proxy(req: NextRequest) {
+  const backendPath = req.nextUrl.pathname.replace('/api/proxy', '')
+  const url = new URL(`${BACKEND_URL}${backendPath}`)
   url.search = req.nextUrl.search
 
   const headers = new Headers(req.headers)

@@ -40,7 +40,7 @@ export const api = {
   getMe: () => request<User>('/auth/me'),
 
   // ── Tournaments ───────────────────────────────────────────────────────────
-  listTournaments: () => request<Tournament[]>('/tournaments/'),
+  listTournaments: () => request<Tournament[]>('/tournaments'),
   getTournament: (id: string) => request<Tournament>(`/tournaments/${id}`),
   createTournament: (data: {
     name: string
@@ -50,7 +50,7 @@ export const api = {
       correct_goal_diff_pts: number
       correct_goals_one_team_pts: number
     }
-  }) => request<Tournament>('/tournaments/', { method: 'POST', body: JSON.stringify(data) }),
+  }) => request<Tournament>('/tournaments', { method: 'POST', body: JSON.stringify(data) }),
   joinTournament: (invite_code: string) =>
     request<TournamentMember>('/tournaments/join', {
       method: 'POST',
@@ -65,7 +65,7 @@ export const api = {
     away_team: string
     kickoff_at: string
     stage: string
-  }) => request<Match>('/matches/', { method: 'POST', body: JSON.stringify(data) }),
+  }) => request<Match>('/matches', { method: 'POST', body: JSON.stringify(data) }),
 
   listMatches: (filters?: { stage?: string; match_status?: string }) => {
     const params = new URLSearchParams(
@@ -74,19 +74,19 @@ export const api = {
       ) as Record<string, string>
     )
     const qs = params.toString()
-    return request<Match[]>(`/matches/${qs ? `?${qs}` : ''}`)
+    return request<Match[]>(`/matches${qs ? `?${qs}` : ''}`)
   },
 
   // ── Predictions ───────────────────────────────────────────────────────────
   listPredictions: (tournament_id: string) =>
-    request<Prediction[]>(`/predictions/?tournament_id=${tournament_id}`),
+    request<Prediction[]>(`/predictions?tournament_id=${tournament_id}`),
   submitPrediction: (data: {
     match_id: string
     tournament_id: string
     predicted_home: number
     predicted_away: number
   }) =>
-    request<Prediction>('/predictions/', { method: 'POST', body: JSON.stringify(data) }),
+    request<Prediction>('/predictions', { method: 'POST', body: JSON.stringify(data) }),
   updatePrediction: (
     id: string,
     data: { predicted_home: number; predicted_away: number }
