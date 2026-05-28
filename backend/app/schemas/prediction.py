@@ -9,7 +9,11 @@ from app.schemas.match import MatchResponse
 
 class PredictionCreate(BaseModel):
     match_id: UUID
-    tournament_id: UUID
+    predicted_home: int = Field(ge=0)
+    predicted_away: int = Field(ge=0)
+
+
+class PredictionUpdate(BaseModel):
     predicted_home: int = Field(ge=0)
     predicted_away: int = Field(ge=0)
 
@@ -28,7 +32,6 @@ class PredictionResponse(BaseModel):
     id: UUID
     user_id: UUID
     match_id: UUID
-    tournament_id: UUID
     predicted_home: int
     predicted_away: int
     is_locked: bool

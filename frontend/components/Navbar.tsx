@@ -52,6 +52,12 @@ export function Navbar() {
               >
                 Dashboard
               </Link>
+              <Link
+                href="/predictions"
+                className="text-[#94a3b8] hover:text-white transition-colors font-medium"
+              >
+                My Picks
+              </Link>
               {user.is_admin && (
                 <Link
                   href="/admin"

@@ -8,7 +8,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.logger import logger
 from app.services import prediction as prediction_service
-from app.schemas.prediction import PredictionCreate, PredictionResponse
+from app.schemas.prediction import PredictionCreate, PredictionUpdate, PredictionResponse
 
 router = APIRouter()
 
@@ -25,7 +25,7 @@ def submit_prediction(data: PredictionCreate, db: Session = Depends(get_db), cur
 
 
 @router.put("/{prediction_id}", response_model=PredictionResponse)
-def update_prediction(prediction_id: UUID, data: PredictionCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def update_prediction(prediction_id: UUID, data: PredictionUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     try:
         result = prediction_service.update_prediction(db, prediction_id, data, current_user)
     except HTTPException as exc:
@@ -37,9 +37,8 @@ def update_prediction(prediction_id: UUID, data: PredictionCreate, db: Session =
 
 @router.get("", response_model=List[PredictionResponse])
 def list_predictions(
-    tournament_id: UUID,
-    match_id: Optional[UUID] = None,
+    tournament_id: Optional[UUID] = None,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    return prediction_service.list_predictions(db, tournament_id, current_user, match_id)
+    return prediction_service.list_predictions(db, current_user, tournament_id)

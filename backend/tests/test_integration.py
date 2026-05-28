@@ -40,7 +40,7 @@ def test_tournament_create_join_leaderboard_and_predictions(client):
         },
     }
     response = client.post(
-        "/tournaments/",
+        "/tournaments",
         json=tournament_payload,
         headers=auth_headers(creator_token),
     )
@@ -57,7 +57,7 @@ def test_tournament_create_join_leaderboard_and_predictions(client):
         "stage": "group",
     }
     response = client.post(
-        "/matches/",
+        "/matches",
         json=match_payload,
         headers=auth_headers(creator_token),
     )
@@ -85,16 +85,16 @@ def test_tournament_create_join_leaderboard_and_predictions(client):
     assert join_data["user_id"] == member["id"]
 
     # list tournaments for creator and member
-    response = client.get("/tournaments/", headers=auth_headers(creator_token))
+    response = client.get("/tournaments", headers=auth_headers(creator_token))
     assert response.status_code == 200
     assert any(item["id"] == tournament_id for item in response.json())
 
-    response = client.get("/tournaments/", headers=auth_headers(member_token))
+    response = client.get("/tournaments", headers=auth_headers(member_token))
     assert response.status_code == 200
     assert any(item["id"] == tournament_id for item in response.json())
 
     # get tournament details
-    response = client.get(f"/tournaments/{tournament_id}", headers=auth_headers(member_token))
+    response = client.get(f"/tournaments/{tournament['invite_code']}", headers=auth_headers(member_token))
     assert response.status_code == 200
     assert response.json()["id"] == tournament_id
 
@@ -117,7 +117,7 @@ def test_match_result_application_updates_predictions_and_leaderboard(client, db
         },
     }
     response = client.post(
-        "/tournaments/",
+        "/tournaments",
         json=tournament_payload,
         headers=auth_headers(creator_token),
     )
@@ -133,7 +133,7 @@ def test_match_result_application_updates_predictions_and_leaderboard(client, db
         "stage": "group",
     }
     response = client.post(
-        "/matches/",
+        "/matches",
         json=match_payload,
         headers=auth_headers(creator_token),
     )
@@ -156,12 +156,11 @@ def test_match_result_application_updates_predictions_and_leaderboard(client, db
 
     creator_prediction_payload = {
         "match_id": match_id,
-        "tournament_id": tournament_id,
         "predicted_home": 2,
         "predicted_away": 1,
     }
     response = client.post(
-        "/predictions/",
+        "/predictions",
         json=creator_prediction_payload,
         headers=auth_headers(creator_token),
     )
@@ -169,12 +168,11 @@ def test_match_result_application_updates_predictions_and_leaderboard(client, db
 
     member_prediction_payload = {
         "match_id": match_id,
-        "tournament_id": tournament_id,
         "predicted_home": 1,
         "predicted_away": 1,
     }
     response = client.post(
-        "/predictions/",
+        "/predictions",
         json=member_prediction_payload,
         headers=auth_headers(member_token),
     )
@@ -194,7 +192,7 @@ def test_match_result_application_updates_predictions_and_leaderboard(client, db
 
     # Confirm prediction points were assigned
     response = client.get(
-        "/predictions/",
+        "/predictions",
         params={"tournament_id": tournament_id},
         headers=auth_headers(creator_token),
     )
@@ -204,7 +202,7 @@ def test_match_result_application_updates_predictions_and_leaderboard(client, db
     assert predictions[0]["points_awarded"] == 11
 
     response = client.get(
-        "/predictions/",
+        "/predictions",
         params={"tournament_id": tournament_id},
         headers=auth_headers(member_token),
     )
@@ -214,7 +212,7 @@ def test_match_result_application_updates_predictions_and_leaderboard(client, db
     assert member_predictions[0]["points_awarded"] == 1
 
     # Confirm leaderboard reflects updated totals and ranks
-    response = client.get(f"/tournaments/{tournament_id}/leaderboard", headers=auth_headers(member_token))
+    response = client.get(f"/tournaments/{tournament_invite_code}/leaderboard", headers=auth_headers(member_token))
     assert response.status_code == 200
     leaderboard = response.json()
     entries = leaderboard["entries"]
@@ -223,3 +221,54 @@ def test_match_result_application_updates_predictions_and_leaderboard(client, db
     assert entries[1]["total_points"] == 1
     assert entries[0]["rank"] == 1
     assert entries[1]["rank"] == 2
+
+
+def test_prediction_for_nonexistent_match_returns_404(client):
+    register_user(client, "loner@example.com", "loner", "lonerpass")
+    token = login_user(client, "loner@example.com", "lonerpass")
+
+    response = client.post(
+        "/predictions",
+        json={"match_id": "00000000-0000-0000-0000-000000000001", "predicted_home": 1, "predicted_away": 0},
+        headers=auth_headers(token),
+    )
+    assert response.status_code == 404
+
+
+def test_duplicate_prediction_for_same_match_is_rejected(client):
+    creator = register_user(client, "dup_creator@example.com", "dupcreator", "duppass")
+    token = login_user(client, "dup_creator@example.com", "duppass")
+
+    tournament_payload = {
+        "name": "Dup Test Pool",
+        "scoring_rules": {
+            "correct_result_pts": 5,
+            "correct_winner_pts": 3,
+            "correct_goal_diff_pts": 2,
+            "correct_goals_one_team_pts": 1,
+        },
+    }
+    t = client.post("/tournaments", json=tournament_payload, headers=auth_headers(token))
+    assert t.status_code == 201
+
+    m = client.post(
+        "/matches",
+        json={"home_team": "X", "away_team": "Y", "kickoff_at": "2030-12-01T18:00:00Z", "stage": "group"},
+        headers=auth_headers(token),
+    )
+    assert m.status_code == 201
+    match_id = m.json()["id"]
+
+    r1 = client.post(
+        "/predictions",
+        json={"match_id": match_id, "predicted_home": 1, "predicted_away": 0},
+        headers=auth_headers(token),
+    )
+    assert r1.status_code == 201
+
+    r2 = client.post(
+        "/predictions",
+        json={"match_id": match_id, "predicted_home": 2, "predicted_away": 1},
+        headers=auth_headers(token),
+    )
+    assert r2.status_code == 409
