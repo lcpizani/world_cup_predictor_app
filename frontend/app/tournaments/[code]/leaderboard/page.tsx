@@ -12,16 +12,16 @@ const MEDALS: Record<number, { emoji: string; color: string }> = {
 }
 
 export default function LeaderboardPage() {
-  const { id } = useParams<{ id: string }>()
+  const { code } = useParams<{ code: string }>()
 
   const { data: tournament } = useQuery({
-    queryKey: ['tournament', id],
-    queryFn: () => api.getTournament(id),
+    queryKey: ['tournament', code],
+    queryFn: () => api.getTournament(code),
   })
 
   const { data: lb, isLoading } = useQuery({
-    queryKey: ['leaderboard', id],
-    queryFn: () => api.getLeaderboard(id),
+    queryKey: ['leaderboard', code],
+    queryFn: () => api.getLeaderboard(code),
     refetchInterval: 30_000,
   })
 
@@ -33,7 +33,7 @@ export default function LeaderboardPage() {
       {/* Header */}
       <div className="mb-8">
         <Link
-          href={`/tournaments/${id}`}
+          href={`/tournaments/${code}`}
           className="inline-flex items-center gap-1 text-[#64748b] hover:text-white text-sm mb-3 transition-colors"
         >
           ← Matches
