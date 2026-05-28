@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Match } from '@/types/api'
+import type { Match, Tournament } from '@/types/api'
 
 const STAGES = [
   'group_stage',
@@ -246,12 +246,116 @@ function RecomputeButton({ tournamentId }: { tournamentId: string }) {
   )
 }
 
+// ── Registration invite card ─────────────────────────────────────────────────
+
+function RegistrationInviteCard() {
+  const [copied, setCopied] = useState(false)
+  const { data } = useQuery({
+    queryKey: ['registration-invite'],
+    queryFn: api.getRegistrationInvite,
+  })
+
+  const inviteCode = data?.invite_code ?? ''
+  const regUrl = inviteCode
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/register?invite=${inviteCode}`
+    : ''
+
+  function copyLink() {
+    if (!regUrl) return
+    navigator.clipboard.writeText(regUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
+  }
+
+  if (!inviteCode) {
+    return (
+      <p className="text-sm text-[#475569]">
+        No <code className="font-mono text-xs bg-white/5 px-1.5 py-0.5 rounded">INVITE_CODE</code> env var set — registration is currently open.
+      </p>
+    )
+  }
+
+  return (
+    <div>
+      <p className="text-sm text-[#64748b] mb-3">
+        Share this link with anyone you want to give access to register on the platform.
+      </p>
+      <div className="flex items-center gap-2">
+        <span
+          className="flex-1 font-mono text-xs truncate rounded-lg px-3 py-2"
+          style={{ background: '#080c14', border: '1px solid rgba(255,255,255,0.06)', color: '#475569' }}
+        >
+          {regUrl}
+        </span>
+        <button
+          onClick={copyLink}
+          className="shrink-0 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-all"
+          style={{
+            background: copied ? 'rgba(52,211,153,0.12)' : 'rgba(240,180,41,0.1)',
+            border: copied ? '1px solid rgba(52,211,153,0.3)' : '1px solid rgba(240,180,41,0.25)',
+            color: copied ? '#34d399' : '#f0b429',
+          }}
+        >
+          {copied ? '✓ Copied' : 'Copy Link'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Tournament invite link row ───────────────────────────────────────────────
+
+function TournamentInviteRow({ tournament }: { tournament: Tournament }) {
+  const [copied, setCopied] = useState(false)
+
+  function copyLink() {
+    const url = `${window.location.origin}/join/${tournament.invite_code}`
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
+  }
+
+  const joinUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/join/${tournament.invite_code}`
+    : `/join/${tournament.invite_code}`
+
+  return (
+    <div className="py-3 first:pt-0 last:pb-0">
+      <p className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-sm mb-2">
+        {tournament.name}
+      </p>
+      <div className="flex items-center gap-2">
+        <span
+          className="flex-1 font-mono text-xs truncate rounded-lg px-3 py-2"
+          style={{ background: '#080c14', border: '1px solid rgba(255,255,255,0.06)', color: '#475569' }}
+        >
+          {joinUrl}
+        </span>
+        <button
+          onClick={copyLink}
+          className="shrink-0 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-all"
+          style={{
+            background: copied ? 'rgba(52,211,153,0.12)' : 'rgba(240,180,41,0.1)',
+            border: copied ? '1px solid rgba(52,211,153,0.3)' : '1px solid rgba(240,180,41,0.25)',
+            color: copied ? '#34d399' : '#f0b429',
+          }}
+        >
+          {copied ? '✓ Copied' : 'Copy Link'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
+
+const RESULTS_PAGE_SIZE = 5
 
 export default function AdminPage() {
   const qc = useQueryClient()
   const [competitionCode, setCompetitionCode] = useState('WC')
   const [syncMsg, setSyncMsg] = useState('')
+  const [resultsPage, setResultsPage] = useState(0)
 
   const { data: matches = [] } = useQuery({
     queryKey: ['matches'],
@@ -264,6 +368,11 @@ export default function AdminPage() {
   })
 
   const unfinished = matches.filter((m) => m.status !== 'finished')
+  const totalResultPages = Math.ceil(unfinished.length / RESULTS_PAGE_SIZE)
+  const pagedMatches = unfinished.slice(
+    resultsPage * RESULTS_PAGE_SIZE,
+    (resultsPage + 1) * RESULTS_PAGE_SIZE,
+  )
 
   async function sync(type: 'matches' | 'results') {
     setSyncMsg('Syncing…')
@@ -289,6 +398,11 @@ export default function AdminPage() {
         </h1>
         <p className="text-[#64748b] text-sm mt-1">Sync, apply results, recompute scores</p>
       </div>
+
+      {/* Registration invite */}
+      <AdminCard title="Platform Registration Link" icon="🔑">
+        <RegistrationInviteCard />
+      </AdminCard>
 
       {/* Danger zone */}
       <AdminCard title="Danger Zone" icon="⚠️">
@@ -338,17 +452,54 @@ export default function AdminPage() {
         {unfinished.length === 0 ? (
           <p className="text-sm text-[#475569]">All matches are finished.</p>
         ) : (
-          <div className="divide-y divide-white/5">
-            {unfinished.map((m) => (
-              <div key={m.id} className="py-4 first:pt-0 last:pb-0">
-                <p className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide">
-                  {m.home_team} <span className="text-[#475569]">vs</span> {m.away_team}
-                </p>
-                <p className="text-xs text-[#475569] font-mono mt-0.5 mb-2">
-                  {new Date(m.kickoff_at).toLocaleString()} · {m.status}
-                </p>
-                <ApplyResultForm match={m} />
+          <>
+            <div className="divide-y divide-white/5">
+              {pagedMatches.map((m) => (
+                <div key={m.id} className="py-4 first:pt-0 last:pb-0">
+                  <p className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide">
+                    {m.home_team} <span className="text-[#475569]">vs</span> {m.away_team}
+                  </p>
+                  <p className="text-xs text-[#475569] font-mono mt-0.5 mb-2">
+                    {new Date(m.kickoff_at).toLocaleString()} · {m.status}
+                  </p>
+                  <ApplyResultForm match={m} />
+                </div>
+              ))}
+            </div>
+            {totalResultPages > 1 && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
+                <button
+                  onClick={() => setResultsPage((p) => Math.max(0, p - 1))}
+                  disabled={resultsPage === 0}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide border border-white/10 text-[#64748b] hover:text-white hover:border-white/20 disabled:opacity-30 transition"
+                >
+                  ← Prev
+                </button>
+                <span className="text-xs text-[#475569] font-mono">
+                  {resultsPage + 1} / {totalResultPages}
+                  <span className="ml-2 text-[#334155]">({unfinished.length} matches)</span>
+                </span>
+                <button
+                  onClick={() => setResultsPage((p) => Math.min(totalResultPages - 1, p + 1))}
+                  disabled={resultsPage === totalResultPages - 1}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide border border-white/10 text-[#64748b] hover:text-white hover:border-white/20 disabled:opacity-30 transition"
+                >
+                  Next →
+                </button>
               </div>
+            )}
+          </>
+        )}
+      </AdminCard>
+
+      {/* Invite links */}
+      <AdminCard title="League Invite Links" icon="🔗">
+        {tournaments.length === 0 ? (
+          <p className="text-sm text-[#475569]">No tournaments found.</p>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {tournaments.map((t) => (
+              <TournamentInviteRow key={t.id} tournament={t} />
             ))}
           </div>
         )}

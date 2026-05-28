@@ -2,9 +2,31 @@ export interface User {
   id: string
   email: string
   username: string
+  display_name: string | null
   avatar_url: string | null
   is_admin: boolean
   created_at: string
+}
+
+export interface UserProfile {
+  id: string
+  username: string
+  display_name: string | null
+  created_at: string
+  tournaments_count: number
+  total_points: number
+}
+
+export interface PredictionHistoryItem {
+  match_id: string
+  home_team: string
+  away_team: string
+  kickoff_at: string
+  predicted_home: number
+  predicted_away: number
+  actual_home: number | null
+  actual_away: number | null
+  points_awarded: number | null
 }
 
 export interface ScoringRules {

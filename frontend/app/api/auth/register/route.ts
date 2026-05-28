@@ -4,10 +4,12 @@ const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8080'
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
+  const { searchParams } = new URL(req.url)
+  const inviteCode = searchParams.get('invite_code') ?? ''
 
   let res: Response
   try {
-    res = await fetch(`${BACKEND_URL}/auth/register`, {
+    res = await fetch(`${BACKEND_URL}/auth/register?invite_code=${encodeURIComponent(inviteCode)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

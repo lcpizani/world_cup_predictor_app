@@ -14,6 +14,7 @@ os.environ.setdefault("JWT_SECRET", "test-secret")
 from app.models import match, point_event, prediction, tournament, user  # noqa: F401
 from app.database import Base, get_db
 from app.main import app
+from app.limiter import limiter
 
 engine = create_engine(
     os.environ["DATABASE_URL"],
@@ -39,6 +40,7 @@ app.dependency_overrides[get_db] = override_get_db
 def setup_db():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    limiter.reset()
     yield
     Base.metadata.drop_all(bind=engine)
 

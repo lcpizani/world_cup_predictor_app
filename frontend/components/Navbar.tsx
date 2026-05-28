@@ -94,9 +94,12 @@ export function Navbar() {
                 <NavLink href="/admin" active={isActive('/admin')}>Admin</NavLink>
               )}
               <span className="h-4 w-px bg-white/[0.08] mx-1.5" />
-              <span className="text-[#3f5068] text-sm px-2 py-1.5 font-medium select-none">
-                {user.username}
-              </span>
+              <Link
+                href="/profile"
+                className="text-[#3f5068] hover:text-white transition-colors text-sm px-2 py-1.5 font-medium rounded-lg hover:bg-white/[0.06]"
+              >
+                {user.display_name ?? user.username}
+              </Link>
               <button
                 onClick={logout}
                 className="text-[#3f5068] hover:text-red-400/80 transition-colors text-sm px-3 py-1.5 rounded-lg hover:bg-red-500/[0.07] cursor-pointer"
