@@ -285,9 +285,15 @@ gcloud run services update backend \
 gcloud run services update backend \
   --region=$REGION \
   --set-env-vars="ENVIRONMENT=production,ALLOW_ADMIN_MATCH_UPDATES=false"
+
+gcloud run services update backend \
+  --region=$REGION \
+  --set-env-vars="INVITE_CODE=YOUR_INVITE_CODE"
 ```
 
 > 💡 Each flag is run separately to avoid shell quoting issues with the DATABASE_URL.
+>
+> `INVITE_CODE` is the secret code your players must enter on the registration page. Pick something short and memorable (e.g. `worldcup2026`). Leave it unset to allow open registration.
 
 **Example DATABASE_URL:**
 `postgresql+psycopg2://worldcup:s3cr3t@34.123.45.67:5432/worldcup`
@@ -295,10 +301,16 @@ gcloud run services update backend \
 ### 6.2 Frontend env vars
 
 ```bash
+BACKEND_URL=$(gcloud run services describe backend \
+  --region=$REGION \
+  --format='value(status.url)')
+
 gcloud run services update frontend \
   --region=$REGION \
   --set-env-vars="NODE_ENV=production,BACKEND_URL=$BACKEND_URL"
 ```
+
+> `BACKEND_URL` is used by the Next.js server-side API routes to proxy auth requests to the backend. Without it, login and registration will return "Cannot reach backend server".
 
 ### 6.3 Update `NEXT_PUBLIC_API_URL` and redeploy frontend
 
@@ -450,9 +462,10 @@ gcloud compute instances describe worldcup-db-vm --zone=$ZONE
 | `CORS_ORIGINS` | Cloud Run (manual) | Allowed frontend origins |
 | `ENVIRONMENT` | Cloud Run (manual) | Set to `production` |
 | `ALLOW_ADMIN_MATCH_UPDATES` | Cloud Run (manual) | `false` in production |
-| `NEXT_PUBLIC_API_URL` | Cloud Run build arg | Backend URL baked into frontend bundle |
-| `BACKEND_URL` | Cloud Run (manual) | Internal backend reference for frontend |
+| `NEXT_PUBLIC_API_URL` | Cloud Run build arg | Backend URL baked into frontend bundle (client-side calls) |
+| `BACKEND_URL` | Cloud Run (manual) | Backend URL for frontend server-side proxy (login/register routes) |
 | `NODE_ENV` | Cloud Run (manual) | Set to `production` |
+| `INVITE_CODE` | Cloud Run (manual) | Required code to register — share with your players |
 
 ### Deleting everything after the World Cup
 

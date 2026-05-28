@@ -32,7 +32,7 @@ export function Navbar() {
       <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
         {/* Logo */}
         <Link
-          href={user ? '/dashboard' : '/'}
+          href={hasToken ? '/dashboard' : '/'}
           className="font-[family-name:var(--font-oswald)] font-bold text-xl uppercase tracking-wider text-white hover:text-[#f0b429] transition-colors"
         >
           ⚽ WC Predictor
