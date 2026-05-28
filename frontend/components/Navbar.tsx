@@ -53,6 +53,12 @@ export function Navbar() {
                 Dashboard
               </Link>
               <Link
+                href="/leagues"
+                className="text-[#94a3b8] hover:text-white transition-colors font-medium"
+              >
+                Leagues
+              </Link>
+              <Link
                 href="/predictions"
                 className="text-[#94a3b8] hover:text-white transition-colors font-medium"
               >
