@@ -12,7 +12,7 @@ function TeamFlag({ name }: { name: string }) {
   const code = getTeamFlagCode(name)
   if (!code) return null
   return (
-    <div className="w-9 h-6 rounded overflow-hidden border border-white/10 flex-shrink-0">
+    <div className="w-9 h-6 rounded overflow-hidden shrink-0" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
       <Image src={getFlagUrl(code, 40)} alt={name} width={36} height={24} className="w-full h-full object-cover" unoptimized />
     </div>
   )
@@ -21,35 +21,44 @@ function TeamFlag({ name }: { name: string }) {
 function scoreColor(pred: number | undefined, actual: number | null): string {
   if (pred === undefined || actual === null) return 'text-white'
   if (pred === actual) return 'text-green-400'
-  return 'text-[#475569]'
+  return 'text-[#3f5068]'
 }
 
 function outcomeOf(h: number, a: number): number {
   return h > a ? 1 : h < a ? -1 : 0
 }
 
-function predResultBg(pred: Prediction, match: Match): string {
-  if (match.status !== 'finished' || match.home_score === null || match.away_score === null) return ''
-  const ph = pred.predicted_home, pa = pred.predicted_away
-  const ah = match.home_score, aa = match.away_score
-  if (ph === ah && pa === aa) return 'bg-green-500/10 border-green-500/20'
-  if (outcomeOf(ph, pa) === outcomeOf(ah, aa)) return 'bg-[#f0b429]/10 border-[#f0b429]/20'
-  return 'bg-white/5 border-white/10'
+function ResultBadge({ exact, winner, hasPred }: { exact: boolean; winner: boolean; hasPred: boolean }) {
+  if (!hasPred) return null
+  if (exact) return (
+    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
+      Exact
+    </span>
+  )
+  if (winner) return (
+    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.2)' }}>
+      Winner
+    </span>
+  )
+  return (
+    <span className="text-[10px] font-medium text-[#2d3e52]">Miss</span>
+  )
 }
 
 function StatusPill({ status }: { status: string }) {
   if (status === 'live') return (
-    <span className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 uppercase tracking-wide">
+    <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block" /> Live
     </span>
   )
   if (status === 'finished') return (
-    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/5 text-[#475569] border border-white/10 uppercase tracking-wide">FT</span>
+    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-[#3f5068]" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      FT
+    </span>
   )
   return null
 }
 
-// Inline editable row for upcoming predictions
 function PredictionRow({ match, prediction }: { match: Match; prediction?: Prediction }) {
   const qc = useQueryClient()
   const [home, setHome] = useState(prediction?.predicted_home?.toString() ?? '')
@@ -74,7 +83,7 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
     hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
   })
 
-  // ── Finished match row ───────────────────────────────────────────────────────
+  // ── Finished match ───────────────────────────────────────────────────────────
   if (match.status === 'finished') {
     const hasPred = !!prediction
     const ah = match.home_score, aa = match.away_score
@@ -83,10 +92,21 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
     const correctWinner = hasPred && !exact && ah !== null && aa !== null &&
       outcomeOf(ph!, pa!) === outcomeOf(ah!, aa!)
 
+    const borderColor = exact
+      ? 'rgba(34,197,94,0.2)'
+      : correctWinner
+        ? 'rgba(240,180,41,0.2)'
+        : 'rgba(255,255,255,0.07)'
+
+    const bgColor = exact
+      ? 'rgba(34,197,94,0.04)'
+      : correctWinner
+        ? 'rgba(240,180,41,0.04)'
+        : '#0d1520'
+
     return (
-      <div className={`bg-[#0f1620] border rounded-2xl p-4 transition-colors ${hasPred ? predResultBg(prediction!, match) : 'border-white/10'}`}>
+      <div className="rounded-2xl p-4 transition-colors" style={{ background: bgColor, border: `1px solid ${borderColor}` }}>
         <div className="flex items-center gap-3">
-          {/* Teams */}
           <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
             <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-sm">
               {match.home_team}
@@ -94,27 +114,24 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
             <TeamFlag name={match.home_team} />
           </div>
 
-          {/* Scores */}
-          <div className="flex flex-col items-center gap-0.5 w-28 flex-shrink-0">
+          <div className="flex flex-col items-center gap-0.5 w-28 shrink-0">
             {hasPred ? (
               <>
-                {/* User prediction */}
                 <div className="flex items-center gap-1.5">
                   <span className={`font-[family-name:var(--font-oswald)] font-bold text-lg w-5 text-center ${scoreColor(ph, ah)}`}>{ph}</span>
-                  <span className="text-[#334155] text-sm">–</span>
+                  <span className="text-[#1e2d40] text-sm">–</span>
                   <span className={`font-[family-name:var(--font-oswald)] font-bold text-lg w-5 text-center ${scoreColor(pa, aa)}`}>{pa}</span>
                 </div>
-                {/* Actual score */}
                 <div className="flex items-center gap-1">
-                  <span className="font-[family-name:var(--font-oswald)] text-xs text-[#475569] w-4 text-center">{ah}</span>
-                  <span className="text-[#334155] text-xs">–</span>
-                  <span className="font-[family-name:var(--font-oswald)] text-xs text-[#475569] w-4 text-center">{aa}</span>
+                  <span className="font-[family-name:var(--font-oswald)] text-xs text-[#3f5068] w-4 text-center">{ah}</span>
+                  <span className="text-[#1e2d40] text-xs">–</span>
+                  <span className="font-[family-name:var(--font-oswald)] text-xs text-[#3f5068] w-4 text-center">{aa}</span>
                 </div>
               </>
             ) : (
               <>
-                <span className="font-[family-name:var(--font-oswald)] font-bold text-lg text-[#334155]">{ah} – {aa}</span>
-                <span className="text-xs text-[#334155] italic">no pick</span>
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-lg text-[#1e2d40]">{ah} – {aa}</span>
+                <span className="text-xs text-[#1e2d40]">no pick</span>
               </>
             )}
           </div>
@@ -126,30 +143,28 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
             </span>
           </div>
 
-          {/* Result badge */}
-          <div className="flex-shrink-0 w-14 text-right">
-            {exact && <span className="text-xs font-bold text-green-400">Exact</span>}
-            {correctWinner && <span className="text-xs font-bold text-[#f0b429]">Winner</span>}
-            {hasPred && !exact && !correctWinner && <span className="text-xs text-[#334155]">Miss</span>}
+          <div className="shrink-0 w-14 text-right">
+            <ResultBadge exact={exact} winner={correctWinner} hasPred={hasPred} />
           </div>
         </div>
 
-        {/* Stage + group + date */}
-        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/5">
-          <span className="text-xs text-[#334155] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
-          {match.group && <span className="text-xs text-[#334155]">· {match.group}</span>}
-          <span className="text-xs text-[#334155] ml-auto">{kickoff}</span>
+        <div className="flex items-center gap-2 mt-2 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <span className="text-[10px] text-[#2d3e52] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
+          {match.group && <span className="text-[10px] text-[#2d3e52]">· {match.group}</span>}
+          <span className="text-[10px] text-[#2d3e52] ml-auto">{kickoff}</span>
           <StatusPill status={match.status} />
         </div>
       </div>
     )
   }
 
-  // ── Upcoming / live row ──────────────────────────────────────────────────────
+  // ── Upcoming / live ──────────────────────────────────────────────────────────
   return (
-    <div className="bg-[#0f1620] border border-white/10 rounded-2xl p-4 hover:border-white/20 transition-colors">
+    <div
+      className="rounded-2xl p-4 transition-all duration-200"
+      style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
+    >
       <div className="flex items-center gap-3">
-        {/* Home */}
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
           <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-sm">
             {match.home_team}
@@ -157,15 +172,14 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
           <TeamFlag name={match.home_team} />
         </div>
 
-        {/* Input or locked prediction */}
-        <div className="flex items-center gap-1.5 flex-shrink-0 w-28 justify-center">
+        <div className="flex items-center gap-1.5 shrink-0 w-28 justify-center">
           {isLocked ? (
             prediction ? (
               <span className="font-[family-name:var(--font-oswald)] font-bold text-lg text-white">
                 {prediction.predicted_home} – {prediction.predicted_away}
               </span>
             ) : (
-              <span className="text-xs text-[#334155] italic">locked</span>
+              <span className="text-xs text-[#1e2d40]">locked</span>
             )
           ) : (
             <>
@@ -173,20 +187,33 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
                 type="number" min={0} value={home}
                 onChange={(e) => setHome(e.target.value)}
                 placeholder="0"
-                className="w-11 bg-[#080c14] border border-white/10 rounded-lg px-1 py-1.5 text-white text-center focus:outline-none focus:border-[#f0b429]/50 focus:ring-1 focus:ring-[#f0b429]/30 transition font-[family-name:var(--font-oswald)] font-bold text-base"
+                className="w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  outline: 'none',
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
               />
-              <span className="text-[#475569] font-bold text-sm">–</span>
+              <span className="text-[#2d3e52] font-bold text-sm">–</span>
               <input
                 type="number" min={0} value={away}
                 onChange={(e) => setAway(e.target.value)}
                 placeholder="0"
-                className="w-11 bg-[#080c14] border border-white/10 rounded-lg px-1 py-1.5 text-white text-center focus:outline-none focus:border-[#f0b429]/50 focus:ring-1 focus:ring-[#f0b429]/30 transition font-[family-name:var(--font-oswald)] font-bold text-base"
+                className="w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  outline: 'none',
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
               />
             </>
           )}
         </div>
 
-        {/* Away */}
         <div className="flex-1 flex items-center gap-2 min-w-0">
           <TeamFlag name={match.away_team} />
           <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-sm">
@@ -194,13 +221,18 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
           </span>
         </div>
 
-        {/* Save button */}
         {!isLocked && (
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             <button
               onClick={() => save.mutate()}
               disabled={save.isPending}
-              className="bg-[#f0b429] text-[#080c14] px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide hover:bg-white disabled:opacity-40 transition"
+              className="px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-40"
+              style={{
+                background: '#f0b429',
+                color: '#080c14',
+              }}
+              onMouseEnter={e => !save.isPending && ((e.currentTarget as HTMLElement).style.background = '#fcd86e')}
+              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#f0b429')}
             >
               {save.isPending ? '…' : prediction ? 'Update' : 'Save'}
             </button>
@@ -208,16 +240,15 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
         )}
       </div>
 
-      {/* Stage + date + status */}
-      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/5">
-        <span className="text-xs text-[#334155] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
-        {match.group && <span className="text-xs text-[#334155]">· {match.group}</span>}
-        <span className="text-xs text-[#334155] ml-auto">{kickoff}</span>
+      <div className="flex items-center gap-2 mt-2 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <span className="text-[10px] text-[#2d3e52] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
+        {match.group && <span className="text-[10px] text-[#2d3e52]">· {match.group}</span>}
+        <span className="text-[10px] text-[#2d3e52] ml-auto">{kickoff}</span>
         <StatusPill status={match.status} />
       </div>
 
       {err && <p className="text-xs text-red-400 mt-2">{err}</p>}
-      {save.isSuccess && <p className="text-xs text-green-400 mt-2">✓ Saved</p>}
+      {save.isSuccess && <p className="text-xs text-green-400 mt-2 font-medium">✓ Saved</p>}
     </div>
   )
 }
@@ -244,7 +275,7 @@ export default function PredictionsPage() {
   )
 
   const upcoming = sorted.filter((m) => m.status === 'scheduled' || m.status === 'live')
-  const finished = sorted.filter((m) => m.status === 'finished').reverse() // most recent first
+  const finished = sorted.filter((m) => m.status === 'finished').reverse()
 
   const upcomingMissing = upcoming.filter((m) => !predByMatch[m.id]).length
   const finishedWithPred = finished.filter((m) => !!predByMatch[m.id]).length
@@ -257,46 +288,46 @@ export default function PredictionsPage() {
       <div className="mb-8">
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-1 text-[#64748b] hover:text-white text-sm mb-3 transition-colors"
+          className="inline-flex items-center gap-1 text-[#3f5068] hover:text-white text-sm mb-3 transition-colors font-medium"
         >
-          ← My Leagues
+          ← Dashboard
         </Link>
-        <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white">
+        <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
           My Predictions
         </h1>
-        <p className="text-[#64748b] text-sm mt-1">
-          Your picks across all competitions · points are shown in each league
+        <p className="text-[#3f5068] text-sm mt-1.5 font-medium">
+          Your picks across all competitions
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-[#0f1620] border border-white/10 rounded-xl p-1 mb-6 w-fit">
+      <div className="flex gap-1 rounded-xl p-1 mb-6 w-fit" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
         <button
           onClick={() => setTab('upcoming')}
-          className={`px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all ${
+          className={`px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all duration-200 flex items-center gap-2 ${
             tab === 'upcoming'
               ? 'bg-[#f0b429] text-[#080c14]'
-              : 'text-[#64748b] hover:text-white'
+              : 'text-[#5a6a82] hover:text-white'
           }`}
         >
           Upcoming
           {upcomingMissing > 0 && (
-            <span className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full font-sans">
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'upcoming' ? 'bg-[#080c14]/20 text-[#080c14]' : 'bg-red-500 text-white'}`}>
               {upcomingMissing}
             </span>
           )}
         </button>
         <button
           onClick={() => setTab('finished')}
-          className={`px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all ${
+          className={`px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all duration-200 flex items-center gap-2 ${
             tab === 'finished'
               ? 'bg-[#f0b429] text-[#080c14]'
-              : 'text-[#64748b] hover:text-white'
+              : 'text-[#5a6a82] hover:text-white'
           }`}
         >
           Finished
           {finishedWithPred > 0 && (
-            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full font-sans ${tab === 'finished' ? 'bg-[#080c14]/30 text-[#080c14]' : 'bg-white/10 text-[#64748b]'}`}>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'finished' ? 'bg-[#080c14]/20 text-[#080c14]' : 'bg-white/10 text-[#5a6a82]'}`}>
               {finishedWithPred}
             </span>
           )}
@@ -304,17 +335,15 @@ export default function PredictionsPage() {
       </div>
 
       {isLoading && (
-        <p className="text-center text-[#64748b] py-16">Loading…</p>
+        <p className="text-center text-[#3f5068] py-16">Loading…</p>
       )}
 
-      {/* Upcoming tab */}
       {!isLoading && tab === 'upcoming' && (
         <div className="space-y-3">
           {upcoming.length === 0 && (
-            <div className="text-center py-16 text-[#64748b]">
-              <div className="text-4xl mb-4">📅</div>
-              <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#475569] mb-2">No upcoming matches</p>
-              <p className="text-sm">Check back when fixtures are announced.</p>
+            <div className="text-center py-16">
+              <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-2">No upcoming matches</p>
+              <p className="text-sm text-[#3f5068]">Check back when fixtures are announced.</p>
             </div>
           )}
           {upcoming.map((m) => (
@@ -323,14 +352,12 @@ export default function PredictionsPage() {
         </div>
       )}
 
-      {/* Finished tab */}
       {!isLoading && tab === 'finished' && (
         <div className="space-y-3">
           {finished.length === 0 && (
-            <div className="text-center py-16 text-[#64748b]">
-              <div className="text-4xl mb-4">🏁</div>
-              <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#475569] mb-2">No finished matches</p>
-              <p className="text-sm">Results will appear here once games are played.</p>
+            <div className="text-center py-16">
+              <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-2">No finished matches</p>
+              <p className="text-sm text-[#3f5068]">Results will appear here once games are played.</p>
             </div>
           )}
           {finished.map((m) => (

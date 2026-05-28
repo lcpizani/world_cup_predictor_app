@@ -9,28 +9,20 @@ import { api } from '@/lib/api'
 import { getTeamFlagCode, getFlagUrl } from '@/lib/flags'
 import type { Match, Prediction } from '@/types/api'
 
-// ── Countdown hook ───────────────────────────────────────────────────────────
-
 function useMinutesUntil(dt: string): number {
   const calc = () => Math.floor((new Date(dt).getTime() - Date.now()) / 60000)
   const [minutes, setMinutes] = useState(calc)
   useEffect(() => {
-    const id = setInterval(() => setMinutes(calc), 30000) // refresh every 30s
+    const id = setInterval(() => setMinutes(calc), 30000)
     return () => clearInterval(id)
   }, [dt])
   return minutes
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
 function formatKickoff(dt: string) {
   return new Date(dt).toLocaleString('en-US', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZoneName: 'short',
+    weekday: 'long', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
   })
 }
 
@@ -38,73 +30,46 @@ function TeamFlag({ name }: { name: string }) {
   const flagCode = getTeamFlagCode(name)
   if (!flagCode) return null
   return (
-    <div className="w-10 h-7 rounded overflow-hidden border border-white/10 flex-shrink-0">
-      <Image
-        src={getFlagUrl(flagCode, 40)}
-        alt={name}
-        width={40}
-        height={28}
-        className="w-full h-full object-cover"
-        unoptimized
-      />
+    <div className="w-10 h-7 rounded overflow-hidden shrink-0" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+      <Image src={getFlagUrl(flagCode, 40)} alt={name} width={40} height={28} className="w-full h-full object-cover" unoptimized />
     </div>
   )
 }
 
 function StatusBadge({ status, kickoff_at }: { status: string; kickoff_at: string }) {
-  if (status === 'live') {
-    return (
-      <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 uppercase tracking-wider">
-        <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-        Live
-      </span>
-    )
-  }
-  if (status === 'finished') {
-    return (
-      <span className="text-xs font-bold px-3 py-1 rounded-full bg-white/5 text-[#475569] border border-white/10 uppercase tracking-wider">
-        FT
-      </span>
-    )
-  }
-  const d = new Date(kickoff_at)
-  const label = d.toLocaleString('en-US', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZoneName: 'short',
+  if (status === 'live') return (
+    <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
+      <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+      Live
+    </span>
+  )
+  if (status === 'finished') return (
+    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider" style={{ color: '#3f5068', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      FT
+    </span>
+  )
+  const label = new Date(kickoff_at).toLocaleString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
   })
   return (
-    <span className="text-xs font-bold px-3 py-1 rounded-full bg-[#f0b429]/10 text-[#f0b429] border border-[#f0b429]/20 tracking-wider">
+    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full tracking-wider text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)' }}>
       {label}
     </span>
   )
 }
 
-// ── Match card (read-only) ────────────────────────────────────────────────────
-
-function MatchCard({
-  match,
-  prediction,
-}: {
-  match: Match
-  prediction?: Prediction
-}) {
+function MatchCard({ match, prediction }: { match: Match; prediction?: Prediction }) {
   const minutesLeft = useMinutesUntil(match.kickoff_at)
   const isScheduled = match.status === 'scheduled'
   const noPredictionYet = isScheduled && !prediction
 
-  // Colour coding for finished matches with a prediction
   const scoreColors = (() => {
     if (match.status !== 'finished' || !prediction || match.home_score === null || match.away_score === null) {
       return { home: '', away: '', winner: false }
     }
-    const ph = prediction.predicted_home
-    const pa = prediction.predicted_away
-    const ah = match.home_score
-    const aa = match.away_score
+    const ph = prediction.predicted_home, pa = prediction.predicted_away
+    const ah = match.home_score, aa = match.away_score
     const outcome = (h: number, a: number) => h > a ? 1 : h < a ? -1 : 0
     const correctWinner = outcome(ph, pa) === outcome(ah, aa)
     const correctDiff = (ph - pa) === (ah - aa)
@@ -114,17 +79,37 @@ function MatchCard({
     return { home: homeColor, away: awayColor, winner: correctWinner }
   })()
 
-  return (
-    <div className="bg-[#0f1620] border border-white/10 rounded-2xl p-5 hover:border-white/20 transition-colors">
+  // Left-edge accent based on result
+  const accentColor = (() => {
+    if (match.status !== 'finished' || !prediction) return 'transparent'
+    if (scoreColors.home === 'green' && scoreColors.away === 'green') return 'rgba(34,197,94,0.7)'
+    if (scoreColors.winner) return 'rgba(240,180,41,0.7)'
+    return 'rgba(255,255,255,0.1)'
+  })()
 
-      {/* Top: stage + group + date */}
+  return (
+    <div
+      className="rounded-2xl p-5 transition-all duration-200 overflow-hidden relative"
+      style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
+    >
+      {/* Left-edge result indicator */}
+      {match.status === 'finished' && prediction && (
+        <div
+          className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full"
+          style={{ background: accentColor }}
+        />
+      )}
+
+      {/* Stage + group + status */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-[#475569] font-mono tracking-widest uppercase">
+          <span className="text-[10px] font-mono tracking-widest uppercase" style={{ color: '#3f5068' }}>
             {match.stage.replace(/_/g, ' ')}
           </span>
           {match.group && (
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[#94a3b8] uppercase tracking-wider">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" style={{ color: '#5a6a82', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
               {match.group}
             </span>
           )}
@@ -134,8 +119,7 @@ function MatchCard({
 
       {/* Teams + scores */}
       <div className="flex items-center gap-2">
-
-        {/* Home team */}
+        {/* Home */}
         <div className="flex-1 flex items-center justify-end gap-2.5 min-w-0">
           <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate">
             {match.home_team}
@@ -143,28 +127,36 @@ function MatchCard({
           <TeamFlag name={match.home_team} />
         </div>
 
-        {/* Centre: prediction display */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        {/* Centre */}
+        <div className="flex items-center gap-1.5 shrink-0">
           {match.status === 'finished' ? (
             prediction ? (
               <div className="flex flex-col items-center gap-1 w-24">
-                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg ${scoreColors.winner && scoreColors.home === 'green' && scoreColors.away === 'green' ? 'bg-green-500/10 border border-green-500/20' : scoreColors.winner ? 'bg-[#f0b429]/10 border border-[#f0b429]/20' : 'border border-transparent'}`}>
-                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-xl w-5 text-center ${scoreColors.home === 'green' ? 'text-green-400' : scoreColors.home === 'yellow' ? 'text-yellow-400' : 'text-white'}`}>
+                <div
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg"
+                  style={scoreColors.winner && scoreColors.home === 'green' && scoreColors.away === 'green'
+                    ? { background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.18)' }
+                    : scoreColors.winner
+                      ? { background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.18)' }
+                      : { border: '1px solid transparent' }
+                  }
+                >
+                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-xl w-5 text-center ${scoreColors.home === 'green' ? 'text-green-400' : scoreColors.home === 'yellow' ? 'text-[#f0b429]' : 'text-white'}`}>
                     {prediction.predicted_home}
                   </span>
-                  <span className="text-[#475569] font-bold text-sm">–</span>
-                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-xl w-5 text-center ${scoreColors.away === 'green' ? 'text-green-400' : scoreColors.away === 'yellow' ? 'text-yellow-400' : 'text-white'}`}>
+                  <span className="text-[#2d3e52] font-bold text-sm">–</span>
+                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-xl w-5 text-center ${scoreColors.away === 'green' ? 'text-green-400' : scoreColors.away === 'yellow' ? 'text-[#f0b429]' : 'text-white'}`}>
                     {prediction.predicted_away}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="font-[family-name:var(--font-oswald)] text-sm text-[#475569] w-4 text-center">{match.home_score}</span>
-                  <span className="text-[#334155] text-xs">–</span>
-                  <span className="font-[family-name:var(--font-oswald)] text-sm text-[#475569] w-4 text-center">{match.away_score}</span>
+                  <span className="font-[family-name:var(--font-oswald)] text-sm w-4 text-center" style={{ color: '#3f5068' }}>{match.home_score}</span>
+                  <span className="text-xs" style={{ color: '#1e2d40' }}>–</span>
+                  <span className="font-[family-name:var(--font-oswald)] text-sm w-4 text-center" style={{ color: '#3f5068' }}>{match.away_score}</span>
                 </div>
               </div>
             ) : (
-              <span className="font-[family-name:var(--font-oswald)] font-bold text-2xl text-[#475569] w-24 text-center">
+              <span className="font-[family-name:var(--font-oswald)] font-bold text-2xl w-24 text-center" style={{ color: '#3f5068' }}>
                 {match.home_score} – {match.away_score}
               </span>
             )
@@ -173,13 +165,13 @@ function MatchCard({
               {prediction.predicted_home} – {prediction.predicted_away}
             </span>
           ) : (
-            <span className="text-[#334155] text-xs italic w-24 text-center">
+            <span className="text-xs w-24 text-center" style={{ color: '#1e2d40' }}>
               {match.status === 'scheduled' ? 'no pick' : 'locked'}
             </span>
           )}
         </div>
 
-        {/* Away team */}
+        {/* Away */}
         <div className="flex-1 flex items-center gap-2.5 min-w-0">
           <TeamFlag name={match.away_team} />
           <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate">
@@ -189,24 +181,21 @@ function MatchCard({
       </div>
 
       {/* Bottom row */}
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
-        {/* No prediction nudge */}
+      <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         {noPredictionYet && minutesLeft > 0 ? (
-          <Link
-            href="/predictions"
-            className="text-xs text-[#f0b429] hover:text-white transition-colors font-semibold"
-          >
+          <Link href="/predictions" className="text-xs text-[#f0b429] hover:text-white transition-colors font-semibold">
             Add your pick in My Picks →
           </Link>
         ) : (
           <span />
         )}
-
-        {/* Points earned */}
         {prediction?.points_awarded !== null && prediction?.points_awarded !== undefined && (
-          <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-lg ml-auto">
-            +{prediction.points_awarded} <span className="text-xs text-[#64748b] font-sans font-normal">pts</span>
-          </span>
+          <div className="ml-auto flex items-baseline gap-1">
+            <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-lg">
+              +{prediction.points_awarded}
+            </span>
+            <span className="text-xs font-medium" style={{ color: '#5a6a82' }}>pts</span>
+          </div>
         )}
       </div>
     </div>
@@ -261,7 +250,6 @@ export default function TournamentPage() {
     queryFn: () => api.listMatches(),
   })
 
-  // predictions are keyed by tournament UUID (internal), not invite code
   const tournamentId = tournament?.id ?? ''
 
   const { data: predictions = [] } = useQuery({
@@ -276,77 +264,109 @@ export default function TournamentPage() {
     (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
   )
 
+  const actionBtnStyle = {
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    color: 'white',
+  }
+  const actionBtnHover = {
+    background: 'rgba(240,180,41,0.08)',
+    borderColor: 'rgba(240,180,41,0.22)',
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-10">
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-1 text-[#64748b] hover:text-white text-sm mb-3 transition-colors"
-          >
-            ← My Leagues
-          </Link>
-          <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white">
-            {tournament?.name ?? '…'}
-          </h1>
-          {tournament && (
-            <p className="text-xs text-[#475569] font-mono tracking-widest mt-1">
-              {tournament.invite_code}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={copyInviteLink}
-            disabled={!tournament}
-            className="bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-white/10 hover:border-[#f0b429]/30 transition-all whitespace-nowrap disabled:opacity-40"
-          >
-            {copied ? '✓ Copied!' : 'Invite Friends'}
-          </button>
-          <Link
-            href={`/tournaments/${code}/compare`}
-            className="bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-white/10 hover:border-[#f0b429]/30 transition-all whitespace-nowrap"
-          >
-            Compare →
-          </Link>
-          <Link
-            href={`/tournaments/${code}/leaderboard`}
-            className="bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-white/10 hover:border-[#f0b429]/30 transition-all whitespace-nowrap"
-          >
-            Leaderboard →
-          </Link>
+      <div className="mb-8">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-1 text-sm mb-3 transition-colors font-medium"
+          style={{ color: '#3f5068' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'white' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3f5068' }}
+        >
+          ← My Leagues
+        </Link>
+
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
+              {tournament?.name ?? '…'}
+            </h1>
+            {tournament && (
+              <p className="text-xs font-mono tracking-widest mt-1.5" style={{ color: '#2d3e52' }}>
+                {tournament.invite_code}
+              </p>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+            <button
+              onClick={copyInviteLink}
+              disabled={!tournament}
+              className="text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200 disabled:opacity-40"
+              style={actionBtnStyle}
+              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnHover)}
+              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnStyle)}
+            >
+              {copied ? '✓ Copied' : 'Invite Friends'}
+            </button>
+            <Link
+              href={`/tournaments/${code}/compare`}
+              className="text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
+              style={actionBtnStyle}
+              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnHover)}
+              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnStyle)}
+            >
+              Compare →
+            </Link>
+            <Link
+              href={`/tournaments/${code}/leaderboard`}
+              className="text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
+              style={actionBtnStyle}
+              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnHover)}
+              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnStyle)}
+            >
+              Leaderboard →
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* Delete competition — creator only */}
+      {/* Delete — creator only */}
       {isCreator && (
         <div className="mb-8">
           {!confirmDelete ? (
             <button
               onClick={() => setConfirmDelete(true)}
-              className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-red-500/20 hover:border-red-500/40 transition-all"
+              className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
+              style={{ color: '#f87171', background: 'rgba(244,63,94,0.07)', border: '1px solid rgba(244,63,94,0.18)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(244,63,94,0.12)' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(244,63,94,0.07)' }}
             >
-              <span>🗑</span> Delete Competition
+              Delete Competition
             </button>
           ) : (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-5">
+            <div className="rounded-2xl p-5" style={{ background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.2)' }}>
               <p className="text-sm text-red-300 font-semibold mb-1">Delete this competition?</p>
-              <p className="text-xs text-red-400/70 mb-4">
+              <p className="text-xs mb-4" style={{ color: 'rgba(244,63,94,0.6)' }}>
                 This will permanently remove the competition and all predictions. This cannot be undone.
               </p>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => deleteMutation.mutate()}
                   disabled={deleteMutation.isPending}
-                  className="bg-red-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-red-600 disabled:opacity-50 transition"
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide transition-all disabled:opacity-50"
+                  style={{ background: '#ef4444', color: 'white' }}
                 >
                   {deleteMutation.isPending ? 'Deleting…' : 'Yes, delete it'}
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
-                  className="bg-white/5 border border-white/10 text-[#94a3b8] px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-white/10 hover:text-white transition-all"
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide transition-all"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#8496af' }}
                 >
                   Cancel
                 </button>
@@ -358,25 +378,25 @@ export default function TournamentPage() {
 
       {/* Matches */}
       {matchesLoading && (
-        <p className="text-center text-[#64748b] py-16">Loading matches…</p>
+        <div className="space-y-3">
+          {[1,2,3].map(i => (
+            <div key={i} className="animate-pulse h-28 rounded-2xl" style={{ background: '#0d1520' }} />
+          ))}
+        </div>
       )}
 
-      <div className="space-y-4">
-        {!matchesLoading && sorted.length === 0 && (
-          <div className="text-center py-20 text-[#64748b]">
-            <div className="text-4xl mb-4">📅</div>
-            <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#475569] mb-2">
-              No matches yet
-            </p>
-            <p className="text-sm">An admin needs to sync fixtures first.</p>
-          </div>
-        )}
+      {!matchesLoading && sorted.length === 0 && (
+        <div className="text-center py-20">
+          <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide mb-2" style={{ color: '#2d3e52' }}>
+            No matches yet
+          </p>
+          <p className="text-sm" style={{ color: '#3f5068' }}>An admin needs to sync fixtures first.</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
         {sorted.map((match) => (
-          <MatchCard
-            key={match.id}
-            match={match}
-            prediction={predByMatch[match.id]}
-          />
+          <MatchCard key={match.id} match={match} prediction={predByMatch[match.id]} />
         ))}
       </div>
     </div>
