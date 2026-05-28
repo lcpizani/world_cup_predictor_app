@@ -8,7 +8,9 @@ import type {
   User,
 } from '@/types/api'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+const BASE_URL = typeof window === 'undefined'
+  ? (process.env.BACKEND_URL ?? 'http://localhost:8080')
+  : '/api/proxy'
 
 function getToken(): string {
   if (typeof window === 'undefined') return ''
