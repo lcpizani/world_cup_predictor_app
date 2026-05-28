@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Cookies from 'js-cookie'
@@ -10,7 +11,10 @@ export function Navbar() {
   const router = useRouter()
   const qc = useQueryClient()
 
-  const hasToken = typeof window !== 'undefined' && !!Cookies.get('auth_token')
+  const [hasToken, setHasToken] = useState(false)
+  useEffect(() => {
+    setHasToken(!!Cookies.get('auth_token'))
+  }, [])
 
   const { data: user } = useQuery({
     queryKey: ['me'],

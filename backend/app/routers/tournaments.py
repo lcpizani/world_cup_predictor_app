@@ -14,7 +14,7 @@ from app.schemas.leaderboard import LeaderboardResponse
 router = APIRouter()
 
 
-@router.post("/", response_model=TournamentResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TournamentResponse, status_code=status.HTTP_201_CREATED)
 def create_tournament(data: TournamentCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     try:
         result = tournament_service.create_tournament(db, data, current_user)
@@ -25,7 +25,7 @@ def create_tournament(data: TournamentCreate, db: Session = Depends(get_db), cur
     return result
 
 
-@router.get("/", response_model=List[TournamentResponse])
+@router.get("", response_model=List[TournamentResponse])
 def list_tournaments(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return tournament_service.list_user_tournaments(db, current_user)
 

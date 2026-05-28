@@ -14,7 +14,7 @@ from app.schemas.match import MatchCreate, MatchResponse, MatchResultUpdate
 router = APIRouter()
 
 
-@router.post("/", response_model=MatchResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=MatchResponse, status_code=status.HTTP_201_CREATED)
 def create_match(data: MatchCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     try:
         result = match_service.create_match(db, data)
@@ -25,7 +25,7 @@ def create_match(data: MatchCreate, db: Session = Depends(get_db), current_user=
     return result
 
 
-@router.get("/", response_model=List[MatchResponse])
+@router.get("", response_model=List[MatchResponse])
 def list_matches(
     stage: Optional[str] = None,
     match_status: Optional[str] = None,

@@ -13,7 +13,7 @@ from app.schemas.prediction import PredictionCreate, PredictionResponse
 router = APIRouter()
 
 
-@router.post("/", response_model=PredictionResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=PredictionResponse, status_code=status.HTTP_201_CREATED)
 def submit_prediction(data: PredictionCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     try:
         result = prediction_service.submit_prediction(db, data, current_user)
@@ -35,7 +35,7 @@ def update_prediction(prediction_id: UUID, data: PredictionCreate, db: Session =
     return result
 
 
-@router.get("/", response_model=List[PredictionResponse])
+@router.get("", response_model=List[PredictionResponse])
 def list_predictions(
     tournament_id: UUID,
     match_id: Optional[UUID] = None,
