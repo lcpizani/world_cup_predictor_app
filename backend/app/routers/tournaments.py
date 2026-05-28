@@ -1,15 +1,20 @@
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.logger import logger
 from app.services import tournament as tournament_service
-from app.schemas.tournament import TournamentCreate, TournamentResponse, TournamentMemberResponse, JoinTournamentRequest
-from fastapi import Response
+from app.schemas.tournament import (
+    TournamentCreate,
+    TournamentResponse,
+    TournamentMemberResponse,
+    JoinTournamentRequest,
+    TournamentCompareMatch,
+)
 from app.schemas.leaderboard import LeaderboardResponse
 
 router = APIRouter()
@@ -45,6 +50,11 @@ def join(request: JoinTournamentRequest, db: Session = Depends(get_db), current_
 @router.get("/{invite_code}/leaderboard", response_model=LeaderboardResponse)
 def leaderboard(invite_code: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return tournament_service.get_leaderboard_by_code(db, invite_code, current_user)
+
+
+@router.get("/{invite_code}/compare", response_model=List[TournamentCompareMatch])
+def compare(invite_code: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    return tournament_service.get_compare(db, invite_code, current_user)
 
 
 @router.get("/{invite_code}", response_model=TournamentResponse)

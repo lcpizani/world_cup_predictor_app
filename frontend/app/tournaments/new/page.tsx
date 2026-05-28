@@ -39,7 +39,7 @@ export default function NewTournamentPage() {
         scoring_rules: rules,
       })
       await qc.invalidateQueries({ queryKey: ['tournaments'] })
-      router.push('/dashboard')
+      router.push('/leagues')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create tournament')
       setLoading(false)
@@ -51,7 +51,7 @@ export default function NewTournamentPage() {
 
       {/* Back */}
       <Link
-        href="/dashboard"
+        href="/leagues"
         className="inline-flex items-center gap-2 text-[#64748b] hover:text-white text-sm mb-8 transition-colors"
       >
         ← Back to leagues

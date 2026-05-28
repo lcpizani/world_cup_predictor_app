@@ -4,6 +4,7 @@ import type {
   Match,
   Prediction,
   Tournament,
+  TournamentCompareMatch,
   TournamentMember,
   User,
 } from '@/types/api'
@@ -60,6 +61,8 @@ export const api = {
     request<void>(`/tournaments/${invite_code}`, { method: 'DELETE' }),
   getLeaderboard: (code: string) =>
     request<LeaderboardResponse>(`/tournaments/${code}/leaderboard`),
+  listCompare: (code: string) =>
+    request<TournamentCompareMatch[]>(`/tournaments/${code}/compare`),
 
   // ── Matches ───────────────────────────────────────────────────────────────
   createMatch: (data: {

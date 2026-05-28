@@ -306,6 +306,12 @@ export default function TournamentPage() {
             {copied ? '✓ Copied!' : 'Invite Friends'}
           </button>
           <Link
+            href={`/tournaments/${code}/compare`}
+            className="bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-white/10 hover:border-[#f0b429]/30 transition-all whitespace-nowrap"
+          >
+            Compare →
+          </Link>
+          <Link
             href={`/tournaments/${code}/leaderboard`}
             className="bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-white/10 hover:border-[#f0b429]/30 transition-all whitespace-nowrap"
           >

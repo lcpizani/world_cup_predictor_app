@@ -62,6 +62,19 @@ export interface Prediction {
   match: Match
 }
 
+export interface TournamentComparePrediction {
+  user_id: string
+  username: string
+  predicted_home: number | null
+  predicted_away: number | null
+  points_awarded: number | null
+}
+
+export interface TournamentCompareMatch {
+  match: Match
+  predictions: TournamentComparePrediction[]
+}
+
 export interface LeaderboardEntry {
   rank: number
   user: User

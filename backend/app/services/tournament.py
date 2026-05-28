@@ -6,10 +6,21 @@ from uuid import UUID
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 
+from app.models.match import Match
+from app.models.point_event import PointEvent
+from app.models.prediction import Prediction
 from app.models.tournament import Tournament, TournamentScoringRules, TournamentMember
 from app.models.user import User
-from app.schemas.tournament import TournamentCreate
+from app.schemas.match import MatchResponse
+from app.schemas.tournament import TournamentCreate, TournamentComparePrediction, TournamentCompareMatch
 from app.schemas.leaderboard import LeaderboardResponse, LeaderboardEntry
+
+
+def _apply_spoiler(is_finished: bool, is_own: bool, predicted_home: int, predicted_away: int):
+    """Return (predicted_home, predicted_away) with spoiler rule applied."""
+    if is_finished or is_own:
+        return predicted_home, predicted_away
+    return None, None
 
 
 def _generate_invite_code(length: int = 8) -> str:
@@ -148,3 +159,70 @@ def get_leaderboard(db: Session, tournament_id: UUID, user: User) -> Leaderboard
         entries.append(LeaderboardEntry(rank=rank, user=m.user, total_points=m.total_points))
 
     return LeaderboardResponse(tournament_id=tournament.id, entries=entries)
+
+
+def get_compare(db: Session, invite_code: str, current_user: User) -> List[TournamentCompareMatch]:
+    tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    membership = db.query(TournamentMember).filter(
+        TournamentMember.tournament_id == tournament.id,
+        TournamentMember.user_id == current_user.id,
+    ).first()
+    if membership is None:
+        raise HTTPException(status_code=403, detail="Not a member of tournament")
+
+    members = (
+        db.query(TournamentMember)
+        .filter(TournamentMember.tournament_id == tournament.id)
+        .options(joinedload(TournamentMember.user))
+        .all()
+    )
+    member_user_ids = [m.user_id for m in members]
+
+    # Load all predictions for tournament members in one query
+    predictions = db.query(Prediction).filter(Prediction.user_id.in_(member_user_ids)).all()
+    pred_by_user_match = {(p.user_id, p.match_id): p for p in predictions}
+
+    # Sum points per (user_id, match_id) for this tournament
+    point_events = (
+        db.query(PointEvent)
+        .filter(PointEvent.tournament_id == tournament.id)
+        .all()
+    )
+    points_by_user_match: dict = {}
+    for pe in point_events:
+        key = (pe.user_id, pe.match_id)
+        points_by_user_match[key] = points_by_user_match.get(key, 0) + pe.points
+
+    matches = db.query(Match).order_by(Match.kickoff_at).all()
+
+    result = []
+    for match in matches:
+        is_finished = match.status == "finished"
+        entries = []
+        for member in members:
+            pred = pred_by_user_match.get((member.user_id, match.id))
+            if pred is not None:
+                ph, pa = _apply_spoiler(
+                    is_finished,
+                    member.user_id == current_user.id,
+                    pred.predicted_home,
+                    pred.predicted_away,
+                )
+            else:
+                ph, pa = None, None
+            pts = points_by_user_match.get((member.user_id, match.id)) if is_finished else None
+            entries.append(TournamentComparePrediction(
+                user_id=member.user_id,
+                username=member.user.username,
+                predicted_home=ph,
+                predicted_away=pa,
+                points_awarded=pts,
+            ))
+        result.append(TournamentCompareMatch(
+            match=MatchResponse.model_validate(match),
+            predictions=entries,
+        ))
+
+    return result

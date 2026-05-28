@@ -22,18 +22,13 @@ def make_match(home_score, away_score):
     return SimpleNamespace(home_score=home_score, away_score=away_score)
 
 
-def test_exact_score_earns_all_points():
+def test_exact_score_earns_only_correct_result():
     prediction = make_prediction(2, 1)
     match = make_match(2, 1)
     scoring = make_scoring_rules()
 
     events = compute_points_for_prediction(prediction, scoring, match)
-    assert events == [
-        ("correct_result", 5),
-        ("correct_winner", 3),
-        ("correct_goal_diff", 2),
-        ("correct_goals_one_team", 1),
-    ]
+    assert events == [("correct_result", 5)]
 
 
 def test_correct_winner_only():
@@ -79,18 +74,13 @@ def test_draw_predicted_draw_actual_earns_correct_winner_and_goal_diff():
     ]
 
 
-def test_exact_draw_earns_all_points():
+def test_exact_draw_earns_only_correct_result():
     prediction = make_prediction(0, 0)
     match = make_match(0, 0)
     scoring = make_scoring_rules()
 
     events = compute_points_for_prediction(prediction, scoring, match)
-    assert events == [
-        ("correct_result", 5),
-        ("correct_winner", 3),
-        ("correct_goal_diff", 2),
-        ("correct_goals_one_team", 1),
-    ]
+    assert events == [("correct_result", 5)]
 
 
 def test_complete_miss_returns_empty_list():
@@ -102,17 +92,14 @@ def test_complete_miss_returns_empty_list():
     assert events == []
 
 
-def test_zero_point_rules_are_filtered_out():
+def test_zero_point_exact_score_returns_empty():
+    # exact score but correct_result_pts=0 → filtered out, nothing else stacks
     prediction = make_prediction(2, 1)
     match = make_match(2, 1)
     scoring = make_scoring_rules(correct_result_pts=0)
 
     events = compute_points_for_prediction(prediction, scoring, match)
-    assert events == [
-        ("correct_winner", 3),
-        ("correct_goal_diff", 2),
-        ("correct_goals_one_team", 1),
-    ]
+    assert events == []
 
 
 def test_raises_value_error_when_match_result_unset():
