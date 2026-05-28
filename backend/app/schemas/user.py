@@ -9,7 +9,6 @@ class UserCreate(BaseModel):
     email: EmailStr
     username: str
     password: str
-    invite_code: str = ""
 
 
 class UserResponse(BaseModel):

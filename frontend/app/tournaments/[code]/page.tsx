@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -278,11 +278,44 @@ function MatchCard({
 
 export default function TournamentPage() {
   const { code } = useParams<{ code: string }>()
+  const router = useRouter()
+  const [copied, setCopied] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const qc = useQueryClient()
 
   const { data: tournament } = useQuery({
     queryKey: ['tournament', code],
     queryFn: () => api.getTournament(code),
   })
+
+  const { data: me } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => api.getMe(),
+  })
+
+  const isCreator = !!me && !!tournament && me.id === tournament.created_by
+
+  const deleteMutation = useMutation({
+    mutationFn: () => api.deleteTournament(code),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ['tournaments'] })
+      qc.removeQueries({ queryKey: ['tournament', code] })
+      router.push('/dashboard')
+    },
+    onError: (err: Error) => {
+      setConfirmDelete(false)
+      alert(err.message || 'Failed to delete competition. Try again.')
+    },
+  })
+
+  function copyInviteLink() {
+    if (!tournament) return
+    const link = `${window.location.origin}/join/${tournament.invite_code}`
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   const { data: matches = [], isLoading: matchesLoading } = useQuery({
     queryKey: ['matches'],
@@ -321,17 +354,62 @@ export default function TournamentPage() {
           </h1>
           {tournament && (
             <p className="text-xs text-[#475569] font-mono tracking-widest mt-1">
-              Invite code: <span className="text-[#94a3b8]">{tournament.invite_code}</span>
+              {tournament.invite_code}
             </p>
           )}
         </div>
-        <Link
-          href={`/tournaments/${code}/leaderboard`}
-          className="bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-white/10 hover:border-[#f0b429]/30 transition-all whitespace-nowrap"
-        >
-          Leaderboard →
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={copyInviteLink}
+            disabled={!tournament}
+            className="bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-white/10 hover:border-[#f0b429]/30 transition-all whitespace-nowrap disabled:opacity-40"
+          >
+            {copied ? '✓ Copied!' : 'Invite Friends'}
+          </button>
+          <Link
+            href={`/tournaments/${code}/leaderboard`}
+            className="bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-white/10 hover:border-[#f0b429]/30 transition-all whitespace-nowrap"
+          >
+            Leaderboard →
+          </Link>
+        </div>
       </div>
+
+      {/* Delete competition — creator only */}
+      {isCreator && (
+        <div className="mb-8">
+          {!confirmDelete ? (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-red-500/20 hover:border-red-500/40 transition-all"
+            >
+              <span>🗑</span> Delete Competition
+            </button>
+          ) : (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-5">
+              <p className="text-sm text-red-300 font-semibold mb-1">Delete this competition?</p>
+              <p className="text-xs text-red-400/70 mb-4">
+                This will permanently remove the competition and all predictions. This cannot be undone.
+              </p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => deleteMutation.mutate()}
+                  disabled={deleteMutation.isPending}
+                  className="bg-red-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-red-600 disabled:opacity-50 transition"
+                >
+                  {deleteMutation.isPending ? 'Deleting…' : 'Yes, delete it'}
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="bg-white/5 border border-white/10 text-[#94a3b8] px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-white/10 hover:text-white transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Matches */}
       {matchesLoading && (

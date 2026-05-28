@@ -1,11 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+
+function safeNext(next: string | null): string {
+  if (!next) return '/dashboard'
+  if (next.startsWith('//') || next.includes('://')) return '/dashboard'
+  return next
+}
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const next = safeNext(searchParams.get('next'))
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -27,7 +35,7 @@ export default function LoginPage() {
       setError((data as { error?: string }).error ?? 'Login failed')
       return
     }
-    router.push('/dashboard')
+    router.push(next)
     router.refresh()
   }
 
@@ -87,7 +95,10 @@ export default function LoginPage() {
 
         <p className="text-sm text-center text-[#64748b] mt-6">
           No account?{' '}
-          <Link href="/auth/register" className="text-[#f0b429] hover:text-white transition-colors">
+          <Link
+            href={next !== '/dashboard' ? `/auth/register?next=${encodeURIComponent(next)}` : '/auth/register'}
+            className="text-[#f0b429] hover:text-white transition-colors"
+          >
             Register free
           </Link>
         </p>

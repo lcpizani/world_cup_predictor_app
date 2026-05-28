@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const PROTECTED_PREFIXES = ['/dashboard', '/tournaments', '/admin']
+const PROTECTED_PREFIXES = ['/dashboard', '/tournaments', '/admin', '/join']
 
 export function middleware(req: NextRequest) {
   const token = req.cookies.get('auth_token')?.value
@@ -16,5 +16,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/tournaments/:path*', '/admin/:path*'],
+  matcher: ['/dashboard/:path*', '/tournaments/:path*', '/admin/:path*', '/join/:path*'],
 }

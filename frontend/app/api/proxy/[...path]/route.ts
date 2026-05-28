@@ -26,7 +26,7 @@ async function proxy(req: NextRequest) {
     return NextResponse.json({ error: 'Cannot reach backend server' }, { status: 503 })
   }
 
-  const resBody = await res.arrayBuffer()
+  const resBody = res.status === 204 ? null : await res.arrayBuffer()
   return new NextResponse(resBody, {
     status: res.status,
     headers: res.headers,

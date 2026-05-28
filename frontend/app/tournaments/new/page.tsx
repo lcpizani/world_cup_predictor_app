@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 
@@ -21,6 +22,7 @@ const DEFAULT_RULES = {
 
 export default function NewTournamentPage() {
   const router = useRouter()
+  const qc = useQueryClient()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [rules, setRules] = useState(DEFAULT_RULES)
@@ -32,11 +34,12 @@ export default function NewTournamentPage() {
     const fd = new FormData(e.currentTarget)
 
     try {
-      const t = await api.createTournament({
+      await api.createTournament({
         name: fd.get('name') as string,
         scoring_rules: rules,
       })
-      router.push(`/tournaments/${t.id}`)
+      await qc.invalidateQueries({ queryKey: ['tournaments'] })
+      router.push('/dashboard')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create tournament')
       setLoading(false)

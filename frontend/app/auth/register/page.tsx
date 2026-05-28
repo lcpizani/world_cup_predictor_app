@@ -1,11 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+
+function safeNext(next: string | null): string {
+  if (!next) return '/dashboard'
+  if (next.startsWith('//') || next.includes('://')) return '/dashboard'
+  return next
+}
 
 export default function RegisterPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const next = safeNext(searchParams.get('next'))
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -22,7 +30,6 @@ export default function RegisterPage() {
         email: fd.get('email'),
         username: fd.get('username'),
         password: fd.get('password'),
-        invite_code: fd.get('invite_code'),
       }),
     })
     const regData = await regRes.json()
@@ -42,7 +49,7 @@ export default function RegisterPage() {
 
     setLoading(false)
     if (loginRes.ok) {
-      router.push('/dashboard')
+      router.push(next)
       router.refresh()
     } else {
       router.push('/auth/login')
@@ -57,24 +64,11 @@ export default function RegisterPage() {
           <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white mt-3">
             Join the League
           </h1>
-          <p className="text-[#64748b] text-sm mt-1">You'll need an invite code to join</p>
+          <p className="text-[#64748b] text-sm mt-1">Create your free account</p>
         </div>
 
         <div className="bg-[#0f1620] border border-white/10 rounded-2xl p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-widest text-[#64748b] mb-2">
-                Invite Code
-              </label>
-              <input
-                name="invite_code"
-                type="text"
-                required
-                autoComplete="off"
-                placeholder="Enter your invite code"
-                className="w-full bg-[#080c14] border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-[#334155] focus:outline-none focus:border-[#f0b429]/50 focus:ring-1 focus:ring-[#f0b429]/30 transition"
-              />
-            </div>
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-[#64748b] mb-2">
                 Email
@@ -132,7 +126,10 @@ export default function RegisterPage() {
 
         <p className="text-sm text-center text-[#64748b] mt-6">
           Already have an account?{' '}
-          <Link href="/auth/login" className="text-[#f0b429] hover:text-white transition-colors">
+          <Link
+            href={next !== '/dashboard' ? `/auth/login?next=${encodeURIComponent(next)}` : '/auth/login'}
+            className="text-[#f0b429] hover:text-white transition-colors"
+          >
             Log in
           </Link>
         </p>

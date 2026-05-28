@@ -33,6 +33,8 @@ class TournamentResponse(BaseModel):
     invite_code: str
     is_active: bool
     created_at: datetime
+    created_by: UUID
+    creator: UserResponse
     scoring_rules: ScoringRulesResponse
 
     model_config = {"from_attributes": True}
