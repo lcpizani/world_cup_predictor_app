@@ -83,25 +83,18 @@ function StatusBadge({ status, kickoff_at }: { status: string; kickoff_at: strin
   )
 }
 
-// ── Match card ────────────────────────────────────────────────────────────────
+// ── Match card (read-only) ────────────────────────────────────────────────────
 
 function MatchCard({
   match,
   prediction,
-  tournamentId,
 }: {
   match: Match
   prediction?: Prediction
-  tournamentId: string
 }) {
-  const qc = useQueryClient()
-  const [home, setHome] = useState(prediction?.predicted_home?.toString() ?? '')
-  const [away, setAway] = useState(prediction?.predicted_away?.toString() ?? '')
-  const [err, setErr] = useState('')
-
-  const isLocked = !!prediction?.is_locked || match.status !== 'scheduled'
   const minutesLeft = useMinutesUntil(match.kickoff_at)
-  const isUrgent = !isLocked && minutesLeft <= 60 && minutesLeft > 0
+  const isScheduled = match.status === 'scheduled'
+  const noPredictionYet = isScheduled && !prediction
 
   // Colour coding for finished matches with a prediction
   const scoreColors = (() => {
@@ -121,42 +114,8 @@ function MatchCard({
     return { home: homeColor, away: awayColor, winner: correctWinner }
   })()
 
-  const saveMutation = useMutation({
-    mutationFn: () => {
-      const h = parseInt(home)
-      const a = parseInt(away)
-      if (isNaN(h) || isNaN(a) || h < 0 || a < 0) throw new Error('Enter valid scores')
-      if (prediction) {
-        return api.updatePrediction(prediction.id, { predicted_home: h, predicted_away: a })
-      }
-      return api.submitPrediction({
-        match_id: match.id,
-        tournament_id: tournamentId,
-        predicted_home: h,
-        predicted_away: a,
-      })
-    },
-    onSuccess: () => {
-      setErr('')
-      qc.invalidateQueries({ queryKey: ['predictions', tournamentId] })
-    },
-    onError: (e: Error) => setErr(e.message),
-  })
-
   return (
     <div className="bg-[#0f1620] border border-white/10 rounded-2xl p-5 hover:border-white/20 transition-colors">
-
-      {/* Urgency warning */}
-      {isUrgent && (
-        <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 mb-4">
-          <span className="text-red-400 text-sm">⚠️</span>
-          <p className="text-xs text-red-400 font-semibold">
-            {minutesLeft === 1
-              ? 'Locks in 1 minute — submit your prediction now!'
-              : `Locks in ${minutesLeft} minutes — lock in your prediction!`}
-          </p>
-        </div>
-      )}
 
       {/* Top: stage + group + date */}
       <div className="flex items-center justify-between mb-4">
@@ -173,7 +132,7 @@ function MatchCard({
         <StatusBadge status={match.status} kickoff_at={match.kickoff_at} />
       </div>
 
-      {/* Teams + score inputs inline */}
+      {/* Teams + scores */}
       <div className="flex items-center gap-2">
 
         {/* Home team */}
@@ -184,7 +143,7 @@ function MatchCard({
           <TeamFlag name={match.home_team} />
         </div>
 
-        {/* Centre: actual score or prediction inputs */}
+        {/* Centre: prediction display */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {match.status === 'finished' ? (
             prediction ? (
@@ -209,34 +168,14 @@ function MatchCard({
                 {match.home_score} – {match.away_score}
               </span>
             )
-          ) : isLocked ? (
-            prediction ? (
-              <span className="font-[family-name:var(--font-oswald)] font-bold text-xl text-white w-24 text-center">
-                {prediction.predicted_home} – {prediction.predicted_away}
-              </span>
-            ) : (
-              <span className="text-[#334155] text-xs italic w-24 text-center">locked</span>
-            )
+          ) : prediction ? (
+            <span className="font-[family-name:var(--font-oswald)] font-bold text-xl text-white w-24 text-center">
+              {prediction.predicted_home} – {prediction.predicted_away}
+            </span>
           ) : (
-            <>
-              <input
-                type="number"
-                min={0}
-                value={home}
-                onChange={(e) => setHome(e.target.value)}
-                placeholder="0"
-                className="w-12 bg-[#080c14] border border-white/10 rounded-xl px-1 py-2 text-white text-center focus:outline-none focus:border-[#f0b429]/50 focus:ring-1 focus:ring-[#f0b429]/30 transition font-[family-name:var(--font-oswald)] font-bold text-lg"
-              />
-              <span className="text-[#475569] font-bold">–</span>
-              <input
-                type="number"
-                min={0}
-                value={away}
-                onChange={(e) => setAway(e.target.value)}
-                placeholder="0"
-                className="w-12 bg-[#080c14] border border-white/10 rounded-xl px-1 py-2 text-white text-center focus:outline-none focus:border-[#f0b429]/50 focus:ring-1 focus:ring-[#f0b429]/30 transition font-[family-name:var(--font-oswald)] font-bold text-lg"
-              />
-            </>
+            <span className="text-[#334155] text-xs italic w-24 text-center">
+              {match.status === 'scheduled' ? 'no pick' : 'locked'}
+            </span>
           )}
         </div>
 
@@ -249,27 +188,27 @@ function MatchCard({
         </div>
       </div>
 
-      {/* Bottom row: points earned + save button */}
-      {!isLocked && (
-        <div className="flex items-center justify-end gap-3 mt-4 pt-3 border-t border-white/5">
-          {err && <span className="text-xs text-red-400">{err}</span>}
-          {saveMutation.isSuccess && <span className="text-xs text-green-400">✓ Saved</span>}
-          <button
-            onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending}
-            className="bg-[#f0b429] text-[#080c14] px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-white disabled:opacity-40 transition"
+      {/* Bottom row */}
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+        {/* No prediction nudge */}
+        {noPredictionYet && minutesLeft > 0 ? (
+          <Link
+            href="/predictions"
+            className="text-xs text-[#f0b429] hover:text-white transition-colors font-semibold"
           >
-            {saveMutation.isPending ? '…' : prediction ? 'Update' : 'Save'}
-          </button>
-        </div>
-      )}
-      {isLocked && prediction?.points_awarded !== null && prediction?.points_awarded !== undefined && (
-        <div className="flex justify-end mt-3 pt-3 border-t border-white/5">
-          <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-lg">
+            Add your pick in My Picks →
+          </Link>
+        ) : (
+          <span />
+        )}
+
+        {/* Points earned */}
+        {prediction?.points_awarded !== null && prediction?.points_awarded !== undefined && (
+          <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-lg ml-auto">
             +{prediction.points_awarded} <span className="text-xs text-[#64748b] font-sans font-normal">pts</span>
           </span>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -431,7 +370,6 @@ export default function TournamentPage() {
             key={match.id}
             match={match}
             prediction={predByMatch[match.id]}
-            tournamentId={tournamentId}
           />
         ))}
       </div>

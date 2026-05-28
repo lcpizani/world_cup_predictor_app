@@ -80,11 +80,10 @@ export const api = {
   },
 
   // ── Predictions ───────────────────────────────────────────────────────────
-  listPredictions: (tournament_id: string) =>
-    request<Prediction[]>(`/predictions?tournament_id=${tournament_id}`),
+  listPredictions: (tournament_id?: string) =>
+    request<Prediction[]>(tournament_id ? `/predictions?tournament_id=${tournament_id}` : '/predictions'),
   submitPrediction: (data: {
     match_id: string
-    tournament_id: string
     predicted_home: number
     predicted_away: number
   }) =>

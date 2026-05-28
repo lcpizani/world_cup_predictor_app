@@ -6,7 +6,7 @@ def create_tournament(client, token, scoring_rules):
         "name": "Edge Case Pool",
         "scoring_rules": scoring_rules,
     }
-    response = client.post("/tournaments/", json=tournament_payload, headers=auth_headers(token))
+    response = client.post("/tournaments", json=tournament_payload, headers=auth_headers(token))
     assert response.status_code == 201
     return response.json()
 
@@ -18,7 +18,7 @@ def create_match(client, token):
         "kickoff_at": "2030-11-05T18:00:00Z",
         "stage": "group",
     }
-    response = client.post("/matches/", json=match_payload, headers=auth_headers(token))
+    response = client.post("/matches", json=match_payload, headers=auth_headers(token))
     assert response.status_code == 201
     return response.json()
 
@@ -38,12 +38,13 @@ def test_zero_point_scoring_creates_no_point_events(client, db):
         },
     )
     tournament_id = tournament["id"]
+    tournament_code = tournament["invite_code"]
     match = create_match(client, creator_token)
     match_id = match["id"]
 
     response = client.post(
-        "/predictions/",
-        json={"match_id": match_id, "tournament_id": tournament_id, "predicted_home": 1, "predicted_away": 1},
+        "/predictions",
+        json={"match_id": match_id, "predicted_home": 1, "predicted_away": 1},
         headers=auth_headers(creator_token),
     )
     assert response.status_code == 201
@@ -55,11 +56,11 @@ def test_zero_point_scoring_creates_no_point_events(client, db):
     )
     assert response.status_code == 200
 
-    response = client.get("/predictions/", params={"tournament_id": tournament_id}, headers=auth_headers(creator_token))
+    response = client.get("/predictions", params={"tournament_id": tournament_id}, headers=auth_headers(creator_token))
     assert response.status_code == 200
     assert response.json()[0]["points_awarded"] == 0
 
-    league = client.get(f"/tournaments/{tournament_id}/leaderboard", headers=auth_headers(creator_token))
+    league = client.get(f"/tournaments/{tournament_code}/leaderboard", headers=auth_headers(creator_token))
     assert league.status_code == 200
     assert league.json()["entries"][0]["total_points"] == 0
 
@@ -86,8 +87,8 @@ def test_prediction_submission_after_match_finished_is_rejected(client, db):
     assert response.status_code == 200
 
     response = client.post(
-        "/predictions/",
-        json={"match_id": match_id, "tournament_id": tournament_id, "predicted_home": 2, "predicted_away": 0},
+        "/predictions",
+        json={"match_id": match_id, "predicted_home": 2, "predicted_away": 0},
         headers=auth_headers(creator_token),
     )
     assert response.status_code == 400
@@ -104,6 +105,7 @@ def test_user_without_prediction_stays_at_zero_points(client, db):
         "correct_goals_one_team_pts": 1,
     })
     tournament_id = tournament["id"]
+    tournament_code = tournament["invite_code"]
     match = create_match(client, creator_token)
     match_id = match["id"]
 
@@ -111,14 +113,14 @@ def test_user_without_prediction_stays_at_zero_points(client, db):
     member_token = login_user(client, "bob6@example.com", "bobpass6")
     response = client.post(
         "/tournaments/join",
-        json={"invite_code": tournament["invite_code"]},
+        json={"invite_code": tournament_code},
         headers=auth_headers(member_token),
     )
     assert response.status_code == 201
 
     response = client.post(
-        "/predictions/",
-        json={"match_id": match_id, "tournament_id": tournament_id, "predicted_home": 2, "predicted_away": 1},
+        "/predictions",
+        json={"match_id": match_id, "predicted_home": 2, "predicted_away": 1},
         headers=auth_headers(creator_token),
     )
     assert response.status_code == 201
@@ -130,7 +132,7 @@ def test_user_without_prediction_stays_at_zero_points(client, db):
     )
     assert response.status_code == 200
 
-    leaderboard = client.get(f"/tournaments/{tournament_id}/leaderboard", headers=auth_headers(member_token))
+    leaderboard = client.get(f"/tournaments/{tournament_code}/leaderboard", headers=auth_headers(member_token))
     assert leaderboard.status_code == 200
     entries = leaderboard.json()["entries"]
     assert any(entry["user"]["email"] == member["email"] and entry["total_points"] == 0 for entry in entries)

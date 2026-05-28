@@ -37,6 +37,9 @@ def compute_points_for_prediction(
     # Exact score — nothing else stacks
     if ph == ah and pa == aa:
         events.append(("correct_result", scoring.correct_result_pts))
+        events.append(("correct_winner", scoring.correct_winner_pts))
+        events.append(("correct_goal_diff", scoring.correct_goal_diff_pts))
+        events.append(("correct_goals_one_team", scoring.correct_goals_one_team_pts))
         return [(reason, pts) for reason, pts in events if pts > 0]
 
     # All remaining categories stack freely
@@ -50,6 +53,16 @@ def compute_points_for_prediction(
         events.append(("correct_goals_one_team", scoring.correct_goals_one_team_pts))
 
     return [(reason, pts) for reason, pts in events if pts > 0]
+
+
+def _default_scoring(tournament_id: UUID) -> TournamentScoringRules:
+    return TournamentScoringRules(
+        tournament_id=tournament_id,
+        correct_result_pts=0,
+        correct_winner_pts=0,
+        correct_goal_diff_pts=0,
+        correct_goals_one_team_pts=0,
+    )
 
 
 def apply_match_result(
@@ -76,54 +89,38 @@ def apply_match_result(
     db.add(match)
     db.flush()
 
-    predictions = (
-        db.query(Prediction)
-        .filter(Prediction.match_id == match.id)
-        .options(
-            joinedload(Prediction.tournament).joinedload(Tournament.scoring_rules),
-        )
-        .all()
-    )
+    # Predictions are now global — one per user per match
+    predictions = db.query(Prediction).filter(Prediction.match_id == match.id).all()
 
     for pred in predictions:
-        scoring = pred.tournament.scoring_rules
-        if scoring is None:
-            scoring = TournamentScoringRules(
-                tournament_id=pred.tournament.id,
-                correct_result_pts=0,
-                correct_winner_pts=0,
-                correct_goal_diff_pts=0,
-                correct_goals_one_team_pts=0,
-            )
+        # Score this prediction in every tournament the user belongs to
+        memberships = (
+            db.query(TournamentMember)
+            .options(joinedload(TournamentMember.tournament).joinedload(Tournament.scoring_rules))
+            .filter(TournamentMember.user_id == pred.user_id)
+            .all()
+        )
 
-        events = compute_points_for_prediction(pred, scoring, match)
-        total_points = sum(pts for _, pts in events)
+        for membership in memberships:
+            scoring = membership.tournament.scoring_rules or _default_scoring(membership.tournament_id)
+            events = compute_points_for_prediction(pred, scoring, match)
+            total_points = sum(pts for _, pts in events)
 
-        for reason, pts in events:
-            db.add(PointEvent(
-                prediction_id=pred.id,
-                user_id=pred.user_id,
-                tournament_id=pred.tournament_id,
-                match_id=match.id,
-                reason=reason,
-                points=pts,
-            ))
+            for reason, pts in events:
+                db.add(PointEvent(
+                    prediction_id=pred.id,
+                    user_id=pred.user_id,
+                    tournament_id=membership.tournament_id,
+                    match_id=match.id,
+                    reason=reason,
+                    points=pts,
+                ))
 
-        pred.points_awarded = total_points
+            membership.total_points = (membership.total_points or 0) + total_points
+            db.add(membership)
+
         pred.is_locked = True
         db.add(pred)
-
-        member = (
-            db.query(TournamentMember)
-            .filter(
-                TournamentMember.tournament_id == pred.tournament_id,
-                TournamentMember.user_id == pred.user_id,
-            )
-            .first()
-        )
-        if member:
-            member.total_points = (member.total_points or 0) + total_points
-            db.add(member)
 
     db.commit()
     db.refresh(match)
@@ -131,23 +128,32 @@ def apply_match_result(
 
 
 def recompute_tournament_scores(db: Session, tournament_id: UUID) -> dict:
-    tournament = db.query(Tournament).filter(Tournament.id == tournament_id).first()
+    tournament = (
+        db.query(Tournament)
+        .options(joinedload(Tournament.scoring_rules))
+        .filter(Tournament.id == tournament_id)
+        .first()
+    )
     if tournament is None:
         raise HTTPException(status_code=404, detail="Tournament not found")
 
     db.query(PointEvent).filter(PointEvent.tournament_id == tournament_id).delete(synchronize_session=False)
-    db.query(Prediction).filter(Prediction.tournament_id == tournament_id).update(
-        {"points_awarded": None, "is_locked": False}, synchronize_session=False
-    )
     db.query(TournamentMember).filter(TournamentMember.tournament_id == tournament_id).update(
         {"total_points": 0}, synchronize_session=False
     )
+
+    scoring = tournament.scoring_rules or _default_scoring(tournament_id)
+
+    member_ids = [
+        m.user_id
+        for m in db.query(TournamentMember).filter(TournamentMember.tournament_id == tournament_id).all()
+    ]
 
     finished_matches = (
         db.query(Match)
         .join(Prediction, Prediction.match_id == Match.id)
         .filter(
-            Prediction.tournament_id == tournament_id,
+            Prediction.user_id.in_(member_ids),
             Match.status == "finished",
             Match.home_score.is_not(None),
             Match.away_score.is_not(None),
@@ -162,8 +168,10 @@ def recompute_tournament_scores(db: Session, tournament_id: UUID) -> dict:
     for match in finished_matches:
         predictions = (
             db.query(Prediction)
-            .filter(Prediction.match_id == match.id, Prediction.tournament_id == tournament_id)
-            .options(joinedload(Prediction.tournament).joinedload(Tournament.scoring_rules))
+            .filter(
+                Prediction.match_id == match.id,
+                Prediction.user_id.in_(member_ids),
+            )
             .all()
         )
         if not predictions:
@@ -171,39 +179,23 @@ def recompute_tournament_scores(db: Session, tournament_id: UUID) -> dict:
 
         recomputed_matches += 1
         for pred in predictions:
-            scoring = pred.tournament.scoring_rules
-            if scoring is None:
-                scoring = TournamentScoringRules(
-                    tournament_id=pred.tournament.id,
-                    correct_result_pts=0,
-                    correct_winner_pts=0,
-                    correct_goal_diff_pts=0,
-                    correct_goals_one_team_pts=0,
-                )
-
             events = compute_points_for_prediction(pred, scoring, match)
             total_points = sum(pts for _, pts in events)
 
             for reason, pts in events:
-                db.add(
-                    PointEvent(
-                        prediction_id=pred.id,
-                        user_id=pred.user_id,
-                        tournament_id=pred.tournament_id,
-                        match_id=match.id,
-                        reason=reason,
-                        points=pts,
-                    )
-                )
-
-            pred.points_awarded = total_points
-            pred.is_locked = True
-            db.add(pred)
+                db.add(PointEvent(
+                    prediction_id=pred.id,
+                    user_id=pred.user_id,
+                    tournament_id=tournament_id,
+                    match_id=match.id,
+                    reason=reason,
+                    points=pts,
+                ))
 
             member = (
                 db.query(TournamentMember)
                 .filter(
-                    TournamentMember.tournament_id == pred.tournament_id,
+                    TournamentMember.tournament_id == tournament_id,
                     TournamentMember.user_id == pred.user_id,
                 )
                 .first()

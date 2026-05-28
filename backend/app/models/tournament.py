@@ -25,7 +25,6 @@ class Tournament(Base):
         cascade="all, delete-orphan",
     )
     members = relationship("TournamentMember", back_populates="tournament", cascade="all, delete-orphan")
-    predictions = relationship("Prediction", back_populates="tournament", cascade="all, delete-orphan")
     point_events = relationship("PointEvent", back_populates="tournament", cascade="all, delete-orphan")
 
 

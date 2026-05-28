@@ -29,7 +29,7 @@ export default function DashboardPage() {
     <div className="max-w-4xl mx-auto px-6 py-10">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white">
             My Leagues
@@ -43,6 +43,19 @@ export default function DashboardPage() {
           + New League
         </Link>
       </div>
+
+      {/* Quick link to predictions */}
+      <Link href="/predictions">
+        <div className="bg-[#0f1620] border border-white/10 rounded-2xl px-5 py-4 mb-6 hover:border-[#f0b429]/30 hover:bg-[#131a27] transition-all group flex items-center justify-between">
+          <div>
+            <p className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide group-hover:text-[#f0b429] transition-colors">
+              My Predictions
+            </p>
+            <p className="text-xs text-[#475569] mt-0.5">View and edit all your picks across every competition</p>
+          </div>
+          <span className="text-[#475569] group-hover:text-[#f0b429] transition-colors text-lg">→</span>
+        </div>
+      </Link>
 
       {/* Join by invite code */}
       <div className="bg-[#0f1620] border border-white/10 rounded-2xl p-5 mb-8">
