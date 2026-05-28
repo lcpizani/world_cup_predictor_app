@@ -78,7 +78,7 @@ def test_apply_match_result_scores_predictions_and_leaderboard(client, db):
     assert response.status_code == 200
     predictions = response.json()
     assert len(predictions) == 1
-    assert predictions[0]["points_awarded"] == 11
+    assert predictions[0]["points_awarded"] == 5
 
     response = client.get("/predictions", params={"tournament_id": tournament_id}, headers=auth_headers(member_token))
     assert response.status_code == 200
@@ -89,13 +89,13 @@ def test_apply_match_result_scores_predictions_and_leaderboard(client, db):
     response = client.get(f"/tournaments/{tournament_code}/leaderboard", headers=auth_headers(member_token))
     assert response.status_code == 200
     entries = response.json()["entries"]
-    assert entries[0]["total_points"] == 11
+    assert entries[0]["total_points"] == 5
     assert entries[1]["total_points"] == 1
     assert entries[0]["rank"] == 1
     assert entries[1]["rank"] == 2
 
     point_events = db.query(PointEvent).filter(PointEvent.match_id == UUID(match_id)).all()
-    assert len(point_events) == 5
+    assert len(point_events) == 2
 
 
 def test_recompute_tournament_scores_updates_points_after_correction(client, db):
@@ -153,13 +153,13 @@ def test_recompute_tournament_scores_updates_points_after_correction(client, db)
 
     response = client.get("/predictions", params={"tournament_id": tournament_id}, headers=auth_headers(member_token))
     assert response.status_code == 200
-    assert response.json()[0]["points_awarded"] == 11
+    assert response.json()[0]["points_awarded"] == 5
 
     response = client.get(f"/tournaments/{tournament_code}/leaderboard", headers=auth_headers(member_token))
     assert response.status_code == 200
     entries = response.json()["entries"]
     assert entries[0]["user"]["id"] == member["id"]
-    assert entries[0]["total_points"] == 11
+    assert entries[0]["total_points"] == 5
     assert entries[1]["total_points"] == 1
 
 

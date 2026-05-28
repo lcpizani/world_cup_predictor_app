@@ -1,8 +1,10 @@
 from datetime import datetime
+from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.schemas.match import MatchResponse
 from app.schemas.user import UserResponse
 
 
@@ -53,4 +55,17 @@ class TournamentMemberResponse(BaseModel):
 
 class JoinTournamentRequest(BaseModel):
     invite_code: str
+
+
+class TournamentComparePrediction(BaseModel):
+    user_id: UUID
+    username: str
+    predicted_home: Optional[int] = None
+    predicted_away: Optional[int] = None
+    points_awarded: Optional[int] = None
+
+
+class TournamentCompareMatch(BaseModel):
+    match: MatchResponse
+    predictions: List[TournamentComparePrediction]
 

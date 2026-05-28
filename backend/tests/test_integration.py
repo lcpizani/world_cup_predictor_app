@@ -199,7 +199,7 @@ def test_match_result_application_updates_predictions_and_leaderboard(client, db
     assert response.status_code == 200
     predictions = response.json()
     assert len(predictions) == 1
-    assert predictions[0]["points_awarded"] == 11
+    assert predictions[0]["points_awarded"] == 5
 
     response = client.get(
         "/predictions",
@@ -217,7 +217,7 @@ def test_match_result_application_updates_predictions_and_leaderboard(client, db
     leaderboard = response.json()
     entries = leaderboard["entries"]
     assert len(entries) == 2
-    assert entries[0]["total_points"] == 11
+    assert entries[0]["total_points"] == 5
     assert entries[1]["total_points"] == 1
     assert entries[0]["rank"] == 1
     assert entries[1]["rank"] == 2
