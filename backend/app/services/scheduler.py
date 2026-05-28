@@ -5,6 +5,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
+from app.logger import logger
 from app.models.match import Match
 from app.models.prediction import Prediction
 
@@ -29,6 +30,10 @@ def _lock_predictions_at_kickoff() -> None:
             db.add(match)
         if matches_to_lock:
             db.commit()
+            logger.info("Locked predictions at kickoff", count=len(matches_to_lock))
+    except Exception as exc:
+        logger.error("Error locking predictions at kickoff", error=str(exc))
+        raise
     finally:
         db.close()
 
@@ -39,8 +44,10 @@ def start_scheduler() -> None:
         return
     scheduler.add_job(_lock_predictions_at_kickoff, "interval", minutes=1, id="lock_predictions")
     scheduler.start()
+    logger.info("Scheduler started")
 
 
 def stop_scheduler() -> None:
     if scheduler.running:
         scheduler.shutdown()
+        logger.info("Scheduler stopped")

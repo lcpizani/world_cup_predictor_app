@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.logger import logger
 from app.models.match import Match
 from app.services.scoring import apply_match_result
 
@@ -26,11 +27,14 @@ def _headers() -> dict:
 
 def sync_matches(db: Session, competition_code: str = "WC") -> dict:
     """Fetch fixtures from football-data.org and upsert Match rows."""
+    logger.info("Fetching fixtures from football-data.org", competition_code=competition_code)
     with httpx.Client(timeout=15) as client:
         resp = client.get(
             f"{FOOTBALL_API_BASE}/competitions/{competition_code}/matches",
             headers=_headers(),
         )
+        if not resp.is_success:
+            logger.error("football-data.org fixtures request failed", status_code=resp.status_code, competition_code=competition_code)
         resp.raise_for_status()
         data = resp.json()
 
@@ -70,17 +74,21 @@ def sync_matches(db: Session, competition_code: str = "WC") -> dict:
         upserted += 1
 
     db.commit()
+    logger.info("Fixtures sync complete", competition_code=competition_code, upserted=upserted)
     return {"upserted": upserted}
 
 
 def sync_results(db: Session, competition_code: str = "WC") -> dict:
     """Fetch finished fixtures and score any un-scored matches."""
+    logger.info("Fetching finished fixtures from football-data.org", competition_code=competition_code)
     with httpx.Client(timeout=15) as client:
         resp = client.get(
             f"{FOOTBALL_API_BASE}/competitions/{competition_code}/matches",
             headers=_headers(),
             params={"status": "FINISHED"},
         )
+        if not resp.is_success:
+            logger.error("football-data.org results request failed", status_code=resp.status_code, competition_code=competition_code)
         resp.raise_for_status()
         data = resp.json()
 
@@ -100,7 +108,8 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
         try:
             apply_match_result(db, match.id, home_score, away_score, status="finished")
             scored += 1
-        except HTTPException:
-            pass  # Already applied or validation error — skip
+        except HTTPException as exc:
+            logger.warning("Skipped scoring match", ext_id=ext_id, detail=exc.detail)
 
+    logger.info("Results sync complete", competition_code=competition_code, scored=scored)
     return {"scored": scored}

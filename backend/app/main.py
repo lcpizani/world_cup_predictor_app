@@ -4,6 +4,7 @@ from typing import Dict
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.logger import logger
 from app.routers import auth, tournaments, matches, predictions, admin
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.config import settings
@@ -11,9 +12,11 @@ from app.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Application starting up")
     start_scheduler()
     yield
     stop_scheduler()
+    logger.info("Application shut down")
 
 
 app = FastAPI(title="World Cup Predictor API", version="0.1.0", lifespan=lifespan)
