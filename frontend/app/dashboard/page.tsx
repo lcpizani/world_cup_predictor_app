@@ -84,8 +84,8 @@ export default function DashboardPage() {
                   <h2 className="font-[family-name:var(--font-oswald)] font-semibold text-lg uppercase tracking-wide text-white group-hover:text-[#f0b429] transition-colors">
                     {t.name}
                   </h2>
-                  <p className="text-xs text-[#475569] mt-1 font-mono tracking-widest">
-                    {t.invite_code}
+                  <p className="text-xs text-[#475569] mt-1">
+                    Created by <span className="text-[#64748b]">{t.creator?.username}</span>
                   </p>
                 </div>
                 <div className="flex items-center gap-3">

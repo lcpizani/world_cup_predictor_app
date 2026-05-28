@@ -56,6 +56,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ invite_code }),
     }),
+  deleteTournament: (invite_code: string) =>
+    request<void>(`/tournaments/${invite_code}`, { method: 'DELETE' }),
   getLeaderboard: (code: string) =>
     request<LeaderboardResponse>(`/tournaments/${code}/leaderboard`),
 

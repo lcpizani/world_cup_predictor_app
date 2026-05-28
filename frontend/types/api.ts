@@ -21,6 +21,8 @@ export interface Tournament {
   is_active: boolean
   scoring_rules: ScoringRules
   created_at: string
+  created_by: string
+  creator: User
 }
 
 export interface TournamentMember {

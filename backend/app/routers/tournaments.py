@@ -9,6 +9,7 @@ from app.dependencies import get_current_user
 from app.logger import logger
 from app.services import tournament as tournament_service
 from app.schemas.tournament import TournamentCreate, TournamentResponse, TournamentMemberResponse, JoinTournamentRequest
+from fastapi import Response
 from app.schemas.leaderboard import LeaderboardResponse
 
 router = APIRouter()
@@ -54,3 +55,14 @@ def get_tournament(invite_code: str, db: Session = Depends(get_db), current_user
         logger.error("Tournament not found or access denied", invite_code=invite_code, user_id=str(current_user.id), detail=exc.detail)
         raise
     return result
+
+
+@router.delete("/{invite_code}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_tournament(invite_code: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    try:
+        tournament_service.delete_tournament(db, invite_code, current_user)
+    except HTTPException as exc:
+        logger.warning("Failed to delete tournament", invite_code=invite_code, user_id=str(current_user.id), detail=exc.detail)
+        raise
+    logger.info("Tournament deleted", invite_code=invite_code, user_id=str(current_user.id))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
