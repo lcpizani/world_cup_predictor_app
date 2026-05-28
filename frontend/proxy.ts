@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const PROTECTED_PREFIXES = ['/dashboard', '/tournaments', '/admin', '/join']
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const token = req.cookies.get('auth_token')?.value
   const { pathname } = req.nextUrl
 
