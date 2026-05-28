@@ -77,7 +77,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-3">
         {tournaments.map((t) => (
-          <Link key={t.id} href={`/tournaments/${t.id}`}>
+          <Link key={t.id} href={`/tournaments/${t.invite_code}`}>
             <div className="bg-[#0f1620] border border-white/10 rounded-2xl p-5 hover:border-[#f0b429]/30 hover:bg-[#131a27] transition-all cursor-pointer group">
               <div className="flex justify-between items-center">
                 <div>

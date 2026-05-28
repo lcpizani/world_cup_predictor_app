@@ -75,11 +75,30 @@ def get_tournament(db: Session, tournament_id: UUID, user: User) -> Tournament:
     return tournament
 
 
+def get_tournament_by_code(db: Session, invite_code: str, user: User) -> Tournament:
+    tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    membership = db.query(TournamentMember).filter(
+        TournamentMember.tournament_id == tournament.id, TournamentMember.user_id == user.id
+    ).first()
+    if membership is None:
+        raise HTTPException(status_code=403, detail="Not a member of tournament")
+    return tournament
+
+
 def list_user_tournaments(db: Session, user: User) -> List[Tournament]:
     members = db.query(TournamentMember).options(joinedload(TournamentMember.tournament)).filter(
         TournamentMember.user_id == user.id
     ).all()
     return [m.tournament for m in members]
+
+
+def get_leaderboard_by_code(db: Session, invite_code: str, user: User) -> LeaderboardResponse:
+    tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    return get_leaderboard(db, tournament.id, user)
 
 
 def get_leaderboard(db: Session, tournament_id: UUID, user: User) -> LeaderboardResponse:

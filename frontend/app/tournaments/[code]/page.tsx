@@ -35,12 +35,12 @@ function formatKickoff(dt: string) {
 }
 
 function TeamFlag({ name }: { name: string }) {
-  const code = getTeamFlagCode(name)
-  if (!code) return null
+  const flagCode = getTeamFlagCode(name)
+  if (!flagCode) return null
   return (
     <div className="w-10 h-7 rounded overflow-hidden border border-white/10 flex-shrink-0">
       <Image
-        src={getFlagUrl(code, 40)}
+        src={getFlagUrl(flagCode, 40)}
         alt={name}
         width={40}
         height={28}
@@ -115,7 +115,6 @@ function MatchCard({
     const outcome = (h: number, a: number) => h > a ? 1 : h < a ? -1 : 0
     const correctWinner = outcome(ph, pa) === outcome(ah, aa)
     const correctDiff = (ph - pa) === (ah - aa)
-    // Exact result → both green
     if (ph === ah && pa === aa) return { home: 'green', away: 'green', winner: true }
     const homeColor = ph === ah ? 'green' : correctDiff ? 'yellow' : ''
     const awayColor = pa === aa ? 'green' : correctDiff ? 'yellow' : ''
@@ -189,9 +188,7 @@ function MatchCard({
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {match.status === 'finished' ? (
             prediction ? (
-              // Finished + has prediction: show predicted score (coloured) + actual below
               <div className="flex flex-col items-center gap-1 w-24">
-                {/* Predicted score with colour coding */}
                 <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg ${scoreColors.winner && scoreColors.home === 'green' && scoreColors.away === 'green' ? 'bg-green-500/10 border border-green-500/20' : scoreColors.winner ? 'bg-[#f0b429]/10 border border-[#f0b429]/20' : 'border border-transparent'}`}>
                   <span className={`font-[family-name:var(--font-oswald)] font-bold text-xl w-5 text-center ${scoreColors.home === 'green' ? 'text-green-400' : scoreColors.home === 'yellow' ? 'text-yellow-400' : 'text-white'}`}>
                     {prediction.predicted_home}
@@ -201,7 +198,6 @@ function MatchCard({
                     {prediction.predicted_away}
                   </span>
                 </div>
-                {/* Actual score below, smaller */}
                 <div className="flex items-center gap-1">
                   <span className="font-[family-name:var(--font-oswald)] text-sm text-[#475569] w-4 text-center">{match.home_score}</span>
                   <span className="text-[#334155] text-xs">–</span>
@@ -209,7 +205,6 @@ function MatchCard({
                 </div>
               </div>
             ) : (
-              // Finished + no prediction
               <span className="font-[family-name:var(--font-oswald)] font-bold text-2xl text-[#475569] w-24 text-center">
                 {match.home_score} – {match.away_score}
               </span>
@@ -282,11 +277,11 @@ function MatchCard({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TournamentPage() {
-  const { id } = useParams<{ id: string }>()
+  const { code } = useParams<{ code: string }>()
 
   const { data: tournament } = useQuery({
-    queryKey: ['tournament', id],
-    queryFn: () => api.getTournament(id),
+    queryKey: ['tournament', code],
+    queryFn: () => api.getTournament(code),
   })
 
   const { data: matches = [], isLoading: matchesLoading } = useQuery({
@@ -294,9 +289,13 @@ export default function TournamentPage() {
     queryFn: () => api.listMatches(),
   })
 
+  // predictions are keyed by tournament UUID (internal), not invite code
+  const tournamentId = tournament?.id ?? ''
+
   const { data: predictions = [] } = useQuery({
-    queryKey: ['predictions', id],
-    queryFn: () => api.listPredictions(id),
+    queryKey: ['predictions', tournamentId],
+    queryFn: () => api.listPredictions(tournamentId),
+    enabled: !!tournamentId,
   })
 
   const predByMatch = Object.fromEntries(predictions.map((p) => [p.match_id, p]))
@@ -327,7 +326,7 @@ export default function TournamentPage() {
           )}
         </div>
         <Link
-          href={`/tournaments/${id}/leaderboard`}
+          href={`/tournaments/${code}/leaderboard`}
           className="bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-white/10 hover:border-[#f0b429]/30 transition-all whitespace-nowrap"
         >
           Leaderboard →
@@ -354,7 +353,7 @@ export default function TournamentPage() {
             key={match.id}
             match={match}
             prediction={predByMatch[match.id]}
-            tournamentId={id}
+            tournamentId={tournamentId}
           />
         ))}
       </div>

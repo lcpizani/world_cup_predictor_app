@@ -41,16 +41,16 @@ def join(request: JoinTournamentRequest, db: Session = Depends(get_db), current_
     return result
 
 
-@router.get("/{tournament_id}", response_model=TournamentResponse)
-def get_tournament(tournament_id: UUID, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/{invite_code}/leaderboard", response_model=LeaderboardResponse)
+def leaderboard(invite_code: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    return tournament_service.get_leaderboard_by_code(db, invite_code, current_user)
+
+
+@router.get("/{invite_code}", response_model=TournamentResponse)
+def get_tournament(invite_code: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     try:
-        result = tournament_service.get_tournament(db, tournament_id, current_user)
+        result = tournament_service.get_tournament_by_code(db, invite_code, current_user)
     except HTTPException as exc:
-        logger.error("Tournament not found or access denied", tournament_id=str(tournament_id), user_id=str(current_user.id), detail=exc.detail)
+        logger.error("Tournament not found or access denied", invite_code=invite_code, user_id=str(current_user.id), detail=exc.detail)
         raise
     return result
-
-
-@router.get("/{tournament_id}/leaderboard", response_model=LeaderboardResponse)
-def leaderboard(tournament_id: UUID, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return tournament_service.get_leaderboard(db, tournament_id, current_user)

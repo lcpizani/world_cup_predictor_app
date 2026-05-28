@@ -41,7 +41,7 @@ export const api = {
 
   // ── Tournaments ───────────────────────────────────────────────────────────
   listTournaments: () => request<Tournament[]>('/tournaments'),
-  getTournament: (id: string) => request<Tournament>(`/tournaments/${id}`),
+  getTournament: (code: string) => request<Tournament>(`/tournaments/${code}`),
   createTournament: (data: {
     name: string
     scoring_rules: {
@@ -56,8 +56,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ invite_code }),
     }),
-  getLeaderboard: (id: string) =>
-    request<LeaderboardResponse>(`/tournaments/${id}/leaderboard`),
+  getLeaderboard: (code: string) =>
+    request<LeaderboardResponse>(`/tournaments/${code}/leaderboard`),
 
   // ── Matches ───────────────────────────────────────────────────────────────
   createMatch: (data: {
