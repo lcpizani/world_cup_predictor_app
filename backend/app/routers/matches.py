@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 @router.post("", response_model=MatchResponse, status_code=status.HTTP_201_CREATED)
-def create_match(data: MatchCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def create_match(data: MatchCreate, db: Session = Depends(get_db), current_user=Depends(get_admin_user)):
     try:
         result = match_service.create_match(db, data)
     except HTTPException as exc:

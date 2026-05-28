@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
 
 from passlib.context import CryptContext
@@ -32,7 +32,7 @@ def login_user(db: Session, email: str, password: str) -> str:
     if user is None or not pwd_context.verify(password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    expire = datetime.utcnow() + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
     payload: Dict[str, Any] = {"sub": str(user.id), "exp": expire}
     token = jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
     return token

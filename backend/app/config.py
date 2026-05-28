@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     # football-data.org API key for match/result sync
     FOOTBALL_API_KEY: str = ""
     CORS_ORIGINS: str = "http://localhost:3000"
+    ALLOWED_HOSTS: str = "localhost,127.0.0.1"
     # Leave empty to allow open registration (local dev). Set in Cloud Run to gate signups.
     INVITE_CODE: str = ""
 
