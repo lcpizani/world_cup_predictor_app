@@ -8,95 +8,53 @@ import { api } from '@/lib/api'
 import { getTeamFlagCode, getFlagUrl } from '@/lib/flags'
 import type { Match, TournamentComparePrediction, TournamentCompareMatch } from '@/types/api'
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
 function TeamFlag({ name }: { name: string }) {
   const flagCode = getTeamFlagCode(name)
   if (!flagCode) return null
   return (
-    <div className="w-7 h-5 rounded overflow-hidden border border-white/10 flex-shrink-0">
-      <Image
-        src={getFlagUrl(flagCode, 20)}
-        alt={name}
-        width={20}
-        height={14}
-        className="w-full h-full object-cover"
-        unoptimized
-      />
+    <div className="w-7 h-5 rounded overflow-hidden shrink-0" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+      <Image src={getFlagUrl(flagCode, 20)} alt={name} width={20} height={14} className="w-full h-full object-cover" unoptimized />
     </div>
   )
 }
 
 function StatusBadge({ status, kickoff_at }: { status: string; kickoff_at: string }) {
-  if (status === 'live') {
-    return (
-      <span className="flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 uppercase tracking-wider">
-        <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-        Live
-      </span>
-    )
-  }
-  if (status === 'finished') {
-    return (
-      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/5 text-[#475569] border border-white/10 uppercase tracking-wider">
-        FT
-      </span>
-    )
-  }
-  const d = new Date(kickoff_at)
-  const label = d.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  if (status === 'live') return (
+    <span className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
+      <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+      Live
+    </span>
+  )
+  if (status === 'finished') return (
+    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" style={{ color: '#3f5068', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      FT
+    </span>
+  )
+  const label = new Date(kickoff_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   return (
-    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#f0b429]/10 text-[#f0b429] border border-[#f0b429]/20 tracking-wider">
+    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wider text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)' }}>
       {label}
     </span>
   )
 }
 
-// ── Score colour coding ──────────────────────────────────────────────────────
-
 type ScoreColor = 'green' | 'yellow' | ''
 
-function getScoreColors(
-  match: Match,
-  pred: TournamentComparePrediction,
-): { home: ScoreColor; away: ScoreColor } {
-  if (
-    match.status !== 'finished' ||
-    pred.predicted_home === null ||
-    pred.predicted_away === null ||
-    match.home_score === null ||
-    match.away_score === null
-  ) {
+function getScoreColors(match: Match, pred: TournamentComparePrediction): { home: ScoreColor; away: ScoreColor } {
+  if (match.status !== 'finished' || pred.predicted_home === null || pred.predicted_away === null || match.home_score === null || match.away_score === null) {
     return { home: '', away: '' }
   }
-  const ph = pred.predicted_home
-  const pa = pred.predicted_away
-  const ah = match.home_score
-  const aa = match.away_score
+  const ph = pred.predicted_home, pa = pred.predicted_away
+  const ah = match.home_score, aa = match.away_score
   if (ph === ah && pa === aa) return { home: 'green', away: 'green' }
-  const outcome = (h: number, a: number) => (h > a ? 1 : h < a ? -1 : 0)
   const correctDiff = ph - pa === ah - aa
-  const homeColor: ScoreColor = ph === ah ? 'green' : correctDiff ? 'yellow' : ''
-  const awayColor: ScoreColor = pa === aa ? 'green' : correctDiff ? 'yellow' : ''
-  return { home: homeColor, away: awayColor }
+  return {
+    home: ph === ah ? 'green' : correctDiff ? 'yellow' : '',
+    away: pa === aa ? 'green' : correctDiff ? 'yellow' : '',
+  }
 }
 
-// ── Participant row ──────────────────────────────────────────────────────────
-
-function ParticipantRow({
-  match,
-  pred,
-  isMe,
-}: {
-  match: Match
-  pred: TournamentComparePrediction
-  isMe: boolean
-}) {
+function ParticipantRow({ match, pred, isMe }: { match: Match; pred: TournamentComparePrediction; isMe: boolean }) {
   const hidden = pred.predicted_home === null && pred.predicted_away === null
   const colors = hidden ? { home: '' as ScoreColor, away: '' as ScoreColor } : getScoreColors(match, pred)
   const isExact = colors.home === 'green' && colors.away === 'green'
@@ -107,81 +65,86 @@ function ParticipantRow({
     (pred.predicted_home - pred.predicted_away < 0) === (match.home_score - match.away_score < 0)
 
   return (
-    <div className={`flex items-center gap-3 px-3 py-2 rounded-xl ${
-      isMe ? 'bg-white/5 border border-white/10' : 'border border-transparent'
-    }`}>
+    <div
+      className="flex items-center gap-3 px-3 py-2 rounded-xl"
+      style={isMe
+        ? { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }
+        : { border: '1px solid transparent' }
+      }
+    >
       {/* Username */}
       <div className="flex-1 min-w-0 flex items-center gap-2">
-        <span className={`font-[family-name:var(--font-oswald)] text-sm uppercase tracking-wide truncate ${
-          isMe ? 'text-white' : 'text-[#94a3b8]'
-        }`}>
+        <span
+          className="font-[family-name:var(--font-oswald)] text-sm uppercase tracking-wide truncate"
+          style={{ color: isMe ? 'white' : '#5a6a82' }}
+        >
           {pred.username}
         </span>
         {isMe && (
-          <span className="text-[10px] text-[#475569] border border-white/10 px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0">
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 font-bold" style={{ color: '#3f5068', border: '1px solid rgba(255,255,255,0.08)' }}>
             you
           </span>
         )}
       </div>
 
       {/* Predicted score */}
-      <div className={`flex items-center gap-1 px-2 py-0.5 rounded-lg flex-shrink-0 ${
-        isExact ? 'bg-green-500/10 border border-green-500/20' :
-        isWinner ? 'bg-[#f0b429]/10 border border-[#f0b429]/20' :
-        'border border-transparent'
-      }`}>
+      <div
+        className="flex items-center gap-1 px-2 py-0.5 rounded-lg shrink-0"
+        style={isExact
+          ? { background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.18)' }
+          : isWinner
+            ? { background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.18)' }
+            : { border: '1px solid transparent' }
+        }
+      >
         {hidden ? (
-          <span className="font-[family-name:var(--font-oswald)] text-sm text-[#334155] w-10 text-center">?–?</span>
+          <span className="font-[family-name:var(--font-oswald)] text-sm w-10 text-center" style={{ color: '#1e2d40' }}>?–?</span>
         ) : pred.predicted_home === null ? (
-          <span className="text-xs italic text-[#334155] w-10 text-center">no pick</span>
+          <span className="text-xs w-10 text-center" style={{ color: '#1e2d40' }}>no pick</span>
         ) : (
           <>
-            <span className={`font-[family-name:var(--font-oswald)] font-bold text-sm w-4 text-center ${
-              colors.home === 'green' ? 'text-green-400' :
-              colors.home === 'yellow' ? 'text-yellow-400' : 'text-white'
-            }`}>{pred.predicted_home}</span>
-            <span className="text-[#475569] text-xs">–</span>
-            <span className={`font-[family-name:var(--font-oswald)] font-bold text-sm w-4 text-center ${
-              colors.away === 'green' ? 'text-green-400' :
-              colors.away === 'yellow' ? 'text-yellow-400' : 'text-white'
-            }`}>{pred.predicted_away}</span>
+            <span className={`font-[family-name:var(--font-oswald)] font-bold text-sm w-4 text-center ${colors.home === 'green' ? 'text-green-400' : colors.home === 'yellow' ? 'text-[#f0b429]' : 'text-white'}`}>
+              {pred.predicted_home}
+            </span>
+            <span className="text-xs" style={{ color: '#2d3e52' }}>–</span>
+            <span className={`font-[family-name:var(--font-oswald)] font-bold text-sm w-4 text-center ${colors.away === 'green' ? 'text-green-400' : colors.away === 'yellow' ? 'text-[#f0b429]' : 'text-white'}`}>
+              {pred.predicted_away}
+            </span>
           </>
         )}
       </div>
 
-      {/* Points badge */}
+      {/* Points */}
       {pred.points_awarded !== null ? (
-        <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-sm flex-shrink-0 w-12 text-right">
-          +{pred.points_awarded} <span className="text-[10px] text-[#64748b] font-sans font-normal">pts</span>
-        </span>
+        <div className="shrink-0 w-14 text-right flex items-baseline justify-end gap-0.5">
+          <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-sm">+{pred.points_awarded}</span>
+          <span className="text-[10px] font-medium" style={{ color: '#3f5068' }}>pts</span>
+        </div>
       ) : (
-        <span className="w-12 flex-shrink-0" />
+        <span className="w-14 shrink-0" />
       )}
     </div>
   )
 }
 
-// ── CompareMatchCard ─────────────────────────────────────────────────────────
-
-function CompareMatchCard({
-  entry,
-  myUserId,
-}: {
-  entry: TournamentCompareMatch
-  myUserId: string
-}) {
+function CompareMatchCard({ entry, myUserId }: { entry: TournamentCompareMatch; myUserId: string }) {
   const { match, predictions } = entry
 
   return (
-    <div className="bg-[#0f1620] border border-white/10 rounded-2xl p-5 hover:border-white/20 transition-colors">
-      {/* Match header */}
+    <div
+      className="rounded-2xl p-5 transition-all duration-200"
+      style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)' }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
+    >
+      {/* Stage + status */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-[#475569] font-mono tracking-widest uppercase">
+          <span className="text-[10px] font-mono tracking-widest uppercase" style={{ color: '#3f5068' }}>
             {match.stage.replace(/_/g, ' ')}
           </span>
           {match.group && (
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[#94a3b8] uppercase tracking-wider">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" style={{ color: '#5a6a82', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
               {match.group}
             </span>
           )}
@@ -198,13 +161,13 @@ function CompareMatchCard({
           <TeamFlag name={match.home_team} />
         </div>
 
-        <div className="flex-shrink-0 w-20 text-center">
+        <div className="shrink-0 w-20 text-center">
           {match.status === 'finished' ? (
-            <span className="font-[family-name:var(--font-oswald)] font-bold text-xl text-[#94a3b8]">
+            <span className="font-[family-name:var(--font-oswald)] font-bold text-xl" style={{ color: '#5a6a82' }}>
               {match.home_score}–{match.away_score}
             </span>
           ) : (
-            <span className="text-[#334155] text-xs uppercase tracking-widest">vs</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: '#1e2d40' }}>vs</span>
           )}
         </div>
 
@@ -217,14 +180,9 @@ function CompareMatchCard({
       </div>
 
       {/* Participant rows */}
-      <div className="space-y-1 border-t border-white/5 pt-3">
+      <div className="space-y-0.5 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         {predictions.map((pred) => (
-          <ParticipantRow
-            key={pred.user_id}
-            match={match}
-            pred={pred}
-            isMe={pred.user_id === myUserId}
-          />
+          <ParticipantRow key={pred.user_id} match={match} pred={pred} isMe={pred.user_id === myUserId} />
         ))}
       </div>
     </div>
@@ -264,29 +222,38 @@ export default function ComparePage() {
       <div className="mb-8">
         <Link
           href={`/tournaments/${code}`}
-          className="inline-flex items-center gap-1 text-[#64748b] hover:text-white text-sm mb-3 transition-colors"
+          className="inline-flex items-center gap-1 text-sm mb-3 transition-colors font-medium"
+          style={{ color: '#3f5068' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'white' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3f5068' }}
         >
           ← Matches
         </Link>
-        <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white">
+        <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
           {tournament?.name ?? '…'}
         </h1>
-        <p className="text-[#64748b] text-sm mt-1 uppercase tracking-widest font-bold">Compare Predictions</p>
+        <div className="flex items-center gap-2.5 mt-2">
+          <span className="block w-0.5 h-3.5 rounded-full" style={{ background: 'rgba(240,180,41,0.7)' }} />
+          <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em]" style={{ color: '#5a6a82' }}>Compare Predictions</p>
+        </div>
       </div>
 
       {isLoading && (
-        <p className="text-center text-[#64748b] py-16">Loading…</p>
+        <div className="space-y-3">
+          {[1,2,3].map(i => (
+            <div key={i} className="animate-pulse h-32 rounded-2xl" style={{ background: '#0d1520' }} />
+          ))}
+        </div>
       )}
 
       {!isLoading && compareData.length > 0 && !hasAnyPredictions && (
-        <div className="text-center py-20 text-[#64748b]">
-          <div className="text-4xl mb-4">🔮</div>
-          <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#475569] mb-2">
+        <div className="text-center py-20 rounded-2xl" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide mb-2" style={{ color: '#2d3e52' }}>
             No predictions yet
           </p>
-          <p className="text-sm">
+          <p className="text-sm" style={{ color: '#3f5068' }}>
             Members haven&apos;t submitted picks yet.{' '}
-            <Link href="/predictions" className="text-[#f0b429] hover:text-white transition-colors">
+            <Link href="/predictions" className="text-[#f0b429] hover:text-white transition-colors font-medium">
               Add yours →
             </Link>
           </p>
@@ -294,29 +261,26 @@ export default function ComparePage() {
       )}
 
       {!isLoading && compareData.length === 0 && (
-        <div className="text-center py-20 text-[#64748b]">
-          <div className="text-4xl mb-4">📅</div>
-          <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#475569] mb-2">
+        <div className="text-center py-20 rounded-2xl" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide mb-2" style={{ color: '#2d3e52' }}>
             No matches yet
           </p>
-          <p className="text-sm">An admin needs to sync fixtures first.</p>
+          <p className="text-sm" style={{ color: '#3f5068' }}>An admin needs to sync fixtures first.</p>
         </div>
       )}
 
       {compareData.length > 0 && hasAnyPredictions && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {compareData.map((entry) => (
-            <CompareMatchCard
-              key={entry.match.id}
-              entry={entry}
-              myUserId={myUserId}
-            />
+            <CompareMatchCard key={entry.match.id} entry={entry} myUserId={myUserId} />
           ))}
         </div>
       )}
 
       {compareData.length > 0 && (
-        <p className="text-center text-xs text-[#334155] mt-8">Refreshes every 30 seconds</p>
+        <p className="text-center text-[10px] mt-8 font-medium" style={{ color: '#1e2d40' }}>
+          Refreshes every 30 seconds
+        </p>
       )}
     </div>
   )

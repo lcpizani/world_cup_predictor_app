@@ -1,11 +1,14 @@
 import type { Metadata } from 'next'
-import { Geist } from 'next/font/google'
-import { Oswald } from 'next/font/google'
+import { Plus_Jakarta_Sans, Oswald } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/lib/providers'
 import { Navbar } from '@/components/Navbar'
 
-const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
+const jakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-geist',
+})
 
 const oswald = Oswald({
   subsets: ['latin'],
@@ -20,7 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${geist.variable} ${oswald.variable} h-full`}>
+    <html lang="en" className={`${jakartaSans.variable} ${oswald.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-[#080c14] font-[family-name:var(--font-geist)] antialiased">
         <Providers>
           <Navbar />
