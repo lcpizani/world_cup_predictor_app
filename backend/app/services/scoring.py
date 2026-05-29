@@ -146,6 +146,47 @@ def apply_match_result(
     return match
 
 
+def compute_provisional_points(db: Session, tournament_id: UUID, user_id: UUID) -> int:
+    """Compute provisional points for a user from currently live matches.
+
+    Runs entirely in memory — no PointEvent rows are written.
+    Returns 0 if no live matches exist or the user has no predictions for them.
+    """
+    live_matches = db.query(Match).filter(
+        Match.status == "live",
+        Match.home_score.is_not(None),
+        Match.away_score.is_not(None),
+    ).all()
+    if not live_matches:
+        return 0
+
+    membership = (
+        db.query(TournamentMember)
+        .options(joinedload(TournamentMember.tournament).joinedload(Tournament.scoring_rules))
+        .filter(TournamentMember.tournament_id == tournament_id, TournamentMember.user_id == user_id)
+        .first()
+    )
+    if membership is None:
+        return 0
+
+    scoring = membership.tournament.scoring_rules or _default_scoring(tournament_id)
+    total = 0
+    for match in live_matches:
+        prediction = (
+            db.query(Prediction)
+            .filter(Prediction.match_id == match.id, Prediction.user_id == user_id)
+            .first()
+        )
+        if prediction is None:
+            continue
+        try:
+            events = compute_points_for_prediction(prediction, scoring, match)
+            total += sum(pts for _, pts in events)
+        except ValueError:
+            pass
+    return total
+
+
 def recompute_tournament_scores(db: Session, tournament_id: UUID) -> dict:
     tournament = (
         db.query(Tournament)

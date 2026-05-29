@@ -1,5 +1,6 @@
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -9,12 +10,42 @@ from app.dependencies import get_admin_user
 from app.logger import logger
 from app.services import scoring as scoring_service
 from app.services import football_api
+from app.services.football_api import FOOTBALL_API_BASE
 from app.models.match import Match
 from app.models.prediction import Prediction
 from app.models.point_event import PointEvent
 from app.models.tournament import TournamentMember
 
 router = APIRouter()
+
+
+@router.get("/sync/health", status_code=status.HTTP_200_OK)
+def sync_health(admin=Depends(get_admin_user)) -> dict:
+    """Verify football-data.org API key is valid and return rate-limit metadata."""
+    if not settings.FOOTBALL_API_KEY:
+        raise HTTPException(status_code=503, detail="FOOTBALL_API_KEY not configured")
+    try:
+        with httpx.Client(timeout=10) as client:
+            resp = client.get(
+                f"{FOOTBALL_API_BASE}/competitions/WC",
+                headers={"X-Auth-Token": settings.FOOTBALL_API_KEY},
+            )
+    except httpx.RequestError as exc:
+        logger.error("Football API health check network error", error=str(exc))
+        raise HTTPException(status_code=503, detail=f"Network error: {exc}")
+
+    if not resp.is_success:
+        logger.warning("Football API health check failed", status_code=resp.status_code)
+        raise HTTPException(
+            status_code=resp.status_code,
+            detail=f"football-data.org returned {resp.status_code}",
+        )
+
+    return {
+        "status": "ok",
+        "rate_limit_remaining": resp.headers.get("X-Requests-Available-Minute"),
+        "rate_limit_reset": resp.headers.get("X-RequestCounter-Reset"),
+    }
 
 
 @router.get("/registration-invite", status_code=status.HTTP_200_OK)

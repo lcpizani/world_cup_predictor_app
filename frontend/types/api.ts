@@ -56,8 +56,6 @@ export interface TournamentMember {
   user: User
 }
 
-export type MatchStatus = 'scheduled' | 'live' | 'finished'
-
 export interface Match {
   id: string
   external_match_id: string | null
@@ -107,3 +105,19 @@ export interface LeaderboardResponse {
   tournament_id: string
   entries: LeaderboardEntry[]
 }
+
+export interface LiveLeaderboardEntry {
+  rank: number
+  user: User
+  total_points: number
+  provisional_points: number
+  live_total: number
+}
+
+export interface LiveLeaderboardResponse {
+  tournament_id: string
+  has_live_matches: boolean
+  entries: LiveLeaderboardEntry[]
+}
+
+export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'suspended'

@@ -17,7 +17,10 @@ from app.schemas.tournament import (
     JoinTournamentRequest,
     TournamentCompareMatch,
 )
-from app.schemas.leaderboard import LeaderboardResponse
+from app.schemas.leaderboard import LeaderboardResponse, LiveLeaderboardEntry, LiveLeaderboardResponse
+from app.services import scoring as scoring_service
+from app.models.match import Match
+from app.models.tournament import TournamentMember
 
 router = APIRouter()
 
@@ -65,6 +68,65 @@ def preview_tournament(request: Request, invite_code: str, db: Session = Depends
 @router.get("/{invite_code}/leaderboard", response_model=LeaderboardResponse)
 def leaderboard(invite_code: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return tournament_service.get_leaderboard_by_code(db, invite_code, current_user)
+
+
+@router.get("/{invite_code}/leaderboard/live", response_model=LiveLeaderboardResponse)
+def live_leaderboard(invite_code: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
+    if tournament is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tournament not found")
+
+    membership = db.query(TournamentMember).filter(
+        TournamentMember.tournament_id == tournament.id,
+        TournamentMember.user_id == current_user.id,
+    ).first()
+    if membership is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of tournament")
+
+    has_live = db.query(Match).filter(Match.status == "live").first() is not None
+
+    from sqlalchemy.orm import joinedload as _joinedload
+    members = (
+        db.query(TournamentMember)
+        .filter(TournamentMember.tournament_id == tournament.id)
+        .options(_joinedload(TournamentMember.user))
+        .all()
+    )
+
+    entries_raw = []
+    for m in members:
+        provisional = (
+            scoring_service.compute_provisional_points(db, tournament.id, m.user_id)
+            if has_live else 0
+        )
+        entries_raw.append((m, provisional))
+
+    entries_raw.sort(key=lambda x: x[0].total_points + x[1], reverse=True)
+
+    entries = []
+    last_total = None
+    last_rank = 0
+    for idx, (m, provisional) in enumerate(entries_raw, start=1):
+        live_total = m.total_points + provisional
+        if last_total is None or live_total != last_total:
+            rank = idx
+            last_rank = rank
+        else:
+            rank = last_rank
+        last_total = live_total
+        entries.append(LiveLeaderboardEntry(
+            rank=rank,
+            user=m.user,
+            total_points=m.total_points,
+            provisional_points=provisional,
+            live_total=live_total,
+        ))
+
+    return LiveLeaderboardResponse(
+        tournament_id=tournament.id,
+        has_live_matches=has_live,
+        entries=entries,
+    )
 
 
 @router.get("/{invite_code}/compare", response_model=List[TournamentCompareMatch])

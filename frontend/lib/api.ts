@@ -1,5 +1,6 @@
 import type {
   LeaderboardResponse,
+  LiveLeaderboardResponse,
   Match,
   Prediction,
   PredictionHistoryItem,
@@ -65,6 +66,8 @@ export const api = {
     request<void>(`/tournaments/${invite_code}`, { method: 'DELETE' }),
   getLeaderboard: (code: string) =>
     request<LeaderboardResponse>(`/tournaments/${code}/leaderboard`),
+  getLiveLeaderboard: (code: string) =>
+    request<LiveLeaderboardResponse>(`/tournaments/${code}/leaderboard/live`),
   listCompare: (code: string) =>
     request<TournamentCompareMatch[]>(`/tournaments/${code}/compare`),
 

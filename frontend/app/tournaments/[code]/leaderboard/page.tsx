@@ -14,12 +14,13 @@ export default function LeaderboardPage() {
   })
 
   const { data: lb, isLoading } = useQuery({
-    queryKey: ['leaderboard', code],
-    queryFn: () => api.getLeaderboard(code),
-    refetchInterval: 30_000,
+    queryKey: ['leaderboard-live', code],
+    queryFn: () => api.getLiveLeaderboard(code),
+    refetchInterval: 20_000,
   })
 
   const entries = lb?.entries ?? []
+  const hasLive = lb?.has_live_matches ?? false
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-10">
@@ -35,9 +36,20 @@ export default function LeaderboardPage() {
         >
           ← Matches
         </Link>
-        <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
-          {tournament?.name ?? '…'}
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
+            {tournament?.name ?? '…'}
+          </h1>
+          {hasLive && (
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest"
+              style={{ background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              Live
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2.5 mt-2">
           <span className="block w-0.5 h-3.5 rounded-full" style={{ background: 'rgba(240,180,41,0.7)' }} />
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em]" style={{ color: '#5a6a82' }}>Leaderboard</p>
@@ -66,6 +78,7 @@ export default function LeaderboardPage() {
           {entries.map((entry) => {
             const isFirst = entry.rank === 1
             const isTop3 = entry.rank <= 3
+            const hasProvisional = entry.provisional_points > 0
 
             const rankDisplay = entry.rank === 1 ? '1st'
               : entry.rank === 2 ? '2nd'
@@ -102,13 +115,21 @@ export default function LeaderboardPage() {
                 </div>
 
                 {/* Points */}
-                <div className="text-right shrink-0 flex items-baseline gap-1">
+                <div className="text-right shrink-0 flex items-baseline gap-1.5">
                   <span
                     className="font-[family-name:var(--font-oswald)] font-bold text-2xl tabular-nums"
                     style={{ color: isFirst ? '#f0b429' : isTop3 ? 'white' : '#5a6a82' }}
                   >
-                    {entry.total_points}
+                    {entry.live_total}
                   </span>
+                  {hasProvisional && (
+                    <span
+                      className="font-[family-name:var(--font-oswald)] text-xs font-bold tabular-nums"
+                      style={{ color: '#22c55e' }}
+                    >
+                      +{entry.provisional_points}
+                    </span>
+                  )}
                   <span className="text-xs font-medium" style={{ color: '#3f5068' }}>pts</span>
                 </div>
               </div>
@@ -118,7 +139,7 @@ export default function LeaderboardPage() {
       )}
 
       <p className="text-center text-[10px] mt-8 font-medium" style={{ color: '#1e2d40' }}>
-        Refreshes every 30 seconds
+        {hasLive ? 'Near-live · refreshes every 20 seconds' : 'Refreshes every 20 seconds'}
       </p>
     </div>
   )
