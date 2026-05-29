@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { Match, Tournament } from '@/types/api'
+import { encodeInviteCode } from '@/lib/invite'
 
 const STAGES = [
   'group_stage',
@@ -264,7 +265,7 @@ function RegistrationInviteCard() {
 
   const inviteCode = data?.invite_code ?? ''
   const regUrl = inviteCode
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/register?invite=${inviteCode}`
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/register?invite=${encodeInviteCode(inviteCode)}`
     : ''
 
   function copyLink() {
@@ -316,15 +317,15 @@ function TournamentInviteRow({ tournament }: { tournament: Tournament }) {
   const [copied, setCopied] = useState(false)
 
   function copyLink() {
-    const url = `${window.location.origin}/join/${tournament.invite_code}`
+    const url = `${window.location.origin}/join/${encodeInviteCode(tournament.invite_code)}`
     navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2500)
   }
 
   const joinUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/join/${tournament.invite_code}`
-    : `/join/${tournament.invite_code}`
+    ? `${window.location.origin}/join/${encodeInviteCode(tournament.invite_code)}`
+    : `/join/${encodeInviteCode(tournament.invite_code)}`
 
   return (
     <div className="py-3 first:pt-0 last:pb-0">

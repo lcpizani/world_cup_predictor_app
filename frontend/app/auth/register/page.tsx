@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Cookies from 'js-cookie'
+import { decodeInviteCode } from '@/lib/invite'
 
 function safeNext(next: string | null): string {
   if (!next) return '/dashboard'
@@ -213,7 +214,7 @@ function RegisterForm() {
     setLoading(true)
     const fd = new FormData(e.currentTarget)
 
-    const regRes = await fetch(`/api/auth/register?invite_code=${encodeURIComponent(invite)}`, {
+    const regRes = await fetch(`/api/auth/register?invite_code=${encodeURIComponent(decodeInviteCode(invite))}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
