@@ -1,4 +1,3 @@
-import Cookies from 'js-cookie'
 import type {
   LeaderboardResponse,
   Match,
@@ -15,18 +14,14 @@ const BASE_URL = typeof window === 'undefined'
   ? (process.env.BACKEND_URL ?? 'http://localhost:8080')
   : '/api/proxy'
 
-function getToken(): string {
-  if (typeof window === 'undefined') return ''
-  return Cookies.get('auth_token') ?? ''
-}
-
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getToken()
+  // Auth is forwarded by the same-origin /api/proxy route, which reads the
+  // httpOnly cookie and injects the Authorization header server-side.
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   })

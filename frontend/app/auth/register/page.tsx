@@ -176,7 +176,7 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (Cookies.get('auth_token')) {
+    if (Cookies.get('is_authenticated')) {
       setRedirecting(true)
       router.replace(next)
       return

@@ -8,7 +8,7 @@ import { api } from '@/lib/api'
 
 export default function ProfileRedirect() {
   const router = useRouter()
-  const hasToken = typeof window !== 'undefined' && !!Cookies.get('auth_token')
+  const hasToken = typeof window !== 'undefined' && !!Cookies.get('is_authenticated')
 
   const { data: user, isError } = useQuery({
     queryKey: ['me'],

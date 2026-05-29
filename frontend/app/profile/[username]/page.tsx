@@ -151,7 +151,7 @@ function EditProfileForm({
 export default function ProfilePage() {
   const { username } = useParams<{ username: string }>()
   const [editing, setEditing] = useState(false)
-  const hasToken = typeof window !== 'undefined' && !!Cookies.get('auth_token')
+  const hasToken = typeof window !== 'undefined' && !!Cookies.get('is_authenticated')
 
   const { data: me } = useQuery({
     queryKey: ['me'],

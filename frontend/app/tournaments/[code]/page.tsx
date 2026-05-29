@@ -89,7 +89,7 @@ function MatchCard({ match, prediction }: { match: Match; prediction?: Predictio
 
   return (
     <div
-      className="rounded-2xl p-5 transition-all duration-200 overflow-hidden relative"
+      className="rounded-2xl p-3.5 sm:p-5 transition-all duration-200 overflow-hidden relative"
       style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)' }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
@@ -103,13 +103,13 @@ function MatchCard({ match, prediction }: { match: Match; prediction?: Predictio
       )}
 
       {/* Stage + group + status */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-mono tracking-widest uppercase" style={{ color: '#3f5068' }}>
+      <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] font-mono tracking-widest uppercase truncate" style={{ color: '#3f5068' }}>
             {match.stage.replace(/_/g, ' ')}
           </span>
           {match.group && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" style={{ color: '#5a6a82', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0" style={{ color: '#5a6a82', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
               {match.group}
             </span>
           )}
@@ -118,10 +118,10 @@ function MatchCard({ match, prediction }: { match: Match; prediction?: Predictio
       </div>
 
       {/* Teams + scores */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         {/* Home */}
-        <div className="flex-1 flex items-center justify-end gap-2.5 min-w-0">
-          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate">
+        <div className="flex-1 flex items-center justify-end gap-2 sm:gap-2.5 min-w-0">
+          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-sm sm:text-base">
             {match.home_team}
           </span>
           <TeamFlag name={match.home_team} />
@@ -131,7 +131,7 @@ function MatchCard({ match, prediction }: { match: Match; prediction?: Predictio
         <div className="flex items-center gap-1.5 shrink-0">
           {match.status === 'finished' ? (
             prediction ? (
-              <div className="flex flex-col items-center gap-1 w-24">
+              <div className="flex flex-col items-center gap-1 w-20 sm:w-24">
                 <div
                   className="flex items-center gap-1 px-2 py-0.5 rounded-lg"
                   style={scoreColors.winner && scoreColors.home === 'green' && scoreColors.away === 'green'
@@ -156,25 +156,25 @@ function MatchCard({ match, prediction }: { match: Match; prediction?: Predictio
                 </div>
               </div>
             ) : (
-              <span className="font-[family-name:var(--font-oswald)] font-bold text-2xl w-24 text-center" style={{ color: '#3f5068' }}>
+              <span className="font-[family-name:var(--font-oswald)] font-bold text-xl sm:text-2xl w-20 sm:w-24 text-center" style={{ color: '#3f5068' }}>
                 {match.home_score} – {match.away_score}
               </span>
             )
           ) : prediction ? (
-            <span className="font-[family-name:var(--font-oswald)] font-bold text-xl text-white w-24 text-center">
+            <span className="font-[family-name:var(--font-oswald)] font-bold text-lg sm:text-xl text-white w-20 sm:w-24 text-center">
               {prediction.predicted_home} – {prediction.predicted_away}
             </span>
           ) : (
-            <span className="text-xs w-24 text-center" style={{ color: '#1e2d40' }}>
+            <span className="text-[11px] sm:text-xs w-20 sm:w-24 text-center" style={{ color: '#1e2d40' }}>
               {match.status === 'scheduled' ? 'no pick' : 'locked'}
             </span>
           )}
         </div>
 
         {/* Away */}
-        <div className="flex-1 flex items-center gap-2.5 min-w-0">
+        <div className="flex-1 flex items-center gap-2 sm:gap-2.5 min-w-0">
           <TeamFlag name={match.away_team} />
-          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate">
+          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-sm sm:text-base">
             {match.away_team}
           </span>
         </div>
@@ -275,10 +275,10 @@ export default function TournamentPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
 
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-1 text-sm mb-3 transition-colors font-medium"
@@ -289,9 +289,9 @@ export default function TournamentPage() {
           ← My Leagues
         </Link>
 
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="font-[family-name:var(--font-oswald)] text-2xl sm:text-3xl font-bold uppercase tracking-wider text-white leading-none break-words">
               {tournament?.name ?? '…'}
             </h1>
             {tournament && (
@@ -302,20 +302,20 @@ export default function TournamentPage() {
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <div className="grid grid-cols-3 sm:flex sm:items-center gap-2 sm:shrink-0 sm:flex-wrap sm:justify-end">
             <button
               onClick={copyInviteLink}
               disabled={!tournament}
-              className="text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200 disabled:opacity-40"
+              className="text-[10px] sm:text-xs font-bold uppercase tracking-wide px-3 sm:px-4 py-2.5 rounded-xl transition-all duration-200 disabled:opacity-40 truncate"
               style={actionBtnStyle}
               onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnHover)}
               onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnStyle)}
             >
-              {copied ? '✓ Copied' : 'Invite Friends'}
+              {copied ? '✓ Copied' : 'Invite'}
             </button>
             <Link
               href={`/tournaments/${code}/compare`}
-              className="text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
+              className="text-[10px] sm:text-xs font-bold uppercase tracking-wide px-3 sm:px-4 py-2.5 rounded-xl transition-all duration-200 text-center"
               style={actionBtnStyle}
               onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnHover)}
               onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnStyle)}
@@ -324,7 +324,7 @@ export default function TournamentPage() {
             </Link>
             <Link
               href={`/tournaments/${code}/leaderboard`}
-              className="text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
+              className="text-[10px] sm:text-xs font-bold uppercase tracking-wide px-3 sm:px-4 py-2.5 rounded-xl transition-all duration-200 text-center"
               style={actionBtnStyle}
               onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnHover)}
               onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnStyle)}

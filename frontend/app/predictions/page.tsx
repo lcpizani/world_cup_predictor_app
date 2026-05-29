@@ -105,22 +105,29 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
         : '#0d1520'
 
     return (
-      <div className="rounded-2xl p-4 transition-colors" style={{ background: bgColor, border: `1px solid ${borderColor}` }}>
-        <div className="flex items-center gap-3">
+      <div className="rounded-2xl p-3 sm:p-4 transition-colors" style={{ background: bgColor, border: `1px solid ${borderColor}` }}>
+        {/* Top meta row (mobile only) */}
+        <div className="flex items-center gap-2 mb-2.5 sm:hidden">
+          <span className="text-[10px] text-[#2d3e52] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
+          {match.group && <span className="text-[10px] text-[#2d3e52]">· {match.group}</span>}
+          <div className="ml-auto"><ResultBadge exact={exact} winner={correctWinner} hasPred={hasPred} /></div>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-            <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-sm">
+            <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-xs sm:text-sm">
               {match.home_team}
             </span>
             <TeamFlag name={match.home_team} />
           </div>
 
-          <div className="flex flex-col items-center gap-0.5 w-28 shrink-0">
+          <div className="flex flex-col items-center gap-0.5 w-20 sm:w-28 shrink-0">
             {hasPred ? (
               <>
-                <div className="flex items-center gap-1.5">
-                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-lg w-5 text-center ${scoreColor(ph, ah)}`}>{ph}</span>
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-base sm:text-lg w-5 text-center ${scoreColor(ph, ah)}`}>{ph}</span>
                   <span className="text-[#1e2d40] text-sm">–</span>
-                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-lg w-5 text-center ${scoreColor(pa, aa)}`}>{pa}</span>
+                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-base sm:text-lg w-5 text-center ${scoreColor(pa, aa)}`}>{pa}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="font-[family-name:var(--font-oswald)] text-xs text-[#3f5068] w-4 text-center">{ah}</span>
@@ -130,7 +137,7 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
               </>
             ) : (
               <>
-                <span className="font-[family-name:var(--font-oswald)] font-bold text-lg text-[#1e2d40]">{ah} – {aa}</span>
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-base sm:text-lg text-[#1e2d40]">{ah} – {aa}</span>
                 <span className="text-xs text-[#1e2d40]">no pick</span>
               </>
             )}
@@ -138,41 +145,88 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
 
           <div className="flex-1 flex items-center gap-2 min-w-0">
             <TeamFlag name={match.away_team} />
-            <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-sm">
+            <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-xs sm:text-sm">
               {match.away_team}
             </span>
           </div>
 
-          <div className="shrink-0 w-14 text-right">
+          {/* Desktop result badge */}
+          <div className="shrink-0 w-14 text-right hidden sm:block">
             <ResultBadge exact={exact} winner={correctWinner} hasPred={hasPred} />
           </div>
         </div>
 
         <div className="flex items-center gap-2 mt-2 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <span className="text-[10px] text-[#2d3e52] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
-          {match.group && <span className="text-[10px] text-[#2d3e52]">· {match.group}</span>}
-          <span className="text-[10px] text-[#2d3e52] ml-auto">{kickoff}</span>
-          <StatusPill status={match.status} />
+          {/* Desktop: stage/group inline; mobile: hidden (shown in top meta) */}
+          <span className="hidden sm:inline text-[10px] text-[#2d3e52] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
+          {match.group && <span className="hidden sm:inline text-[10px] text-[#2d3e52]">· {match.group}</span>}
+          <span className="text-[10px] text-[#2d3e52] sm:ml-auto truncate">{kickoff}</span>
+          <div className="ml-auto sm:ml-0"><StatusPill status={match.status} /></div>
         </div>
       </div>
     )
   }
 
   // ── Upcoming / live ──────────────────────────────────────────────────────────
+  const scoreInputs = (
+    <>
+      <input
+        type="number" min={0} value={home}
+        onChange={(e) => setHome(e.target.value)}
+        placeholder="0"
+        inputMode="numeric"
+        aria-label={`${match.home_team} score`}
+        className="w-12 sm:w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
+        style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          outline: 'none',
+        }}
+        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
+        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
+      />
+      <span className="text-[#2d3e52] font-bold text-sm">–</span>
+      <input
+        type="number" min={0} value={away}
+        onChange={(e) => setAway(e.target.value)}
+        placeholder="0"
+        inputMode="numeric"
+        aria-label={`${match.away_team} score`}
+        className="w-12 sm:w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
+        style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          outline: 'none',
+        }}
+        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
+        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
+      />
+    </>
+  )
+
   return (
     <div
-      className="rounded-2xl p-4 transition-all duration-200"
+      className="rounded-2xl p-3 sm:p-4 transition-all duration-200"
       style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
     >
-      <div className="flex items-center gap-3">
+      {/* Top meta row (mobile only) */}
+      <div className="flex items-center gap-2 mb-2.5 sm:hidden">
+        <span className="text-[10px] text-[#2d3e52] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
+        {match.group && <span className="text-[10px] text-[#2d3e52]">· {match.group}</span>}
+        <div className="ml-auto"><StatusPill status={match.status} /></div>
+      </div>
+
+      {/* Teams row */}
+      <div className="flex items-center gap-2 sm:gap-3">
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-sm">
+          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-xs sm:text-sm">
             {match.home_team}
           </span>
           <TeamFlag name={match.home_team} />
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0 w-28 justify-center">
+        {/* Desktop centered inputs */}
+        <div className="hidden sm:flex items-center gap-1.5 shrink-0 w-28 justify-center">
           {isLocked ? (
             prediction ? (
               <span className="font-[family-name:var(--font-oswald)] font-bold text-lg text-white">
@@ -181,48 +235,34 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
             ) : (
               <span className="text-xs text-[#1e2d40]">locked</span>
             )
+          ) : scoreInputs}
+        </div>
+
+        {/* Mobile center placeholder — VS or locked status */}
+        <div className="sm:hidden shrink-0 px-1">
+          {isLocked ? (
+            prediction ? (
+              <span className="font-[family-name:var(--font-oswald)] font-bold text-base text-white">
+                {prediction.predicted_home} – {prediction.predicted_away}
+              </span>
+            ) : (
+              <span className="text-[10px] text-[#1e2d40] font-bold tracking-widest uppercase">locked</span>
+            )
           ) : (
-            <>
-              <input
-                type="number" min={0} value={home}
-                onChange={(e) => setHome(e.target.value)}
-                placeholder="0"
-                className="w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  outline: 'none',
-                }}
-                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
-                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
-              />
-              <span className="text-[#2d3e52] font-bold text-sm">–</span>
-              <input
-                type="number" min={0} value={away}
-                onChange={(e) => setAway(e.target.value)}
-                placeholder="0"
-                className="w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  outline: 'none',
-                }}
-                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
-                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
-              />
-            </>
+            <span className="font-[family-name:var(--font-oswald)] font-bold text-[#1e2d40] text-xs tracking-[0.25em]">VS</span>
           )}
         </div>
 
         <div className="flex-1 flex items-center gap-2 min-w-0">
           <TeamFlag name={match.away_team} />
-          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-sm">
+          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-xs sm:text-sm">
             {match.away_team}
           </span>
         </div>
 
+        {/* Desktop save button */}
         {!isLocked && (
-          <div className="shrink-0">
+          <div className="shrink-0 hidden sm:block">
             <button
               onClick={() => save.mutate()}
               disabled={save.isPending}
@@ -240,11 +280,29 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
         )}
       </div>
 
+      {/* Mobile-only: inputs + save below */}
+      {!isLocked && (
+        <div className="sm:hidden flex items-center justify-center gap-3 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="flex items-center gap-1.5">
+            {scoreInputs}
+          </div>
+          <button
+            onClick={() => save.mutate()}
+            disabled={save.isPending}
+            className="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-40"
+            style={{ background: '#f0b429', color: '#080c14' }}
+          >
+            {save.isPending ? '…' : prediction ? 'Update' : 'Save'}
+          </button>
+        </div>
+      )}
+
+      {/* Footer meta (desktop) + kickoff (both) */}
       <div className="flex items-center gap-2 mt-2 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <span className="text-[10px] text-[#2d3e52] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
-        {match.group && <span className="text-[10px] text-[#2d3e52]">· {match.group}</span>}
-        <span className="text-[10px] text-[#2d3e52] ml-auto">{kickoff}</span>
-        <StatusPill status={match.status} />
+        <span className="hidden sm:inline text-[10px] text-[#2d3e52] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
+        {match.group && <span className="hidden sm:inline text-[10px] text-[#2d3e52]">· {match.group}</span>}
+        <span className="text-[10px] text-[#2d3e52] sm:ml-auto truncate">{kickoff}</span>
+        <div className="ml-auto sm:ml-0 hidden sm:block"><StatusPill status={match.status} /></div>
       </div>
 
       {err && <p className="text-xs text-red-400 mt-2">{err}</p>}
@@ -283,16 +341,16 @@ export default function PredictionsPage() {
   const isLoading = matchesLoading || predsLoading
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-1 text-[#3f5068] hover:text-white text-sm mb-3 transition-colors font-medium"
         >
           ← Dashboard
         </Link>
-        <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
+        <h1 className="font-[family-name:var(--font-oswald)] text-2xl sm:text-3xl font-bold uppercase tracking-wider text-white leading-none">
           My Predictions
         </h1>
         <p className="text-[#3f5068] text-sm mt-1.5 font-medium">

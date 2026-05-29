@@ -75,7 +75,7 @@ export default function LandingPage() {
           className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-white/[0.08]"
         />
 
-        <div className="relative z-10 max-w-6xl mx-auto px-6 py-24 w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <div className="relative z-10 max-w-6xl mx-auto px-5 sm:px-6 py-16 sm:py-24 w-full grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
 
           {/* Left — copy */}
           <div>
@@ -94,7 +94,7 @@ export default function LandingPage() {
 
             <h1
               className="font-[family-name:var(--font-oswald)] font-bold leading-[0.95] uppercase animate-fade-up-delay"
-              style={{ fontSize: 'clamp(3.2rem, 8.5vw, 5.8rem)' }}
+              style={{ fontSize: 'clamp(2.6rem, 8.5vw, 5.8rem)' }}
             >
               Predict the<br />
               <span className="text-gold-gradient">Beautiful</span>{' '}
@@ -254,12 +254,12 @@ export default function LandingPage() {
       </div>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 py-28">
-        <div className="text-center mb-16">
+      <section className="max-w-5xl mx-auto px-5 sm:px-6 py-20 sm:py-28">
+        <div className="text-center mb-12 sm:mb-16">
           <p className="text-[#f0b429] text-[0.65rem] font-bold uppercase tracking-[0.35em] mb-3">
             How it works
           </p>
-          <h2 className="font-[family-name:var(--font-oswald)] text-4xl font-bold uppercase tracking-wide">
+          <h2 className="font-[family-name:var(--font-oswald)] text-3xl sm:text-4xl font-bold uppercase tracking-wide">
             Simple. Competitive. Glorious.
           </h2>
         </div>
@@ -305,11 +305,11 @@ export default function LandingPage() {
         className="py-20"
         style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: '#070a11' }}
       >
-        <div className="max-w-5xl mx-auto px-6">
-          <p className="text-center text-[#f0b429] text-[0.65rem] font-bold uppercase tracking-[0.35em] mb-12">
+        <div className="max-w-5xl mx-auto px-5 sm:px-6">
+          <p className="text-center text-[#f0b429] text-[0.65rem] font-bold uppercase tracking-[0.35em] mb-10 sm:mb-12">
             Join the world
           </p>
-          <div className="grid grid-cols-4 sm:grid-cols-8 gap-5">
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-4 sm:gap-5">
             {FEATURED.map(({ name, code }) => (
               <div key={code} className="flex flex-col items-center gap-2 group cursor-default">
                 <div
@@ -339,7 +339,7 @@ export default function LandingPage() {
 
       {/* ── FOOTER CTA ───────────────────────────────────────────────────── */}
       <section
-        className="relative py-28 text-center overflow-hidden"
+        className="relative py-20 sm:py-28 px-5 sm:px-6 text-center overflow-hidden"
         style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
       >
         {/* Ambient center glow */}
@@ -356,7 +356,7 @@ export default function LandingPage() {
           </p>
           <h2
             className="font-[family-name:var(--font-oswald)] font-bold uppercase leading-[0.9] mb-8"
-            style={{ fontSize: 'clamp(2.8rem, 6vw, 5rem)' }}
+            style={{ fontSize: 'clamp(2.3rem, 6vw, 5rem)' }}
           >
             Ready to{' '}
             <span className="text-gold-gradient">prove it?</span>
