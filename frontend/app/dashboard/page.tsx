@@ -2,40 +2,15 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { computeAccuracy, formatCountdown, toMatchdayCDT, isLockingNow } from '@/lib/stats'
+import { computeAccuracy, formatCountdown } from '@/lib/stats'
 import { getTeamFlagCode, getFlagUrl, getTeamAbbr } from '@/lib/flags'
 import type { Match, Prediction, LeaderboardEntry, Tournament } from '@/types/api'
 
 // ── Primitives ────────────────────────────────────────────────────────────────
 
-function Flag({ name, size = 28 }: { name: string; size?: number }) {
-  const code = getTeamFlagCode(name)
-  if (!code) return (
-    <span
-      className="inline-block rounded shrink-0"
-      style={{
-        width: size,
-        height: Math.round(size * 0.7),
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.1)',
-      }}
-    />
-  )
-  const srcSize = size >= 40 ? 80 : 40
-  return (
-    <Image
-      src={getFlagUrl(code, srcSize)}
-      alt={name}
-      width={size}
-      height={Math.round(size * 0.7)}
-      className="rounded object-cover shrink-0"
-      style={{ border: '1px solid rgba(255,255,255,0.15)' }}
-      unoptimized
-    />
-  )
-}
 
 function Skeleton({ className }: { className?: string }) {
   return (
@@ -58,6 +33,32 @@ function SectionLabel({ title, action }: { title: string; action?: React.ReactNo
       {action}
     </div>
   )
+}
+
+// ── usePageSize ───────────────────────────────────────────────────────────────
+
+function usePageSize(): number {
+  const [size, setSize] = useState(2) // SSR-safe default
+  useEffect(() => {
+    function update() {
+      const w = window.innerWidth
+      if (w >= 1280) setSize(5)
+      else if (w >= 1024) setSize(4)
+      else if (w >= 768) setSize(3)
+      else if (w >= 640) setSize(2)
+      else setSize(1)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+  return size
+}
+
+// ── formatGameDate ────────────────────────────────────────────────────────────
+
+function formatGameDate(kickoffAt: string): string {
+  return new Date(kickoffAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 // ── Accuracy Ring ─────────────────────────────────────────────────────────────
@@ -130,276 +131,6 @@ function FormStrip({ predictions, matches }: { predictions: Prediction[]; matche
   )
 }
 
-// ── Recent Results card ───────────────────────────────────────────────────────
-
-type ResultMeta = { outcome: 'exact' | 'correct' | 'wrong' | 'pending'; borderColor: string }
-
-function getResultMeta(p: Prediction, m: Match): ResultMeta {
-  if (m.home_score === null || m.away_score === null) {
-    return { outcome: 'pending', borderColor: 'rgba(255,255,255,0.06)' }
-  }
-  const exact = p.predicted_home === m.home_score && p.predicted_away === m.away_score
-  if (exact) return { outcome: 'exact', borderColor: 'rgba(74,222,128,0.6)' }
-  const correct = Math.sign(p.predicted_home - p.predicted_away) === Math.sign(m.home_score - m.away_score)
-  if (correct) return { outcome: 'correct', borderColor: 'rgba(240,180,41,0.6)' }
-  return { outcome: 'wrong', borderColor: 'rgba(255,255,255,0.08)' }
-}
-
-const OUTCOME_CHIP = {
-  exact:   { label: '✓ exact',  bg: 'rgba(74,222,128,0.12)',  border: 'rgba(74,222,128,0.3)',   color: '#4ade80' },
-  correct: { label: '✓ result', bg: 'rgba(240,180,41,0.10)',  border: 'rgba(240,180,41,0.25)',  color: '#f0b429' },
-  wrong:   { label: '✗ wrong',  bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.08)', color: '#4a6080' },
-} as const
-
-function MatchCard({ home, away, homeScore, awayScore, meta, predictedHome, predictedAway }: {
-  home: string
-  away: string
-  homeScore: number | null
-  awayScore: number | null
-  meta: ResultMeta | null
-  predictedHome?: number
-  predictedAway?: number
-}) {
-  const hasPred = predictedHome !== undefined && predictedAway !== undefined
-  const chip = meta && meta.outcome !== 'pending' ? OUTCOME_CHIP[meta.outcome] : null
-
-  return (
-    <div
-      className="rounded-xl p-3 flex flex-col gap-2.5"
-      style={{
-        background: 'rgba(255,255,255,0.025)',
-        border: '1px solid rgba(255,255,255,0.06)',
-        borderLeft: `3px solid ${meta?.borderColor ?? 'rgba(255,255,255,0.08)'}`,
-      }}
-    >
-      {/* Abbreviations + actual score */}
-      <div className="flex items-center justify-between">
-        <span className="font-[family-name:var(--font-oswald)] text-[11px] font-bold text-[#6080a0] uppercase tracking-wider w-8">
-          {getTeamAbbr(home)}
-        </span>
-        <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-2xl tabular-nums leading-none">
-          {homeScore ?? '—'}–{awayScore ?? '—'}
-        </span>
-        <span className="font-[family-name:var(--font-oswald)] text-[11px] font-bold text-[#6080a0] uppercase tracking-wider w-8 text-right">
-          {getTeamAbbr(away)}
-        </span>
-      </div>
-
-      {/* Flags + predicted score */}
-      <div className="flex items-center justify-between">
-        <Flag name={home} size={28} />
-        {hasPred ? (
-          <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429]/50 text-sm tabular-nums leading-none">
-            {predictedHome}–{predictedAway}
-          </span>
-        ) : (
-          <span className="text-[10px] text-[#3a4d64] font-medium tracking-wide">no pick</span>
-        )}
-        <Flag name={away} size={28} />
-      </div>
-
-      {/* Outcome chip */}
-      <div
-        className="flex justify-center pt-1"
-        style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
-      >
-        {chip ? (
-          <span
-            className="text-[10px] font-bold px-2.5 py-[3px] rounded-full tracking-wide"
-            style={{ background: chip.bg, border: `1px solid ${chip.border}`, color: chip.color }}
-          >
-            {chip.label}
-          </span>
-        ) : (
-          <span className="text-[10px] text-[#3a4d64] font-medium">
-            {homeScore === null ? 'pending' : 'no pick'}
-          </span>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ── Upcoming Matches ──────────────────────────────────────────────────────────
-
-type PickState = 'picked-safe' | 'picked-locking' | 'no-pick' | 'no-pick-locking'
-
-function getPickState(match: Match, prediction: Prediction | undefined): PickState {
-  const locking = isLockingNow(match.kickoff_at)
-  if (prediction) return locking ? 'picked-locking' : 'picked-safe'
-  return locking ? 'no-pick-locking' : 'no-pick'
-}
-
-function formatMatchdayLabel(dateStr: string): string {
-  const todayCDT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const tomorrowCDT = tomorrow.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
-  if (dateStr === todayCDT) return 'Today'
-  if (dateStr === tomorrowCDT) return 'Tomorrow'
-  const [year, month, day] = dateStr.split('-').map(Number)
-  return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-function UpcomingMatchRow({ match, prediction }: { match: Match; prediction?: Prediction }) {
-  const state = getPickState(match, prediction)
-
-  const borderColor =
-    state === 'no-pick-locking' ? 'rgba(239,68,68,0.35)' :
-    state === 'picked-locking'  ? 'rgba(240,180,41,0.22)' :
-    'rgba(255,255,255,0.05)'
-
-  const bgColor = state === 'no-pick-locking' ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.025)'
-
-  const inner = (
-    <div
-      className="rounded-xl px-3 sm:px-4 py-3.5 flex items-center gap-2 sm:gap-3"
-      style={{ background: bgColor, border: `1px solid ${borderColor}` }}
-    >
-      {/* Home team */}
-      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-        <Flag name={match.home_team} size={42} />
-        <span className="font-[family-name:var(--font-oswald)] font-semibold text-white text-xs sm:text-sm uppercase tracking-wide truncate">
-          {match.home_team}
-        </span>
-      </div>
-
-      {/* Center */}
-      <div className="shrink-0 flex items-center justify-center" style={{ minWidth: 64 }}>
-        {prediction ? (
-          <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-xl sm:text-2xl tabular-nums tracking-widest leading-none">
-            {prediction.predicted_home}–{prediction.predicted_away}
-          </span>
-        ) : (
-          <span className="font-[family-name:var(--font-oswald)] font-bold text-[#2a3d55] text-xs tracking-[0.3em]">
-            VS
-          </span>
-        )}
-      </div>
-
-      {/* Away team */}
-      <div className="flex items-center gap-2.5 min-w-0 flex-1 justify-end">
-        <span className="font-[family-name:var(--font-oswald)] font-semibold text-white text-xs sm:text-sm uppercase tracking-wide truncate text-right">
-          {match.away_team}
-        </span>
-        <Flag name={match.away_team} size={42} />
-      </div>
-
-      {/* Status + countdown */}
-      <div
-        className="shrink-0 flex flex-col items-end gap-0.5 pl-2.5"
-        style={{ minWidth: 80, borderLeft: '1px solid rgba(255,255,255,0.05)' }}
-      >
-        {state === 'picked-safe' && (
-          <span className="text-xs text-green-400/80 font-semibold leading-tight">✓ picked</span>
-        )}
-        {state === 'picked-locking' && (
-          <span className="text-xs text-[#f0b429] font-semibold leading-tight">locking</span>
-        )}
-        {state === 'no-pick' && (
-          <span className="text-sm text-[#f0b429] font-bold leading-tight">Pick →</span>
-        )}
-        {state === 'no-pick-locking' && (
-          <span className="text-xs text-red-400 font-bold uppercase tracking-wide leading-tight">PICK NOW</span>
-        )}
-        <span className="text-[11px] text-[#4a6080] font-medium leading-tight">
-          {formatCountdown(match.kickoff_at)}
-        </span>
-      </div>
-    </div>
-  )
-
-  if (state === 'no-pick' || state === 'no-pick-locking') {
-    return (
-      <Link href="/predictions" className="block hover:opacity-90 transition-opacity">
-        {inner}
-      </Link>
-    )
-  }
-  return inner
-}
-
-function UpcomingMatchesBlock({ matches, predictions, loading }: {
-  matches: Match[]
-  predictions: Prediction[]
-  loading: boolean
-}) {
-  const predByMatch = new Map(predictions.map(p => [p.match_id, p]))
-
-  const scheduled = matches.filter(m => m.status === 'scheduled')
-  const matchdays = [...new Set(scheduled.map(m => toMatchdayCDT(m.kickoff_at)))].sort()
-  const todayCDT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
-  const nearestMatchday = matchdays.includes(todayCDT) ? todayCDT : (matchdays[0] ?? null)
-
-  const matchdayMatches = nearestMatchday
-    ? scheduled
-        .filter(m => toMatchdayCDT(m.kickoff_at) === nearestMatchday)
-        .sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime())
-    : []
-
-  const allPicked = matchdayMatches.length > 0 && matchdayMatches.every(m => predByMatch.has(m.id))
-  const nextMatchday = matchdays.find(d => d > (nearestMatchday ?? ''))
-
-  return (
-    <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <span className="block w-[3px] h-5 rounded-full bg-[#f0b429]" />
-          <div className="flex items-center gap-2">
-            <p className="font-[family-name:var(--font-oswald)] text-[1.05rem] font-bold uppercase tracking-[0.2em] text-[#90a0b8]">
-              Upcoming
-            </p>
-            {nearestMatchday && (
-              <>
-                <span className="text-[#2a3d55] text-[0.8rem]">·</span>
-                <p className="font-[family-name:var(--font-oswald)] text-[0.9rem] font-bold uppercase tracking-[0.18em] text-[#f0b429]/70">
-                  {formatMatchdayLabel(nearestMatchday)}
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-        <Link href="/predictions" className="text-[11px] text-[#5a7090] hover:text-[#f0b429] transition-colors font-medium">
-          All picks →
-        </Link>
-      </div>
-
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-14" />)}
-        </div>
-      ) : matchdayMatches.length === 0 ? (
-        <div className="py-8 text-center">
-          <p className="text-[#5a7090] text-sm">No upcoming matches</p>
-        </div>
-      ) : allPicked ? (
-        <div className="flex flex-col items-center py-8 gap-2.5 text-center">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-base"
-            style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}
-          >
-            ✓
-          </div>
-          <p className="text-white font-semibold text-sm">You&apos;re all set for today</p>
-          {nextMatchday ? (
-            <p className="text-[#5a7090] text-xs">
-              Next matches: <span className="text-white/50">{formatMatchdayLabel(nextMatchday)}</span>
-            </p>
-          ) : (
-            <p className="text-[#5a7090] text-xs">No more upcoming matches</p>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {matchdayMatches.map(m => (
-            <UpcomingMatchRow key={m.id} match={m} prediction={predByMatch.get(m.id)} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── Accuracy Card ─────────────────────────────────────────────────────────────
 
 function AccuracyCard({ predictions, matches }: { predictions: Prediction[]; matches: Match[] }) {
@@ -431,7 +162,6 @@ function AccuracyCard({ predictions, matches }: { predictions: Prediction[]; mat
         <SectionLabel title="Accuracy" />
 
         <div className="flex items-center gap-5">
-          {/* Donut ring */}
           <div className="relative w-24 h-24 shrink-0">
             <AccuracyRing pct={pct} exactPct={exactPct} />
             <div className="absolute inset-0 flex items-center justify-center">
@@ -444,7 +174,6 @@ function AccuracyCard({ predictions, matches }: { predictions: Prediction[]; mat
             </div>
           </div>
 
-          {/* Legend */}
           <div className="flex flex-col gap-3 flex-1">
             <div className="flex items-center gap-2.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#f0b429] shrink-0" />
@@ -649,59 +378,272 @@ function MyLeaguesScroll({ tournaments, leaderboards, currentUserId, loading }: 
   )
 }
 
-// ── Recent Results ────────────────────────────────────────────────────────────
+// ── Match Rail helpers ────────────────────────────────────────────────────────
 
-function RecentResultsBlock({ matches, predictions, loading }: {
+function formatGameTime(kickoffAt: string): string {
+  return new Date(kickoffAt).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+}
+
+// ── Match Rail ────────────────────────────────────────────────────────────────
+
+
+function MatchRailCard({ match, prediction }: { match: Match; prediction?: Prediction }) {
+  const isLive = match.status === 'live'
+  const isFinished = match.status === 'finished'
+  const isUpcoming = !isLive && !isFinished
+
+  // ── Header — semantic colour per state ──────────────────────────────────────
+  const headerStyle = isLive
+    ? { background: 'linear-gradient(135deg, #c8900a 0%, #f0b429 55%, #f5c842 100%)' }
+    : isUpcoming
+    ? { background: 'linear-gradient(135deg, #0c1e3c 0%, #0f2848 60%, #0c1e3c 100%)', borderBottom: '1px solid rgba(80,140,220,0.12)' }
+    : { background: 'rgba(255,255,255,0.04)' }
+
+  const headerDateColor = isLive ? '#3a2200' : isUpcoming ? '#5a8fbe' : '#4a6080'
+
+  const statusEl = isLive ? (
+    <span className="flex items-center gap-1.5" style={{ color: '#3a2200' }}>
+      <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-700 animate-pulse-live" />
+      <span className="text-[0.65rem] font-bold uppercase tracking-wider">LIVE</span>
+    </span>
+  ) : isFinished ? (
+    <span className="text-[0.65rem] font-bold uppercase tracking-wider" style={{ color: '#4a6080' }}>FT</span>
+  ) : (
+    // upcoming — time only; countdown moves to bottom zone
+    <span className="text-[0.65rem] font-bold" style={{ color: '#5a8fbe' }}>
+      {formatGameTime(match.kickoff_at)}
+    </span>
+  )
+
+  // ── Bottom zone — fixed two-row structure on every card ───────────────────
+  // Row 1: pick / action link  |  Row 2: countdown (upcoming) or invisible spacer
+  const mainRow: React.ReactNode = (isFinished || isLive) ? (
+    prediction ? (
+      <Link href="/predictions" className="text-[0.68rem] font-semibold text-[#f0b429] hover:text-white transition-colors">
+        See your pick →
+      </Link>
+    ) : (
+      <Link href="/predictions" className="text-[0.68rem] font-medium text-[#3a4d64] hover:text-[#5a7090] transition-colors">
+        No Pick
+      </Link>
+    )
+  ) : (
+    prediction ? (
+      <span className="text-[0.65rem] font-semibold" style={{ color: '#4ade80' }}>
+        ✓ <span className="font-[family-name:var(--font-oswald)] font-bold">{prediction.predicted_home}–{prediction.predicted_away}</span> picked
+      </span>
+    ) : (
+      <Link href="/predictions" className="text-[0.7rem] font-bold text-[#f0b429] hover:text-white transition-colors">
+        Pick →
+      </Link>
+    )
+  )
+
+  return (
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.09)' }}
+    >
+      {/* Header strip */}
+      <div className="px-3.5 py-2.5 flex items-center justify-between" style={headerStyle}>
+        <span className="text-[0.65rem] font-bold uppercase tracking-[0.15em]" style={{ color: headerDateColor }}>
+          {formatGameDate(match.kickoff_at)}
+        </span>
+        {statusEl}
+      </div>
+
+      {/* Team rows — each row is fixed height; flag uses object-contain so no cropping */}
+      <div className="px-3 py-4 space-y-2.5">
+        {[
+          { name: match.home_team, score: match.home_score },
+          { name: match.away_team, score: match.away_score },
+        ].map((team) => {
+          const flagCode = getTeamFlagCode(team.name)
+          return (
+            <div key={team.name} className="flex items-center gap-2 h-[36px]">
+              {/* Flag container — object-contain so square/wide flags never clip */}
+              <div
+                className="shrink-0 rounded flex items-center justify-center"
+                style={{ width: 44, height: 36 }}
+              >
+                {flagCode ? (
+                  <Image
+                    src={getFlagUrl(flagCode, 80)}
+                    alt={team.name}
+                    width={44}
+                    height={36}
+                    className="rounded object-contain w-full h-full"
+                    unoptimized
+                  />
+                ) : (
+                  <span className="text-[8px] text-white/20">?</span>
+                )}
+              </div>
+              {/* Name: full on mobile, abbreviation on desktop (lg+) */}
+              <span className="flex-1 lg:hidden font-[family-name:var(--font-oswald)] font-semibold text-[0.8rem] uppercase tracking-wider text-white truncate">
+                {team.name}
+              </span>
+              <span className="flex-1 hidden lg:block font-[family-name:var(--font-oswald)] font-bold text-[0.9rem] uppercase tracking-widest text-white text-center">
+                {getTeamAbbr(team.name)}
+              </span>
+              {/* Score — always rendered; invisible for upcoming to lock card height */}
+              <span
+                className="font-[family-name:var(--font-oswald)] font-bold text-[1.75rem] text-[#f0b429] leading-none tabular-nums shrink-0 w-8 text-right"
+                style={{ visibility: (isFinished || isLive) ? 'visible' : 'hidden' }}
+              >
+                {team.score ?? '—'}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Divider */}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }} />
+
+      {/* Bottom zone — fixed height, two-row layout, same structure on every card */}
+      <div className="px-3.5 flex flex-col items-center justify-center h-[48px] gap-0.5">
+        {mainRow}
+        {/* Countdown for upcoming; invisible spacer for past/live keeps height identical */}
+        <span
+          className="text-[0.58rem] font-medium text-[#2e4a66]"
+          style={{ visibility: isUpcoming ? 'visible' : 'hidden' }}
+        >
+          {formatCountdown(match.kickoff_at)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function MatchRailCardSkeleton() {
+  return (
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.09)' }}
+    >
+      <div className="px-3.5 py-2.5" style={{ background: 'rgba(255,255,255,0.03)' }}>
+        <div className="h-2.5 w-14 rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.07)' }} />
+      </div>
+      <div className="px-3.5 py-4 space-y-3.5">
+        {[1, 2].map(i => (
+          <div key={i} className="flex items-center gap-2.5">
+            <div
+              className="rounded shrink-0 animate-pulse"
+              style={{ width: 38, height: 27, background: 'rgba(255,255,255,0.06)' }}
+            />
+            <div className="flex-1 h-3 rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.05)' }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }} />
+      <div className="min-h-[44px]" />
+    </div>
+  )
+}
+
+function MatchRail({ matches, predictions, loading }: {
   matches: Match[]
   predictions: Prediction[]
   loading: boolean
 }) {
+  const N = usePageSize()
+  const sorted = [...matches].sort(
+    (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
+  )
   const predByMatch = new Map(predictions.map(p => [p.match_id, p]))
-  const now = Date.now()
-  const oneDayAgo = now - 24 * 60 * 60 * 1000
+  const total = sorted.length
 
-  const sorted = [...matches]
-    .filter(m => m.status === 'finished')
-    .sort((a, b) => new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime())
+  const [startIndex, setStartIndex] = useState(0)
+  const anchoredRef = useRef(false)
 
-  const lastDay = sorted.filter(m => new Date(m.kickoff_at).getTime() >= oneDayAgo)
-  const recent = lastDay.length > 0 ? lastDay : sorted.slice(0, 8)
+  // Anchor to first live → first scheduled → 0, once data arrives
+  useEffect(() => {
+    if (!loading && total > 0 && !anchoredRef.current) {
+      anchoredRef.current = true
+      const liveIdx = sorted.findIndex(m => m.status === 'live')
+      const scheduledIdx = sorted.findIndex(m => m.status === 'scheduled')
+      const anchor = liveIdx !== -1 ? liveIdx : scheduledIdx !== -1 ? scheduledIdx : 0
+      setStartIndex(Math.min(anchor, Math.max(0, total - N)))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, total])
+
+  // Clamp when N changes (e.g. window resize)
+  useEffect(() => {
+    setStartIndex(prev => Math.min(prev, Math.max(0, total - N)))
+  }, [N, total])
+
+  const maxStart = Math.max(0, total - N)
+  const canGoBack = startIndex > 0
+  const canGoForward = startIndex < maxStart
+  const visibleMatches = sorted.slice(startIndex, startIndex + N)
+
+  const navBtnClass =
+    'w-8 h-8 rounded-full flex items-center justify-center text-[#5a7090] hover:text-white hover:bg-white/10 transition-all text-2xl leading-none select-none'
 
   return (
     <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
       <SectionLabel
-        title="Recent Results"
+        title="Matches"
         action={
           <Link href="/predictions" className="text-[11px] text-[#5a7090] hover:text-[#f0b429] transition-colors font-medium">
-            All results →
+            See all your picks →
           </Link>
         }
       />
 
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-[118px]" />)}
+        <div className="flex gap-3">
+          {Array.from({ length: N }).map((_, i) => (
+            <div key={i} style={{ flex: 1, minWidth: 0 }}>
+              <MatchRailCardSkeleton />
+            </div>
+          ))}
         </div>
-      ) : recent.length === 0 ? (
-        <p className="text-[#5a7090] text-sm py-6 text-center">No results yet</p>
+      ) : total === 0 ? (
+        <p className="text-[#5a7090] text-sm py-6 text-center">No matches available</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-          {recent.map(m => {
-            const p = predByMatch.get(m.id)
-            const meta = p ? getResultMeta(p, m) : null
-            return (
-              <MatchCard
-                key={m.id}
-                home={m.home_team}
-                away={m.away_team}
-                homeScore={m.home_score}
-                awayScore={m.away_score}
-                meta={meta}
-                predictedHome={p?.predicted_home}
-                predictedAway={p?.predicted_away}
-              />
-            )
-          })}
+        <div className="flex items-center gap-2">
+          {/* Back button — always reserve space */}
+          <div style={{ width: 32, flexShrink: 0 }}>
+            {canGoBack && (
+              <button
+                onClick={() => setStartIndex(i => Math.max(0, i - N))}
+                className={navBtnClass}
+                aria-label="Previous matches"
+              >
+                ‹
+              </button>
+            )}
+          </div>
+
+          {/* Cards */}
+          <div
+            className="flex-1 grid gap-3"
+            style={{ gridTemplateColumns: `repeat(${visibleMatches.length}, minmax(0, 1fr))` }}
+          >
+            {visibleMatches.map(m => (
+              <MatchRailCard key={m.id} match={m} prediction={predByMatch.get(m.id)} />
+            ))}
+          </div>
+
+          {/* Forward button — always reserve space */}
+          <div style={{ width: 32, flexShrink: 0 }}>
+            {canGoForward && (
+              <button
+                onClick={() => setStartIndex(i => Math.min(maxStart, i + N))}
+                className={navBtnClass}
+                aria-label="Next matches"
+              >
+                ›
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -751,13 +693,13 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Tier 1 — Upcoming Matches */}
+      {/* Tier 1 — Match Rail */}
       <div className="mb-4">
-        <UpcomingMatchesBlock matches={matches} predictions={predictions} loading={dataLoading} />
+        <MatchRail matches={matches} predictions={predictions} loading={dataLoading} />
       </div>
 
       {/* Tier 2 — Accuracy + My Leagues */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         <AccuracyCard predictions={predictions} matches={matches} />
         <MyLeaguesScroll
           tournaments={tournaments}
@@ -766,9 +708,6 @@ export default function DashboardPage() {
           loading={tournamentsLoading}
         />
       </div>
-
-      {/* Tier 3 — Recent Results */}
-      <RecentResultsBlock matches={matches} predictions={predictions} loading={dataLoading} />
 
     </div>
   )
