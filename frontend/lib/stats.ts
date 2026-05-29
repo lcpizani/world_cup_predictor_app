@@ -25,6 +25,14 @@ export function computeAccuracy(
   return { correctOutcomes, exactScores, total }
 }
 
+export function toMatchdayCDT(kickoffAt: string): string {
+  return new Date(kickoffAt).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+}
+
+export function isLockingNow(kickoffAt: string): boolean {
+  return new Date(kickoffAt).getTime() - Date.now() <= 30 * 60 * 1000
+}
+
 export function formatCountdown(kickoffAt: string): string {
   const now = Date.now()
   const diff = new Date(kickoffAt).getTime() - now

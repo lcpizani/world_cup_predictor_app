@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { computeAccuracy, formatCountdown } from '@/lib/stats'
+import { computeAccuracy, formatCountdown, toMatchdayCDT, isLockingNow } from '@/lib/stats'
 import { getTeamFlagCode, getFlagUrl } from '@/lib/flags'
 import type { Match, Prediction, LeaderboardEntry, Tournament } from '@/types/api'
 
@@ -19,7 +19,7 @@ function Flag({ name, size = 28 }: { name: string; size?: number }) {
         width: size,
         height: Math.round(size * 0.7),
         background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        border: '1px solid rgba(255,255,255,0.1)',
       }}
     />
   )
@@ -31,7 +31,7 @@ function Flag({ name, size = 28 }: { name: string; size?: number }) {
       width={size}
       height={Math.round(size * 0.7)}
       className="rounded object-cover shrink-0"
-      style={{ border: '1px solid rgba(255,255,255,0.1)' }}
+      style={{ border: '1px solid rgba(255,255,255,0.15)' }}
       unoptimized
     />
   )
@@ -46,193 +46,591 @@ function Skeleton({ className }: { className?: string }) {
   )
 }
 
-function SectionLabel({ title }: { title: string }) {
+function SectionLabel({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2.5 mb-4">
-      <span className="block w-0.5 h-3.5 rounded-full bg-[#f0b429]/70" />
-      <p className="font-[family-name:var(--font-oswald)] text-[0.65rem] font-bold uppercase tracking-[0.22em] text-[#5a6a82]">
-        {title}
-      </p>
+    <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center gap-3">
+        <span className="block w-[3px] h-5 rounded-full bg-[#f0b429]" />
+        <p className="font-[family-name:var(--font-oswald)] text-[1.05rem] font-bold uppercase tracking-[0.2em] text-[#90a0b8]">
+          {title}
+        </p>
+      </div>
+      {action}
     </div>
   )
 }
 
-// ── Match row (compact, used in Recent Results) ───────────────────────────────
+// ── Accuracy Ring ─────────────────────────────────────────────────────────────
 
-function MatchRow({ home, away, center, sub }: {
+function AccuracyRing({ pct, exactPct }: { pct: number; exactPct: number }) {
+  const r = 38
+  const circ = 2 * Math.PI * r
+  const ri = r - 13
+  const circi = 2 * Math.PI * ri
+  return (
+    <svg width="96" height="96" viewBox="0 0 96 96" style={{ transform: 'rotate(-90deg)' }}>
+      <circle cx="48" cy="48" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
+      <circle
+        cx="48" cy="48" r={r} fill="none"
+        stroke="rgba(240,180,41,0.25)" strokeWidth="8"
+        strokeDasharray={`${(pct / 100) * circ} ${circ}`}
+        strokeLinecap="round"
+      />
+      <circle cx="48" cy="48" r={ri} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="5" />
+      <circle
+        cx="48" cy="48" r={ri} fill="none"
+        stroke="#f0b429" strokeWidth="5"
+        strokeDasharray={`${(exactPct / 100) * circi} ${circi}`}
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+// ── Form Strip ────────────────────────────────────────────────────────────────
+
+function FormStrip({ predictions, matches }: { predictions: Prediction[]; matches: Match[] }) {
+  const finishedById = new Map(
+    matches.filter(m => m.status === 'finished').map(m => [m.id, m])
+  )
+  const graded = predictions
+    .filter(p => {
+      const m = finishedById.get(p.match_id)
+      return m && m.home_score !== null && m.away_score !== null
+    })
+    .sort((a, b) => {
+      const ma = finishedById.get(a.match_id)
+      const mb = finishedById.get(b.match_id)
+      if (!ma || !mb) return 0
+      return new Date(mb.kickoff_at).getTime() - new Date(ma.kickoff_at).getTime()
+    })
+    .slice(0, 8)
+
+  if (graded.length === 0) return null
+
+  const displayed = [...graded].reverse()
+
+  return (
+    <div className="flex items-center gap-1.5 mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+      <span className="text-[10px] text-[#5a7090] font-medium uppercase tracking-widest mr-1">Form</span>
+      {displayed.map((p, i) => {
+        const m = finishedById.get(p.match_id)!
+        const exact = p.predicted_home === m.home_score && p.predicted_away === m.away_score
+        const correct = Math.sign(p.predicted_home - p.predicted_away) === Math.sign((m.home_score ?? 0) - (m.away_score ?? 0))
+        const bg = exact ? '#4ade80' : correct ? '#f0b429' : '#2a3d55'
+        return (
+          <span
+            key={i}
+            title={`${m.home_team} vs ${m.away_team}: ${exact ? 'Exact' : correct ? 'Correct outcome' : 'Wrong'}`}
+            style={{ width: 9, height: 9, borderRadius: '50%', background: bg, display: 'inline-block', flexShrink: 0 }}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Recent Results card ───────────────────────────────────────────────────────
+
+type ResultMeta = { text: string; color: string; borderColor: string }
+
+function getResultMeta(p: Prediction, m: Match): ResultMeta {
+  if (m.home_score === null || m.away_score === null) {
+    return { text: '—', color: 'text-[#5a7090]', borderColor: 'rgba(255,255,255,0.06)' }
+  }
+  const exact = p.predicted_home === m.home_score && p.predicted_away === m.away_score
+  if (exact) return { text: `${p.predicted_home}–${p.predicted_away} ✓`, color: 'text-green-400', borderColor: 'rgba(74,222,128,0.6)' }
+  const win = Math.sign(p.predicted_home - p.predicted_away) === Math.sign(m.home_score - m.away_score)
+  if (win) return { text: `${p.predicted_home}–${p.predicted_away} ~`, color: 'text-[#f0b429]', borderColor: 'rgba(240,180,41,0.6)' }
+  return { text: `${p.predicted_home}–${p.predicted_away} ✗`, color: 'text-[#5a7090]', borderColor: 'rgba(255,255,255,0.08)' }
+}
+
+function MatchCard({ home, away, homeScore, awayScore, meta, predictedHome, predictedAway }: {
   home: string
   away: string
-  center: React.ReactNode
-  sub?: React.ReactNode
+  homeScore: number | null
+  awayScore: number | null
+  meta: ResultMeta | null
+  predictedHome?: number
+  predictedAway?: number
 }) {
+  const outcomeLabel = meta
+    ? meta.text.includes('✓') ? '✓ exact'
+    : meta.text.includes('~') ? '~ correct'
+    : '✗ wrong'
+    : null
+
   return (
     <div
-      className="rounded-xl px-3 py-2.5"
-      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}
+      className="rounded-xl p-4 flex flex-col gap-3"
+      style={{
+        background: 'rgba(255,255,255,0.025)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderLeft: `3px solid ${meta?.borderColor ?? 'rgba(255,255,255,0.08)'}`,
+      }}
     >
-      <div className="flex items-center gap-2 mb-1">
-        <Flag name={home} size={22} />
-        <div className="flex-1 flex flex-col items-center">
-          {center}
+      {/* Home: flag + actual + predicted */}
+      <div className="flex items-center gap-3">
+        <Flag name={home} size={40} />
+        <div className="flex items-baseline gap-2">
+          <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-3xl tabular-nums leading-none">
+            {homeScore}
+          </span>
+          {predictedHome !== undefined && (
+            <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429]/55 text-lg tabular-nums leading-none">
+              {predictedHome}
+            </span>
+          )}
         </div>
-        <Flag name={away} size={22} />
       </div>
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] text-[#3f5068] truncate max-w-[80px] font-medium">{home}</span>
-        {sub}
-        <span className="text-[10px] text-[#3f5068] truncate max-w-[80px] text-right font-medium">{away}</span>
+
+      {/* Away: flag + actual + predicted */}
+      <div className="flex items-center gap-3">
+        <Flag name={away} size={40} />
+        <div className="flex items-baseline gap-2">
+          <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-3xl tabular-nums leading-none">
+            {awayScore}
+          </span>
+          {predictedAway !== undefined && (
+            <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429]/55 text-lg tabular-nums leading-none">
+              {predictedAway}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Outcome badge */}
+      <div
+        className={`text-center text-xs font-bold pt-1 ${meta ? meta.color : 'text-[#3f5068]'}`}
+        style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+      >
+        {outcomeLabel ?? 'no pick'}
       </div>
     </div>
   )
 }
 
-// ── Match card (larger, used in My Picks + Next Games) ────────────────────────
+// ── Upcoming Matches ──────────────────────────────────────────────────────────
 
-function MatchCard({ home, away, center, meta }: {
-  home: string
-  away: string
-  center: React.ReactNode
-  meta: React.ReactNode
-}) {
-  return (
+type PickState = 'picked-safe' | 'picked-locking' | 'no-pick' | 'no-pick-locking'
+
+function getPickState(match: Match, prediction: Prediction | undefined): PickState {
+  const locking = isLockingNow(match.kickoff_at)
+  if (prediction) return locking ? 'picked-locking' : 'picked-safe'
+  return locking ? 'no-pick-locking' : 'no-pick'
+}
+
+function formatMatchdayLabel(dateStr: string): string {
+  const todayCDT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const tomorrowCDT = tomorrow.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+  if (dateStr === todayCDT) return 'Today'
+  if (dateStr === tomorrowCDT) return 'Tomorrow'
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function UpcomingMatchRow({ match, prediction }: { match: Match; prediction?: Prediction }) {
+  const state = getPickState(match, prediction)
+
+  const borderColor =
+    state === 'no-pick-locking' ? 'rgba(239,68,68,0.35)' :
+    state === 'picked-locking'  ? 'rgba(240,180,41,0.22)' :
+    'rgba(255,255,255,0.05)'
+
+  const bgColor = state === 'no-pick-locking' ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.025)'
+
+  const inner = (
     <div
-      className="rounded-xl p-4"
-      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}
+      className="rounded-xl px-3 sm:px-4 py-3.5 flex items-center gap-2 sm:gap-3"
+      style={{ background: bgColor, border: `1px solid ${borderColor}` }}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <div className="flex-1 flex flex-col items-center gap-2">
-          <Flag name={home} size={44} />
-          <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-xs uppercase tracking-wide text-center leading-tight line-clamp-2">
-            {home}
-          </span>
-        </div>
-
-        <div className="shrink-0 flex flex-col items-center px-2">
-          {center}
-        </div>
-
-        <div className="flex-1 flex flex-col items-center gap-2">
-          <Flag name={away} size={44} />
-          <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-xs uppercase tracking-wide text-center leading-tight line-clamp-2">
-            {away}
-          </span>
-        </div>
+      {/* Home team */}
+      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <Flag name={match.home_team} size={42} />
+        <span className="font-[family-name:var(--font-oswald)] font-semibold text-white text-xs sm:text-sm uppercase tracking-wide truncate">
+          {match.home_team}
+        </span>
       </div>
 
-      <div className="flex items-center justify-between pt-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        {meta}
+      {/* Center */}
+      <div className="shrink-0 flex items-center justify-center" style={{ minWidth: 64 }}>
+        {prediction ? (
+          <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-xl sm:text-2xl tabular-nums tracking-widest leading-none">
+            {prediction.predicted_home}–{prediction.predicted_away}
+          </span>
+        ) : (
+          <span className="font-[family-name:var(--font-oswald)] font-bold text-[#2a3d55] text-xs tracking-[0.3em]">
+            VS
+          </span>
+        )}
+      </div>
+
+      {/* Away team */}
+      <div className="flex items-center gap-2.5 min-w-0 flex-1 justify-end">
+        <span className="font-[family-name:var(--font-oswald)] font-semibold text-white text-xs sm:text-sm uppercase tracking-wide truncate text-right">
+          {match.away_team}
+        </span>
+        <Flag name={match.away_team} size={42} />
+      </div>
+
+      {/* Status + countdown */}
+      <div
+        className="shrink-0 flex flex-col items-end gap-0.5 pl-2.5"
+        style={{ minWidth: 80, borderLeft: '1px solid rgba(255,255,255,0.05)' }}
+      >
+        {state === 'picked-safe' && (
+          <span className="text-xs text-green-400/80 font-semibold leading-tight">✓ picked</span>
+        )}
+        {state === 'picked-locking' && (
+          <span className="text-xs text-[#f0b429] font-semibold leading-tight">locking</span>
+        )}
+        {state === 'no-pick' && (
+          <span className="text-sm text-[#f0b429] font-bold leading-tight">Pick →</span>
+        )}
+        {state === 'no-pick-locking' && (
+          <span className="text-xs text-red-400 font-bold uppercase tracking-wide leading-tight">PICK NOW</span>
+        )}
+        <span className="text-[11px] text-[#4a6080] font-medium leading-tight">
+          {formatCountdown(match.kickoff_at)}
+        </span>
       </div>
     </div>
   )
+
+  if (state === 'no-pick' || state === 'no-pick-locking') {
+    return (
+      <Link href="/predictions" className="block hover:opacity-90 transition-opacity">
+        {inner}
+      </Link>
+    )
+  }
+  return inner
 }
 
-// ── My Picks ──────────────────────────────────────────────────────────────────
-
-function MyPicksBlock({ matches, predictions, loading }: {
+function UpcomingMatchesBlock({ matches, predictions, loading }: {
   matches: Match[]
   predictions: Prediction[]
   loading: boolean
 }) {
   const predByMatch = new Map(predictions.map(p => [p.match_id, p]))
-  const picks = [...matches]
-    .filter(m => m.status === 'scheduled' && predByMatch.has(m.id))
-    .sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime())
-    .slice(0, 3)
+
+  const scheduled = matches.filter(m => m.status === 'scheduled')
+  const matchdays = [...new Set(scheduled.map(m => toMatchdayCDT(m.kickoff_at)))].sort()
+  const todayCDT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' })
+  const nearestMatchday = matchdays.includes(todayCDT) ? todayCDT : (matchdays[0] ?? null)
+
+  const matchdayMatches = nearestMatchday
+    ? scheduled
+        .filter(m => toMatchdayCDT(m.kickoff_at) === nearestMatchday)
+        .sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime())
+    : []
+
+  const allPicked = matchdayMatches.length > 0 && matchdayMatches.every(m => predByMatch.has(m.id))
+  const nextMatchday = matchdays.find(d => d > (nearestMatchday ?? ''))
 
   return (
-    <div className="rounded-2xl p-5 flex flex-col" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <div className="flex items-center justify-between">
-        <SectionLabel title="My Picks" />
-        <Link href="/predictions" className="text-[11px] text-[#3f5068] hover:text-[#f0b429] transition-colors mb-4 font-medium">
+    <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <span className="block w-[3px] h-5 rounded-full bg-[#f0b429]" />
+          <div className="flex items-center gap-2">
+            <p className="font-[family-name:var(--font-oswald)] text-[1.05rem] font-bold uppercase tracking-[0.2em] text-[#90a0b8]">
+              Upcoming
+            </p>
+            {nearestMatchday && (
+              <>
+                <span className="text-[#2a3d55] text-[0.8rem]">·</span>
+                <p className="font-[family-name:var(--font-oswald)] text-[0.9rem] font-bold uppercase tracking-[0.18em] text-[#f0b429]/70">
+                  {formatMatchdayLabel(nearestMatchday)}
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+        <Link href="/predictions" className="text-[11px] text-[#5a7090] hover:text-[#f0b429] transition-colors font-medium">
           All picks →
         </Link>
       </div>
 
       {loading ? (
-        <div className="space-y-2 flex-1">{[1,2,3].map(i => <Skeleton key={i} className="h-14" />)}</div>
-      ) : picks.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center py-8 text-center gap-2">
-          <p className="text-[#3f5068] text-sm">No upcoming picks yet</p>
-          <Link href="/predictions" className="text-xs text-[#f0b429] hover:text-white transition-colors font-medium">
-            Add your picks →
-          </Link>
+        <div className="space-y-2">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-14" />)}
+        </div>
+      ) : matchdayMatches.length === 0 ? (
+        <div className="py-8 text-center">
+          <p className="text-[#5a7090] text-sm">No upcoming matches</p>
+        </div>
+      ) : allPicked ? (
+        <div className="flex flex-col items-center py-8 gap-2.5 text-center">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-base"
+            style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}
+          >
+            ✓
+          </div>
+          <p className="text-white font-semibold text-sm">You&apos;re all set for today</p>
+          {nextMatchday ? (
+            <p className="text-[#5a7090] text-xs">
+              Next matches: <span className="text-white/50">{formatMatchdayLabel(nextMatchday)}</span>
+            </p>
+          ) : (
+            <p className="text-[#5a7090] text-xs">No more upcoming matches</p>
+          )}
         </div>
       ) : (
-        <div className="space-y-2.5 flex-1">
-          {picks.map(m => {
-            const p = predByMatch.get(m.id)!
-            return (
-              <MatchCard
-                key={m.id}
-                home={m.home_team}
-                away={m.away_team}
-                center={
-                  <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-2xl tracking-widest tabular-nums">
-                    {p.predicted_home} – {p.predicted_away}
-                  </span>
-                }
-                meta={
-                  <>
-                    <span className="text-xs text-[#3f5068] font-medium">{formatCountdown(m.kickoff_at)}</span>
-                    <span className="text-xs text-[#3f5068]">{m.stage}</span>
-                  </>
-                }
-              />
-            )
-          })}
+        <div className="space-y-2">
+          {matchdayMatches.map(m => (
+            <UpcomingMatchRow key={m.id} match={m} prediction={predByMatch.get(m.id)} />
+          ))}
         </div>
       )}
     </div>
   )
 }
 
-// ── Next Games ────────────────────────────────────────────────────────────────
+// ── Accuracy Card ─────────────────────────────────────────────────────────────
 
-function NextGamesBlock({ matches, predictions, loading }: {
-  matches: Match[]
-  predictions: Prediction[]
-  loading: boolean
-}) {
-  const predMatchIds = new Set(predictions.map(p => p.match_id))
-  const upcoming = [...matches]
-    .filter(m => m.status === 'scheduled')
-    .sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime())
-    .slice(0, 3)
+function AccuracyCard({ predictions, matches }: { predictions: Prediction[]; matches: Match[] }) {
+  const { correctOutcomes, exactScores, total } = computeAccuracy(predictions, matches)
+
+  if (total === 0) {
+    return (
+      <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <SectionLabel title="Accuracy" />
+        <div className="py-6 flex flex-col items-center gap-2 text-center">
+          <p className="text-[#5a7090] text-sm">No graded predictions yet</p>
+          <Link href="/predictions" className="text-xs text-[#f0b429] hover:text-white transition-colors font-medium">
+            Add picks →
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  const pct = Math.round((correctOutcomes / total) * 100)
+  const exactPct = correctOutcomes > 0 ? Math.round((exactScores / correctOutcomes) * 100) : 0
 
   return (
-    <div className="rounded-2xl p-5 flex flex-col" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <SectionLabel title="Next Games" />
+    <Link href="/predictions" className="block group">
+      <div
+        className="rounded-2xl p-5 transition-colors"
+        style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
+      >
+        <SectionLabel title="Accuracy" />
+
+        <div className="flex items-center gap-5">
+          {/* Donut ring */}
+          <div className="relative w-24 h-24 shrink-0">
+            <AccuracyRing pct={pct} exactPct={exactPct} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span
+                className="font-[family-name:var(--font-oswald)] font-bold text-white group-hover:text-[#f0b429] transition-colors leading-none tabular-nums"
+                style={{ fontSize: '1.5rem' }}
+              >
+                {pct}%
+              </span>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="flex flex-col gap-3 flex-1">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#f0b429] shrink-0" />
+              <div>
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-xl leading-none">{exactScores}</span>
+                <span className="text-[#5a7090] text-xs ml-1.5">exact</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: 'rgba(240,180,41,0.25)' }} />
+              <div>
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-xl leading-none">{correctOutcomes}</span>
+                <span className="text-[#5a7090] text-xs ml-1.5">correct</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
+              <div>
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-[#7080a0] text-xl leading-none">{total}</span>
+                <span className="text-[#5a7090] text-xs ml-1.5">graded</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <FormStrip predictions={predictions} matches={matches} />
+      </div>
+    </Link>
+  )
+}
+
+// ── My Leagues Scroll ─────────────────────────────────────────────────────────
+
+function LeagueMiniLeaderboard({ entries, currentUserId, isLoading }: {
+  entries: LeaderboardEntry[]
+  currentUserId: string | undefined
+  isLoading: boolean
+}) {
+  if (isLoading) {
+    return (
+      <div className="space-y-1.5 mt-3">
+        {[1, 2, 3].map(i => <Skeleton key={i} className="h-5" />)}
+      </div>
+    )
+  }
+
+  const hasScores = entries.some(e => e.total_points > 0)
+  if (!hasScores) {
+    return <p className="text-xs text-[#3f5068] mt-3 font-medium">No scores yet</p>
+  }
+
+  const top3 = entries.slice(0, 3)
+  const userInTop3 = top3.some(e => e.user.id === currentUserId)
+  const userEntry = !userInTop3 ? entries.find(e => e.user.id === currentUserId) : undefined
+  const displayEntries = userEntry ? top3.slice(0, 2) : top3
+
+  const rankColor = (rank: number) => {
+    if (rank === 1) return '#f0b429'
+    if (rank === 2) return '#94a3b8'
+    if (rank === 3) return '#cd7c41'
+    return '#5a7090'
+  }
+
+  return (
+    <div className="mt-3 space-y-0.5">
+      {displayEntries.map(entry => {
+        const isMe = entry.user.id === currentUserId
+        return (
+          <div
+            key={entry.user.id}
+            className="flex items-center gap-2 py-1 px-1.5 rounded-md"
+            style={isMe ? { background: 'rgba(240,180,41,0.07)' } : undefined}
+          >
+            <span
+              className="text-[11px] font-bold shrink-0 w-4 text-center"
+              style={{ color: rankColor(entry.rank) }}
+            >
+              {entry.rank}
+            </span>
+            <span className={`flex-1 text-xs truncate font-medium ${isMe ? 'text-[#f0b429]' : 'text-[#7888a0]'}`}>
+              {entry.user.username}{isMe ? ' (you)' : ''}
+            </span>
+            <span className={`text-xs font-bold tabular-nums shrink-0 font-[family-name:var(--font-oswald)] ${isMe ? 'text-[#f0b429]' : 'text-white'}`}>
+              {entry.total_points}
+            </span>
+          </div>
+        )
+      })}
+
+      {userEntry && (
+        <>
+          <div className="px-1.5 py-0.5">
+            <span className="text-[10px] text-[#3f5068] tracking-widest font-bold">···</span>
+          </div>
+          <div
+            className="flex items-center gap-2 py-1 px-1.5 rounded-md"
+            style={{ background: 'rgba(240,180,41,0.07)' }}
+          >
+            <span className="text-[11px] font-bold shrink-0 w-4 text-center" style={{ color: rankColor(userEntry.rank) }}>
+              {userEntry.rank}
+            </span>
+            <span className="flex-1 text-xs truncate font-medium text-[#f0b429]">
+              {userEntry.user.username} (you)
+            </span>
+            <span className="text-xs font-bold tabular-nums shrink-0 font-[family-name:var(--font-oswald)] text-[#f0b429]">
+              {userEntry.total_points}
+            </span>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function MyLeaguesScroll({ tournaments, leaderboards, currentUserId, loading }: {
+  tournaments: Tournament[]
+  leaderboards: Array<{ data: { entries: LeaderboardEntry[] } | undefined; isLoading: boolean }>
+  currentUserId: string | undefined
+  loading: boolean
+}) {
+  return (
+    <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <SectionLabel
+        title="My Leagues"
+        action={
+          <Link href="/leagues" className="text-[11px] text-[#5a7090] hover:text-[#f0b429] transition-colors font-medium">
+            Manage →
+          </Link>
+        }
+      />
 
       {loading ? (
-        <div className="space-y-2 flex-1">{[1,2,3].map(i => <Skeleton key={i} className="h-14" />)}</div>
-      ) : upcoming.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center py-8">
-          <p className="text-[#3f5068] text-sm">No upcoming games</p>
+        <div className="flex gap-3">
+          {[1, 2].map(i => (
+            <div key={i} style={{ minWidth: 200 }}>
+              <Skeleton className="h-[116px] w-full" />
+            </div>
+          ))}
+        </div>
+      ) : tournaments.length === 0 ? (
+        <div className="flex flex-col items-center py-6 gap-3 text-center">
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl"
+            style={{ background: 'rgba(240,180,41,0.07)', border: '1px solid rgba(240,180,41,0.15)' }}
+          >
+            🏟️
+          </div>
+          <div>
+            <p className="text-white text-sm font-semibold mb-1">No leagues yet</p>
+            <p className="text-[#5a7090] text-xs">Join a league or create one to get started</p>
+          </div>
+          <Link
+            href="/leagues"
+            className="bg-[#f0b429] text-[#080c14] px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-[#fcd86e] transition-all"
+          >
+            Join or Create
+          </Link>
         </div>
       ) : (
-        <div className="space-y-2.5 flex-1">
-          {upcoming.map(m => {
-            const hasPick = predMatchIds.has(m.id)
+        <div
+          className="flex gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-track]:bg-transparent"
+          style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}
+        >
+          {tournaments.map((t, i) => {
+            const lb = leaderboards[i]
+            const entries = lb?.data?.entries ?? []
             return (
-              <MatchCard
-                key={m.id}
-                home={m.home_team}
-                away={m.away_team}
-                center={
-                  <span className="font-[family-name:var(--font-oswald)] font-bold text-[#1e2d40] text-base tracking-[0.25em]">
-                    VS
-                  </span>
-                }
-                meta={
-                  <>
-                    <span className="text-xs text-[#f0b429]/70 font-medium">{formatCountdown(m.kickoff_at)}</span>
-                    {hasPick
-                      ? <span className="flex items-center gap-1 text-xs text-green-500/60 font-medium"><span>✓</span> picked</span>
-                      : <Link href="/predictions" className="text-xs text-[#f0b429] hover:text-white transition-colors font-medium">Add pick →</Link>
-                    }
-                  </>
-                }
-              />
+              <Link
+                key={t.id}
+                href={`/tournaments/${t.invite_code}`}
+                className="block shrink-0 group"
+                style={{ minWidth: 200, maxWidth: 248 }}
+              >
+                <div
+                  className="rounded-xl p-3.5 transition-all duration-200"
+                  style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(240,180,41,0.2)'
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.05)'
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-[family-name:var(--font-oswald)] font-semibold text-white text-sm uppercase tracking-wide truncate group-hover:text-[#f0b429] transition-colors">
+                      {t.name}
+                    </span>
+                    <span className="text-[#5a7090] text-xs shrink-0 ml-1.5 group-hover:text-[#f0b429] transition-colors">→</span>
+                  </div>
+                  <LeagueMiniLeaderboard
+                    entries={entries}
+                    currentUserId={currentUserId}
+                    isLoading={lb?.isLoading ?? false}
+                  />
+                </div>
+              </Link>
             )
           })}
         </div>
@@ -242,16 +640,6 @@ function NextGamesBlock({ matches, predictions, loading }: {
 }
 
 // ── Recent Results ────────────────────────────────────────────────────────────
-
-type ResultMeta = { text: string; color: string }
-function getResultMeta(p: Prediction, m: Match): ResultMeta {
-  if (m.home_score === null || m.away_score === null) return { text: '—', color: 'text-[#3f5068]' }
-  const exact = p.predicted_home === m.home_score && p.predicted_away === m.away_score
-  if (exact) return { text: `${p.predicted_home}–${p.predicted_away} ✓`, color: 'text-green-400' }
-  const win = Math.sign(p.predicted_home - p.predicted_away) === Math.sign(m.home_score - m.away_score)
-  if (win) return { text: `${p.predicted_home}–${p.predicted_away} ~`, color: 'text-[#f0b429]' }
-  return { text: `${p.predicted_home}–${p.predicted_away} ✗`, color: 'text-[#3f5068]' }
-}
 
 function RecentResultsBlock({ matches, predictions, loading }: {
   matches: Match[]
@@ -267,178 +655,45 @@ function RecentResultsBlock({ matches, predictions, loading }: {
     .sort((a, b) => new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime())
 
   const lastDay = sorted.filter(m => new Date(m.kickoff_at).getTime() >= oneDayAgo)
-  const recent = lastDay.length > 0 ? lastDay : sorted.slice(0, 5)
+  const recent = lastDay.length > 0 ? lastDay : sorted.slice(0, 8)
 
   return (
     <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <SectionLabel title="Recent Results" />
+      <SectionLabel
+        title="Recent Results"
+        action={
+          <Link href="/predictions" className="text-[11px] text-[#5a7090] hover:text-[#f0b429] transition-colors font-medium">
+            All results →
+          </Link>
+        }
+      />
 
       {loading ? (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
-          {[1,2,3].map(i => <Skeleton key={i} className="h-[68px]" />)}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-[152px]" />)}
         </div>
       ) : recent.length === 0 ? (
-        <p className="text-[#3f5068] text-sm py-6 text-center">No results yet</p>
+        <p className="text-[#5a7090] text-sm py-6 text-center">No results yet</p>
       ) : (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
           {recent.map(m => {
             const p = predByMatch.get(m.id)
             const meta = p ? getResultMeta(p, m) : null
             return (
-              <MatchRow
+              <MatchCard
                 key={m.id}
                 home={m.home_team}
                 away={m.away_team}
-                center={
-                  <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-xl tracking-wide">
-                    {m.home_score} – {m.away_score}
-                  </span>
-                }
-                sub={
-                  meta
-                    ? <span className={`text-[10px] font-mono font-bold ${meta.color}`}>{meta.text}</span>
-                    : <span className="text-[10px] text-[#1e2d40]">no pick</span>
-                }
+                homeScore={m.home_score}
+                awayScore={m.away_score}
+                meta={meta}
+                predictedHome={p?.predicted_home}
+                predictedAway={p?.predicted_away}
               />
             )
           })}
         </div>
       )}
-    </div>
-  )
-}
-
-// ── My Leagues ────────────────────────────────────────────────────────────────
-
-function MyLeaguesBlock({ tournaments, leaderboards, currentUserId, loading }: {
-  tournaments: Tournament[]
-  leaderboards: Array<{ data: { entries: LeaderboardEntry[] } | undefined; isLoading: boolean }>
-  currentUserId: string | undefined
-  loading: boolean
-}) {
-  return (
-    <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <div className="flex items-center justify-between">
-        <SectionLabel title="My Leagues" />
-        <Link href="/leagues" className="text-[11px] text-[#3f5068] hover:text-[#f0b429] transition-colors mb-4 font-medium">
-          Manage leagues →
-        </Link>
-      </div>
-
-      {loading ? (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
-          {[1,2].map(i => <Skeleton key={i} className="h-16" />)}
-        </div>
-      ) : tournaments.length === 0 ? (
-        <div className="flex flex-col items-center py-10 gap-4 text-center">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
-            style={{ background: 'rgba(240,180,41,0.07)', border: '1px solid rgba(240,180,41,0.15)' }}
-          >
-            🏟️
-          </div>
-          <div>
-            <p className="text-white text-sm font-semibold mb-1">No leagues yet</p>
-            <p className="text-[#3f5068] text-xs">Join a league or create one to get started</p>
-          </div>
-          <Link
-            href="/leagues"
-            className="bg-[#f0b429] text-[#080c14] px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-[#fcd86e] transition-all"
-          >
-            Join or Create a League
-          </Link>
-        </div>
-      ) : (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
-          {tournaments.map((t, i) => {
-            const lb = leaderboards[i]
-            const entries = lb?.data?.entries ?? []
-            const leader = entries[0]
-            const userEntry = entries.find(e => e.user.id === currentUserId)
-            return (
-              <Link key={t.id} href={`/tournaments/${t.invite_code}`}>
-                <div
-                  className="rounded-xl px-4 py-3 transition-all duration-200 cursor-pointer h-full group"
-                  style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'
-                    ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(240,180,41,0.18)'
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.025)'
-                    ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.05)'
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-[family-name:var(--font-oswald)] font-semibold text-white text-sm uppercase tracking-wide truncate max-w-[160px] group-hover:text-[#f0b429] transition-colors">
-                      {t.name}
-                    </span>
-                    <span className="text-[#3f5068] group-hover:text-[#f0b429] transition-colors text-sm shrink-0 ml-2">→</span>
-                  </div>
-                  {lb?.isLoading ? (
-                    <Skeleton className="h-3 w-28 mt-1" />
-                  ) : leader ? (
-                    <div className="space-y-0.5">
-                      <p className="text-xs text-[#3f5068]">
-                        <span className="text-[#f0b429]/80 font-semibold">{leader.user.username}</span>
-                        <span className="text-[#1e2d40]"> · {leader.total_points} pts</span>
-                      </p>
-                      {userEntry && userEntry.rank > 1 && (
-                        <p className="text-[10px] text-[#2d3e52]">
-                          You: #{userEntry.rank} · {userEntry.total_points} pts
-                        </p>
-                      )}
-                      {userEntry?.rank === 1 && (
-                        <p className="text-[11px] text-[#f0b429]/60 font-medium">Leading</p>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-[#1e2d40]">No scores yet</p>
-                  )}
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Accuracy Bar ──────────────────────────────────────────────────────────────
-
-function AccuracyBar({ predictions, matches }: { predictions: Prediction[]; matches: Match[] }) {
-  const { correctOutcomes, exactScores, total } = computeAccuracy(predictions, matches)
-  if (total === 0) return null
-  const pct = Math.round((correctOutcomes / total) * 100)
-  const exactPct = Math.round((exactScores / total) * 100)
-  return (
-    <div className="rounded-2xl px-5 py-4 mb-4 flex flex-wrap items-center gap-x-6 gap-y-2" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <span className="font-[family-name:var(--font-oswald)] text-[0.65rem] font-bold uppercase tracking-[0.22em] text-[#5a6a82]">
-        Accuracy
-      </span>
-      <div className="flex items-center gap-3 flex-1 min-w-[180px]">
-        <div className="h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-          {/* Full correct-outcome bar */}
-          <div className="h-full rounded-full relative" style={{ width: `${pct}%`, background: 'rgba(240,180,41,0.35)' }}>
-            {/* Exact-score overlay on top */}
-            <div
-              className="absolute left-0 top-0 h-full rounded-full"
-              style={{ width: `${total > 0 ? Math.round((exactScores / correctOutcomes) * 100) : 0}%`, background: '#f0b429' }}
-            />
-          </div>
-        </div>
-        <span className="text-sm font-bold text-white tabular-nums font-[family-name:var(--font-oswald)]">{pct}%</span>
-      </div>
-      <div className="flex items-center gap-3 text-xs text-[#3f5068]">
-        <span>
-          <span className="text-white font-semibold">{correctOutcomes}</span>/{total} correct
-        </span>
-        <span className="text-[#1e2d40]">·</span>
-        <span>
-          <span className="text-[#f0b429] font-semibold">{exactScores}</span> exact
-        </span>
-      </div>
     </div>
   )
 }
@@ -481,32 +736,30 @@ export default function DashboardPage() {
         <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
           Dashboard
         </h1>
-        <p className="text-[#3f5068] text-sm mt-1.5 font-medium">
+        <p className="text-[#5a7090] text-sm mt-1.5 font-medium">
           {me ? `Welcome back, ${me.username}` : 'Your World Cup at a glance'}
         </p>
       </div>
 
-      {/* Accuracy bar */}
-      {!dataLoading && <AccuracyBar predictions={predictions} matches={matches} />}
-
-      {/* Row 1: My Picks + Next Games */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        <MyPicksBlock matches={matches} predictions={predictions} loading={dataLoading} />
-        <NextGamesBlock matches={matches} predictions={predictions} loading={dataLoading} />
-      </div>
-
-      {/* Row 2: Recent Results */}
+      {/* Tier 1 — Upcoming Matches */}
       <div className="mb-4">
-        <RecentResultsBlock matches={matches} predictions={predictions} loading={dataLoading} />
+        <UpcomingMatchesBlock matches={matches} predictions={predictions} loading={dataLoading} />
       </div>
 
-      {/* Row 3: My Leagues */}
-      <MyLeaguesBlock
-        tournaments={tournaments}
-        leaderboards={leaderboards as Array<{ data: { entries: LeaderboardEntry[] } | undefined; isLoading: boolean }>}
-        currentUserId={me?.id}
-        loading={tournamentsLoading}
-      />
+      {/* Tier 2 — Accuracy + My Leagues */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 items-start">
+        <AccuracyCard predictions={predictions} matches={matches} />
+        <MyLeaguesScroll
+          tournaments={tournaments}
+          leaderboards={leaderboards as Array<{ data: { entries: LeaderboardEntry[] } | undefined; isLoading: boolean }>}
+          currentUserId={me?.id}
+          loading={tournamentsLoading}
+        />
+      </div>
+
+      {/* Tier 3 — Recent Results */}
+      <RecentResultsBlock matches={matches} predictions={predictions} loading={dataLoading} />
+
     </div>
   )
 }
