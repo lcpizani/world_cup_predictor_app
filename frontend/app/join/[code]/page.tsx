@@ -108,6 +108,11 @@ function InviteLanding({ leagueName, code, onSignUp }: InviteLandingProps) {
             </Link>
           </div>
         </div>
+
+        <p className="text-center text-xs mt-5 px-4 leading-relaxed" style={{ color: '#5a6a82' }}>
+          You&apos;ll be scored on matches kicking off after you join.
+          Past matches in this league won&apos;t count toward your total here.
+        </p>
       </div>
     </div>
   )

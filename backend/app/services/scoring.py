@@ -113,6 +113,12 @@ def apply_match_result(
         # it on Prediction.points_awarded for the user history endpoint.
         total_across_tournaments = 0
         for membership in memberships_by_user.get(pred.user_id, []):
+            # Snapshot-at-join fairness: only score under tournaments the user
+            # was already a member of before kickoff. Joining after kickoff
+            # would otherwise let players cherry-pick which leagues to join
+            # based on how their picks turned out.
+            if membership.joined_at > match.kickoff_at:
+                continue
             scoring = membership.tournament.scoring_rules or _default_scoring(membership.tournament_id)
             events = compute_points_for_prediction(pred, scoring, match)
             total_points = sum(pts for _, pts in events)
@@ -157,14 +163,15 @@ def recompute_tournament_scores(db: Session, tournament_id: UUID) -> dict:
 
     scoring = tournament.scoring_rules or _default_scoring(tournament_id)
 
-    member_ids = [
-        m.user_id
-        for m in db.query(TournamentMember).filter(TournamentMember.tournament_id == tournament_id).all()
-    ]
-    if not member_ids:
+    members = db.query(TournamentMember).filter(TournamentMember.tournament_id == tournament_id).all()
+    if not members:
         # No members means nothing to score. Avoid `IN ()` queries downstream.
         db.commit()
         return {"recomputed_matches": 0, "recomputed_predictions": 0}
+    member_ids = [m.user_id for m in members]
+    # Snapshot-at-join: a member is only eligible to be scored on matches that
+    # kicked off after they joined.
+    joined_at_by_user = {m.user_id: m.joined_at for m in members}
 
     finished_matches = (
         db.query(Match)
@@ -191,6 +198,12 @@ def recompute_tournament_scores(db: Session, tournament_id: UUID) -> dict:
             )
             .all()
         )
+        # Filter out predictions from members who joined after kickoff —
+        # their picks for this match don't count in this tournament.
+        predictions = [
+            p for p in predictions
+            if joined_at_by_user[p.user_id] <= match.kickoff_at
+        ]
         if not predictions:
             continue
 
