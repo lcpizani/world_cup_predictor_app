@@ -274,15 +274,6 @@ export default function TournamentPage() {
     (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
   )
 
-  const actionBtnStyle = {
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    color: 'white',
-  }
-  const actionBtnHover = {
-    background: 'rgba(240,180,41,0.08)',
-    borderColor: 'rgba(240,180,41,0.22)',
-  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -340,27 +331,27 @@ export default function TournamentPage() {
               onClick={copyInviteLink}
               disabled={!tournament}
               className="text-[10px] sm:text-xs font-bold uppercase tracking-wide px-3 sm:px-4 py-2.5 rounded-xl transition-all duration-200 disabled:opacity-40 truncate"
-              style={actionBtnStyle}
-              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnHover)}
-              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnStyle)}
+              style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.25)', color: '#c084fc' }}
+              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(168,85,247,0.18)', borderColor: 'rgba(168,85,247,0.45)' })}
+              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(168,85,247,0.1)', borderColor: 'rgba(168,85,247,0.25)' })}
             >
               {copied ? '✓ Copied' : 'Invite'}
             </button>
             <Link
               href={`/tournaments/${code}/compare`}
               className="text-[10px] sm:text-xs font-bold uppercase tracking-wide px-3 sm:px-4 py-2.5 rounded-xl transition-all duration-200 text-center"
-              style={actionBtnStyle}
-              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnHover)}
-              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnStyle)}
+              style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', color: '#60a5fa' }}
+              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(59,130,246,0.18)', borderColor: 'rgba(59,130,246,0.45)' })}
+              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.25)' })}
             >
               Compare →
             </Link>
             <Link
               href={`/tournaments/${code}/leaderboard`}
               className="text-[10px] sm:text-xs font-bold uppercase tracking-wide px-3 sm:px-4 py-2.5 rounded-xl transition-all duration-200 text-center"
-              style={actionBtnStyle}
-              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnHover)}
-              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, actionBtnStyle)}
+              style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.25)', color: '#f0b429' }}
+              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.18)', borderColor: 'rgba(240,180,41,0.45)' })}
+              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.1)', borderColor: 'rgba(240,180,41,0.25)' })}
             >
               Leaderboard →
             </Link>
