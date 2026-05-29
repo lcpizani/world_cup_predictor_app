@@ -23,7 +23,15 @@ export async function POST(req: NextRequest) {
   try { data = JSON.parse(text) } catch { data = null }
 
   if (!res.ok) {
-    const msg = (data as { detail?: string } | null)?.detail ?? text ?? 'Registration failed'
+    const detail = (data as { detail?: unknown } | null)?.detail
+    let msg: string
+    if (Array.isArray(detail)) {
+      msg = (detail as Array<{ msg?: string }>).map(e => e.msg ?? '').filter(Boolean).join(', ') || 'Registration failed'
+    } else if (typeof detail === 'string') {
+      msg = detail
+    } else {
+      msg = text || 'Registration failed'
+    }
     return NextResponse.json({ error: msg }, { status: res.status })
   }
 
