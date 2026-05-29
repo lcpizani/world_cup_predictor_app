@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Cookies from 'js-cookie'
 import { api } from '@/lib/api'
 import { setLocaleCookie, getLocaleCookie, type SupportedLocale } from '@/lib/locale'
 import { useTranslations } from 'next-intl'
 
-// Brazilian timezones shown first
 const BRAZIL_TIMEZONES = [
   'America/Sao_Paulo',
   'America/Manaus',
@@ -23,7 +22,6 @@ const BRAZIL_TIMEZONES = [
   'America/Noronha',
 ]
 
-// Curated list of common timezones worldwide
 const OTHER_TIMEZONES = [
   'UTC',
   'Europe/London',
@@ -68,10 +66,14 @@ const OTHER_TIMEZONES = [
 
 type OptionGroup = { label: string; options: string[] }
 
-function buildTimezoneGroups(brazil: string, other: string): OptionGroup[] {
+function buildTimezoneGroups(brazil: string, other: string, detectedTz: string): OptionGroup[] {
+  const allKnown = [...BRAZIL_TIMEZONES, ...OTHER_TIMEZONES]
+  const otherList = allKnown.includes(detectedTz)
+    ? OTHER_TIMEZONES
+    : [detectedTz, ...OTHER_TIMEZONES]
   return [
     { label: brazil, options: BRAZIL_TIMEZONES },
-    { label: other, options: OTHER_TIMEZONES },
+    { label: other, options: otherList },
   ]
 }
 
@@ -79,16 +81,113 @@ function filterGroups(groups: OptionGroup[], query: string): OptionGroup[] {
   if (!query) return groups
   const q = query.toLowerCase()
   return groups
-    .map(g => ({
-      label: g.label,
-      options: g.options.filter(tz => tz.toLowerCase().includes(q)),
-    }))
+    .map(g => ({ label: g.label, options: g.options.filter(tz => tz.toLowerCase().includes(q)) }))
     .filter(g => g.options.length > 0)
+}
+
+function TimezoneSelect({ value, onChange, groups, searchPlaceholder }: {
+  value: string
+  onChange: (tz: string) => void
+  groups: OptionGroup[]
+  searchPlaceholder: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+        setSearch('')
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [open])
+
+  const filtered = filterGroups(groups, search)
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen(prev => !prev); setSearch('') }}
+        className="w-full text-left rounded-xl px-3 py-2.5 text-sm transition-all flex items-center justify-between gap-2"
+        style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: open ? '1px solid rgba(240,180,41,0.5)' : '1px solid rgba(255,255,255,0.09)',
+          color: 'white',
+          boxShadow: open ? '0 0 0 3px rgba(240,180,41,0.08)' : 'none',
+        }}
+      >
+        <span className="truncate">{value}</span>
+        <span className="shrink-0 text-[0.6rem]" style={{ color: '#3f5068' }}>{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div
+          className="absolute z-50 w-full mt-1 rounded-xl overflow-hidden"
+          style={{
+            background: '#0d1520',
+            border: '1px solid rgba(255,255,255,0.12)',
+            boxShadow: '0 16px 32px rgba(0,0,0,0.5)',
+          }}
+        >
+          <div className="p-2" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            <input
+              autoFocus
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="w-full rounded-lg px-3 py-1.5 text-white text-xs"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.09)',
+                outline: 'none',
+              }}
+            />
+          </div>
+          <div className="overflow-y-auto" style={{ maxHeight: 200 }}>
+            {filtered.map(group => (
+              <div key={group.label}>
+                <div
+                  className="px-3 py-1.5 text-[0.55rem] font-bold uppercase tracking-[0.2em] sticky top-0"
+                  style={{ color: '#3f5068', background: 'rgba(8,12,20,0.95)' }}
+                >
+                  {group.label}
+                </div>
+                {group.options.map(tz => (
+                  <button
+                    key={tz}
+                    type="button"
+                    onClick={() => { onChange(tz); setOpen(false); setSearch('') }}
+                    className="w-full text-left px-3 py-2 text-xs transition-colors"
+                    style={tz === value
+                      ? { background: 'rgba(240,180,41,0.12)', color: '#f0b429' }
+                      : { color: '#7a8fa8' }
+                    }
+                    onMouseEnter={e => { if (tz !== value) (e.currentTarget as HTMLElement).style.color = 'white' }}
+                    onMouseLeave={e => { if (tz !== value) (e.currentTarget as HTMLElement).style.color = '#7a8fa8' }}
+                  >
+                    {tz}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function OnboardingPage() {
   const t = useTranslations('onboarding')
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['me'],
@@ -96,25 +195,23 @@ export default function OnboardingPage() {
     retry: false,
   })
 
-  // Redirect unauthenticated users
   useEffect(() => {
     if (!isLoading && !user) {
       router.replace('/auth/login')
     }
   }, [isLoading, user, router])
 
-  // Redirect users who already completed onboarding
   useEffect(() => {
     if (user?.language && user?.timezone) {
       router.replace('/dashboard')
     }
   }, [user, router])
 
-  // Pre-fill from cookie (landing page selection) or default to 'pt'
-  const cookieLocale = getLocaleCookie()
-  const [language, setLanguage] = useState<SupportedLocale>(cookieLocale === 'pt' ? 'pt' : 'pt')
+  const [language, setLanguage] = useState<SupportedLocale>(() => {
+    const cookieLocale = getLocaleCookie()
+    return cookieLocale === 'en' ? 'en' : 'pt'
+  })
 
-  // Auto-detect timezone from browser
   const [timezone, setTimezone] = useState<string>(() => {
     try {
       return Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo'
@@ -123,12 +220,10 @@ export default function OnboardingPage() {
     }
   })
 
-  const [tzSearch, setTzSearch] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const groups = buildTimezoneGroups(t('brazil_timezones'), t('other_timezones'))
-  const filteredGroups = filterGroups(groups, tzSearch)
+  const groups = buildTimezoneGroups(t('brazil_timezones'), t('other_timezones'), timezone)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -138,6 +233,10 @@ export default function OnboardingPage() {
       await api.updateMe({ language, timezone })
       setLocaleCookie(language)
       Cookies.set('is_authenticated', '1', { expires: 7, sameSite: 'lax' })
+      // Update cache so useOnboardingGuard on the next page sees the new values
+      queryClient.setQueryData(['me'], (old: Record<string, unknown> | undefined) =>
+        old ? { ...old, language, timezone } : old
+      )
       router.push('/dashboard')
       router.refresh()
     } catch {
@@ -164,7 +263,6 @@ export default function OnboardingPage() {
       />
 
       <div className="relative z-10 w-full max-w-sm animate-fade-up">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-1.5 mb-5">
             <span className="font-[family-name:var(--font-oswald)] font-bold text-lg tracking-widest uppercase">
@@ -220,71 +318,12 @@ export default function OnboardingPage() {
                 {t('timezone_label')}
               </label>
               <p className="text-[0.6rem] text-[#3f5068] mb-2">{t('timezone_hint')}</p>
-
-              {/* Search */}
-              <input
-                type="text"
-                value={tzSearch}
-                onChange={e => setTzSearch(e.target.value)}
-                placeholder={t('timezone_search')}
-                className="w-full rounded-xl px-3 py-2 text-white text-xs transition-all mb-2"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.09)',
-                  outline: 'none',
-                }}
-                onFocus={e => {
-                  e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)'
-                }}
-                onBlur={e => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
+              <TimezoneSelect
+                value={timezone}
+                onChange={setTimezone}
+                groups={groups}
+                searchPlaceholder={t('timezone_search')}
               />
-
-              {/* Dropdown */}
-              <div
-                className="rounded-xl overflow-y-auto"
-                style={{
-                  maxHeight: 200,
-                  background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                }}
-              >
-                {filteredGroups.map(group => (
-                  <div key={group.label}>
-                    <div className="px-3 py-1.5 text-[0.55rem] font-bold uppercase tracking-[0.2em]" style={{ color: '#3f5068', background: 'rgba(0,0,0,0.2)' }}>
-                      {group.label}
-                    </div>
-                    {group.options.map(tz => (
-                      <button
-                        key={tz}
-                        type="button"
-                        onClick={() => setTimezone(tz)}
-                        className="w-full text-left px-3 py-2 text-xs transition-colors"
-                        style={timezone === tz
-                          ? { background: 'rgba(240,180,41,0.12)', color: '#f0b429' }
-                          : { color: '#7a8fa8' }
-                        }
-                        onMouseEnter={e => {
-                          if (tz !== timezone) (e.currentTarget as HTMLElement).style.color = 'white'
-                        }}
-                        onMouseLeave={e => {
-                          if (tz !== timezone) (e.currentTarget as HTMLElement).style.color = '#7a8fa8'
-                        }}
-                      >
-                        {tz}
-                      </button>
-                    ))}
-                  </div>
-                ))}
-              </div>
-
-              {/* Selected display */}
-              <p className="text-[0.65rem] mt-2 font-medium" style={{ color: '#f0b429' }}>
-                {timezone}
-              </p>
             </div>
 
             {error && (
