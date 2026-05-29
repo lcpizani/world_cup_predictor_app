@@ -136,6 +136,41 @@ export function getFlagUrl(code: string, size: 20 | 40 | 80 | 160 = 40): string 
   return `https://flagcdn.com/w${size}/${code}.png`
 }
 
+const TEAM_ABBR: Record<string, string> = {
+  Argentina: 'ARG', Brazil: 'BRA', Uruguay: 'URU', Colombia: 'COL', Chile: 'CHI',
+  Peru: 'PER', Ecuador: 'ECU', Paraguay: 'PAR', Venezuela: 'VEN', Bolivia: 'BOL',
+  France: 'FRA', Germany: 'GER', Spain: 'ESP', Portugal: 'POR', Netherlands: 'NED',
+  England: 'ENG', Italy: 'ITA', Croatia: 'CRO', Belgium: 'BEL', Switzerland: 'SUI',
+  Denmark: 'DEN', Poland: 'POL', Serbia: 'SRB', Austria: 'AUT', Sweden: 'SWE',
+  Norway: 'NOR', Scotland: 'SCO', Wales: 'WAL', Hungary: 'HUN',
+  'Czech Republic': 'CZE', Czechia: 'CZE', Slovakia: 'SVK', Slovenia: 'SVN',
+  Romania: 'ROU', Ukraine: 'UKR', Turkey: 'TUR', Greece: 'GRE', Russia: 'RUS',
+  Albania: 'ALB', 'Bosnia-Herzegovina': 'BIH', 'Bosnia and Herzegovina': 'BIH', Bosnia: 'BIH',
+  USA: 'USA', 'United States': 'USA', Mexico: 'MEX', Canada: 'CAN',
+  'Costa Rica': 'CRC', Panama: 'PAN', Jamaica: 'JAM', Honduras: 'HON',
+  'El Salvador': 'SLV', Haiti: 'HAI', 'Curaçao': 'CUW', Curacao: 'CUW',
+  Morocco: 'MAR', Senegal: 'SEN', Nigeria: 'NGA', Ghana: 'GHA', Cameroon: 'CMR',
+  Egypt: 'EGY', Tunisia: 'TUN', Algeria: 'ALG', 'South Africa': 'RSA',
+  'Ivory Coast': 'CIV', Mali: 'MLI', 'Burkina Faso': 'BFA',
+  'DR Congo': 'COD', 'Congo DR': 'COD', 'Democratic Republic of Congo': 'COD',
+  'Cape Verde': 'CPV', 'Cape Verde Islands': 'CPV',
+  Japan: 'JPN', 'South Korea': 'KOR', Australia: 'AUS', Iran: 'IRN',
+  'Saudi Arabia': 'KSA', Qatar: 'QAT', China: 'CHN', Iraq: 'IRQ',
+  'United Arab Emirates': 'UAE', Jordan: 'JOR', India: 'IND', Indonesia: 'IDN',
+  Thailand: 'THA', Vietnam: 'VIE', 'New Zealand': 'NZL', Uzbekistan: 'UZB',
+}
+
+export function getTeamAbbr(teamName: string): string {
+  if (!teamName) return '???'
+  if (TEAM_ABBR[teamName]) return TEAM_ABBR[teamName]
+  const lower = teamName.toLowerCase()
+  for (const [key, abbr] of Object.entries(TEAM_ABBR)) {
+    if (key.toLowerCase() === lower) return abbr
+    if (lower.startsWith(key.toLowerCase())) return abbr
+  }
+  return teamName.slice(0, 3).toUpperCase()
+}
+
 /** All World Cup nations used for the landing page marquee. */
 export const MARQUEE_NATIONS: Array<{ name: string; code: string }> = [
   { name: 'Brazil', code: 'br' },

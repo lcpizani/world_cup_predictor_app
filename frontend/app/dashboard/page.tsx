@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { computeAccuracy, formatCountdown, toMatchdayCDT, isLockingNow } from '@/lib/stats'
-import { getTeamFlagCode, getFlagUrl } from '@/lib/flags'
+import { getTeamFlagCode, getFlagUrl, getTeamAbbr } from '@/lib/flags'
 import type { Match, Prediction, LeaderboardEntry, Tournament } from '@/types/api'
 
 // ── Primitives ────────────────────────────────────────────────────────────────
@@ -132,18 +132,24 @@ function FormStrip({ predictions, matches }: { predictions: Prediction[]; matche
 
 // ── Recent Results card ───────────────────────────────────────────────────────
 
-type ResultMeta = { text: string; color: string; borderColor: string }
+type ResultMeta = { outcome: 'exact' | 'correct' | 'wrong' | 'pending'; borderColor: string }
 
 function getResultMeta(p: Prediction, m: Match): ResultMeta {
   if (m.home_score === null || m.away_score === null) {
-    return { text: '—', color: 'text-[#5a7090]', borderColor: 'rgba(255,255,255,0.06)' }
+    return { outcome: 'pending', borderColor: 'rgba(255,255,255,0.06)' }
   }
   const exact = p.predicted_home === m.home_score && p.predicted_away === m.away_score
-  if (exact) return { text: `${p.predicted_home}–${p.predicted_away} ✓`, color: 'text-green-400', borderColor: 'rgba(74,222,128,0.6)' }
-  const win = Math.sign(p.predicted_home - p.predicted_away) === Math.sign(m.home_score - m.away_score)
-  if (win) return { text: `${p.predicted_home}–${p.predicted_away} ~`, color: 'text-[#f0b429]', borderColor: 'rgba(240,180,41,0.6)' }
-  return { text: `${p.predicted_home}–${p.predicted_away} ✗`, color: 'text-[#5a7090]', borderColor: 'rgba(255,255,255,0.08)' }
+  if (exact) return { outcome: 'exact', borderColor: 'rgba(74,222,128,0.6)' }
+  const correct = Math.sign(p.predicted_home - p.predicted_away) === Math.sign(m.home_score - m.away_score)
+  if (correct) return { outcome: 'correct', borderColor: 'rgba(240,180,41,0.6)' }
+  return { outcome: 'wrong', borderColor: 'rgba(255,255,255,0.08)' }
 }
+
+const OUTCOME_CHIP = {
+  exact:   { label: '✓ exact',  bg: 'rgba(74,222,128,0.12)',  border: 'rgba(74,222,128,0.3)',   color: '#4ade80' },
+  correct: { label: '✓ result', bg: 'rgba(240,180,41,0.10)',  border: 'rgba(240,180,41,0.25)',  color: '#f0b429' },
+  wrong:   { label: '✗ wrong',  bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.08)', color: '#4a6080' },
+} as const
 
 function MatchCard({ home, away, homeScore, awayScore, meta, predictedHome, predictedAway }: {
   home: string
@@ -154,57 +160,61 @@ function MatchCard({ home, away, homeScore, awayScore, meta, predictedHome, pred
   predictedHome?: number
   predictedAway?: number
 }) {
-  const outcomeLabel = meta
-    ? meta.text.includes('✓') ? '✓ exact'
-    : meta.text.includes('~') ? '~ correct'
-    : '✗ wrong'
-    : null
+  const hasPred = predictedHome !== undefined && predictedAway !== undefined
+  const chip = meta && meta.outcome !== 'pending' ? OUTCOME_CHIP[meta.outcome] : null
 
   return (
     <div
-      className="rounded-xl p-4 flex flex-col gap-3"
+      className="rounded-xl p-3 flex flex-col gap-2.5"
       style={{
         background: 'rgba(255,255,255,0.025)',
         border: '1px solid rgba(255,255,255,0.06)',
         borderLeft: `3px solid ${meta?.borderColor ?? 'rgba(255,255,255,0.08)'}`,
       }}
     >
-      {/* Home: flag + actual + predicted */}
-      <div className="flex items-center gap-3">
-        <Flag name={home} size={40} />
-        <div className="flex items-baseline gap-2">
-          <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-3xl tabular-nums leading-none">
-            {homeScore}
-          </span>
-          {predictedHome !== undefined && (
-            <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429]/55 text-lg tabular-nums leading-none">
-              {predictedHome}
-            </span>
-          )}
-        </div>
+      {/* Abbreviations + actual score */}
+      <div className="flex items-center justify-between">
+        <span className="font-[family-name:var(--font-oswald)] text-[11px] font-bold text-[#6080a0] uppercase tracking-wider w-8">
+          {getTeamAbbr(home)}
+        </span>
+        <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-2xl tabular-nums leading-none">
+          {homeScore ?? '—'}–{awayScore ?? '—'}
+        </span>
+        <span className="font-[family-name:var(--font-oswald)] text-[11px] font-bold text-[#6080a0] uppercase tracking-wider w-8 text-right">
+          {getTeamAbbr(away)}
+        </span>
       </div>
 
-      {/* Away: flag + actual + predicted */}
-      <div className="flex items-center gap-3">
-        <Flag name={away} size={40} />
-        <div className="flex items-baseline gap-2">
-          <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-3xl tabular-nums leading-none">
-            {awayScore}
+      {/* Flags + predicted score */}
+      <div className="flex items-center justify-between">
+        <Flag name={home} size={28} />
+        {hasPred ? (
+          <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429]/50 text-sm tabular-nums leading-none">
+            {predictedHome}–{predictedAway}
           </span>
-          {predictedAway !== undefined && (
-            <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429]/55 text-lg tabular-nums leading-none">
-              {predictedAway}
-            </span>
-          )}
-        </div>
+        ) : (
+          <span className="text-[10px] text-[#3a4d64] font-medium tracking-wide">no pick</span>
+        )}
+        <Flag name={away} size={28} />
       </div>
 
-      {/* Outcome badge */}
+      {/* Outcome chip */}
       <div
-        className={`text-center text-xs font-bold pt-1 ${meta ? meta.color : 'text-[#3f5068]'}`}
-        style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+        className="flex justify-center pt-1"
+        style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
       >
-        {outcomeLabel ?? 'no pick'}
+        {chip ? (
+          <span
+            className="text-[10px] font-bold px-2.5 py-[3px] rounded-full tracking-wide"
+            style={{ background: chip.bg, border: `1px solid ${chip.border}`, color: chip.color }}
+          >
+            {chip.label}
+          </span>
+        ) : (
+          <span className="text-[10px] text-[#3a4d64] font-medium">
+            {homeScore === null ? 'pending' : 'no pick'}
+          </span>
+        )}
       </div>
     </div>
   )
@@ -670,7 +680,7 @@ function RecentResultsBlock({ matches, predictions, loading }: {
 
       {loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-[152px]" />)}
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-[118px]" />)}
         </div>
       ) : recent.length === 0 ? (
         <p className="text-[#5a7090] text-sm py-6 text-center">No results yet</p>
