@@ -583,6 +583,13 @@ function MatchRail({ matches, predictions, loading }: {
   const canGoForward = startIndex < maxStart
   const visibleMatches = sorted.slice(startIndex, startIndex + N)
 
+  // Anchor index — first live, else first scheduled, else 0 (clamped to last page)
+  const liveIdx = sorted.findIndex(m => m.status === 'live')
+  const scheduledIdx = sorted.findIndex(m => m.status === 'scheduled')
+  const anchorRaw = liveIdx !== -1 ? liveIdx : scheduledIdx !== -1 ? scheduledIdx : 0
+  const anchorIndex = Math.min(anchorRaw, Math.max(0, total - N))
+  const isAtAnchor = startIndex === anchorIndex
+
   const navBtnClass =
     'w-8 h-8 rounded-full flex items-center justify-center text-[#5a7090] hover:text-white hover:bg-white/10 transition-all text-2xl leading-none select-none'
 
@@ -591,9 +598,20 @@ function MatchRail({ matches, predictions, loading }: {
       <SectionLabel
         title="Matches"
         action={
-          <Link href="/predictions" className="text-[11px] text-[#5a7090] hover:text-[#f0b429] transition-colors font-medium">
-            See all your picks →
-          </Link>
+          <div className="flex items-center gap-3">
+            {!isAtAnchor && (
+              <button
+                onClick={() => setStartIndex(anchorIndex)}
+                className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full transition-all hover:brightness-125"
+                style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.25)', color: '#f0b429' }}
+              >
+                now
+              </button>
+            )}
+            <Link href="/predictions" className="text-[11px] text-[#5a7090] hover:text-[#f0b429] transition-colors font-medium">
+              All picks →
+            </Link>
+          </div>
         }
       />
 
