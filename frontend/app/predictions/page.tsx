@@ -18,12 +18,6 @@ function TeamFlag({ name }: { name: string }) {
   )
 }
 
-function scoreColor(pred: number | undefined, actual: number | null): string {
-  if (pred === undefined || actual === null) return 'text-white'
-  if (pred === actual) return 'text-green-400'
-  return 'text-[#3f5068]'
-}
-
 function outcomeOf(h: number, a: number): number {
   return h > a ? 1 : h < a ? -1 : 0
 }
@@ -45,18 +39,27 @@ function ResultBadge({ exact, winner, hasPred }: { exact: boolean; winner: boole
   )
 }
 
-function StatusPill({ status }: { status: string }) {
+function StatusBadge({ status, kickoff_at }: { status: string; kickoff_at: string }) {
   if (status === 'live') return (
-    <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
-      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block" /> Live
+    <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
+      <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+      Live
     </span>
   )
   if (status === 'finished') return (
-    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-[#3f5068]" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider" style={{ color: '#3f5068', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
       FT
     </span>
   )
-  return null
+  const label = new Date(kickoff_at).toLocaleString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
+  })
+  return (
+    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full tracking-wider text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)' }}>
+      {label}
+    </span>
+  )
 }
 
 function PredictionRow({ match, prediction }: { match: Match; prediction?: Prediction }) {
@@ -78,90 +81,104 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
     onError: (e: Error) => setErr(e.message),
   })
 
-  const kickoff = new Date(match.kickoff_at).toLocaleString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
-  })
-
   // ── Finished match ───────────────────────────────────────────────────────────
   if (match.status === 'finished') {
     const hasPred = !!prediction
     const ah = match.home_score, aa = match.away_score
     const ph = prediction?.predicted_home, pa = prediction?.predicted_away
-    const exact = hasPred && ph === ah && pa === aa
-    const correctWinner = hasPred && !exact && ah !== null && aa !== null &&
-      outcomeOf(ph!, pa!) === outcomeOf(ah!, aa!)
 
-    const borderColor = exact
-      ? 'rgba(34,197,94,0.2)'
-      : correctWinner
-        ? 'rgba(240,180,41,0.2)'
-        : 'rgba(255,255,255,0.07)'
+    const scoreColors = (() => {
+      if (!hasPred || ah === null || aa === null) return { home: '', away: '', winner: false }
+      const correctWinner = outcomeOf(ph!, pa!) === outcomeOf(ah!, aa!)
+      const correctDiff = (ph! - pa!) === (ah! - aa!)
+      if (ph === ah && pa === aa) return { home: 'green', away: 'green', winner: true }
+      return {
+        home: ph === ah ? 'green' : correctDiff ? 'yellow' : '',
+        away: pa === aa ? 'green' : correctDiff ? 'yellow' : '',
+        winner: correctWinner,
+      }
+    })()
 
-    const bgColor = exact
-      ? 'rgba(34,197,94,0.04)'
-      : correctWinner
-        ? 'rgba(240,180,41,0.04)'
-        : '#0d1520'
+    const exact = scoreColors.home === 'green' && scoreColors.away === 'green'
+
+    const accentColor = !hasPred ? 'transparent'
+      : exact ? 'rgba(34,197,94,0.7)'
+      : scoreColors.winner ? 'rgba(240,180,41,0.7)'
+      : 'rgba(255,255,255,0.1)'
+
+    const pillStyle = exact
+      ? { background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.18)' }
+      : scoreColors.winner
+        ? { background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.18)' }
+        : { border: '1px solid transparent' }
 
     return (
-      <div className="rounded-2xl p-3 sm:p-4 transition-colors" style={{ background: bgColor, border: `1px solid ${borderColor}` }}>
-        {/* Top meta row (mobile only) */}
-        <div className="flex items-center gap-2 mb-2.5 sm:hidden">
-          <span className="text-[10px] text-[#2d3e52] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
-          {match.group && <span className="text-[10px] text-[#2d3e52]">· {match.group}</span>}
-          <div className="ml-auto"><ResultBadge exact={exact} winner={correctWinner} hasPred={hasPred} /></div>
+      <div className="rounded-2xl p-3 sm:p-4 transition-all duration-200 overflow-hidden relative" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+        {/* Left-edge accent bar */}
+        {hasPred && (
+          <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full" style={{ background: accentColor }} />
+        )}
+
+        {/* Stage + group + result + FT badge */}
+        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[10px] font-mono tracking-widest uppercase truncate" style={{ color: '#3f5068' }}>
+              {match.stage.replace(/_/g, ' ')}
+            </span>
+            {match.group && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0" style={{ color: '#5a6a82', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                {match.group}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <ResultBadge exact={exact} winner={scoreColors.winner} hasPred={hasPred} />
+            <StatusBadge status={match.status} kickoff_at={match.kickoff_at} />
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-            <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-xs sm:text-sm">
+        {/* Teams + scores */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex-1 flex items-center justify-end gap-2 sm:gap-2.5 min-w-0">
+            <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-sm sm:text-base">
               {match.home_team}
             </span>
             <TeamFlag name={match.home_team} />
           </div>
 
-          <div className="flex flex-col items-center gap-0.5 w-20 sm:w-28 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {hasPred ? (
-              <>
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-base sm:text-lg w-5 text-center ${scoreColor(ph, ah)}`}>{ph}</span>
-                  <span className="text-[#1e2d40] text-sm">–</span>
-                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-base sm:text-lg w-5 text-center ${scoreColor(pa, aa)}`}>{pa}</span>
+              <div className="flex flex-col items-center gap-1 w-20 sm:w-24">
+                {/* Prediction — big, per-digit colored, in a pill */}
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg" style={pillStyle}>
+                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-xl w-5 text-center ${scoreColors.home === 'green' ? 'text-green-400' : scoreColors.home === 'yellow' ? 'text-[#f0b429]' : 'text-white'}`}>
+                    {ph}
+                  </span>
+                  <span className="font-bold text-sm" style={{ color: '#2d3e52' }}>–</span>
+                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-xl w-5 text-center ${scoreColors.away === 'green' ? 'text-green-400' : scoreColors.away === 'yellow' ? 'text-[#f0b429]' : 'text-white'}`}>
+                    {pa}
+                  </span>
                 </div>
+                {/* Actual result — small, dim */}
                 <div className="flex items-center gap-1">
-                  <span className="font-[family-name:var(--font-oswald)] text-xs text-[#3f5068] w-4 text-center">{ah}</span>
-                  <span className="text-[#1e2d40] text-xs">–</span>
-                  <span className="font-[family-name:var(--font-oswald)] text-xs text-[#3f5068] w-4 text-center">{aa}</span>
+                  <span className="font-[family-name:var(--font-oswald)] text-sm w-4 text-center" style={{ color: '#3f5068' }}>{ah}</span>
+                  <span className="text-xs" style={{ color: '#1e2d40' }}>–</span>
+                  <span className="font-[family-name:var(--font-oswald)] text-sm w-4 text-center" style={{ color: '#3f5068' }}>{aa}</span>
                 </div>
-              </>
+              </div>
             ) : (
-              <>
-                <span className="font-[family-name:var(--font-oswald)] font-bold text-base sm:text-lg text-[#1e2d40]">{ah} – {aa}</span>
-                <span className="text-xs text-[#1e2d40]">no pick</span>
-              </>
+              <span className="font-[family-name:var(--font-oswald)] font-bold text-xl sm:text-2xl w-20 sm:w-24 text-center" style={{ color: '#3f5068' }}>
+                {ah} – {aa}
+              </span>
             )}
           </div>
 
-          <div className="flex-1 flex items-center gap-2 min-w-0">
+          <div className="flex-1 flex items-center gap-2 sm:gap-2.5 min-w-0">
             <TeamFlag name={match.away_team} />
-            <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-xs sm:text-sm">
+            <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-sm sm:text-base">
               {match.away_team}
             </span>
           </div>
-
-          {/* Desktop result badge */}
-          <div className="shrink-0 w-14 text-right hidden sm:block">
-            <ResultBadge exact={exact} winner={correctWinner} hasPred={hasPred} />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 mt-2 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          {/* Desktop: stage/group inline; mobile: hidden (shown in top meta) */}
-          <span className="hidden sm:inline text-[10px] text-[#2d3e52] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
-          {match.group && <span className="hidden sm:inline text-[10px] text-[#2d3e52]">· {match.group}</span>}
-          <span className="text-[10px] text-[#2d3e52] sm:ml-auto truncate">{kickoff}</span>
-          <div className="ml-auto sm:ml-0"><StatusPill status={match.status} /></div>
         </div>
       </div>
     )
@@ -185,7 +202,7 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
         onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
         onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
       />
-      <span className="text-[#2d3e52] font-bold text-sm">–</span>
+      <span className="text-[#4a6080] font-bold text-sm">–</span>
       <input
         type="number" min={0} value={away}
         onChange={(e) => setAway(e.target.value)}
@@ -209,11 +226,19 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
       className="rounded-2xl p-3 sm:p-4 transition-all duration-200"
       style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
     >
-      {/* Top meta row (mobile only) */}
-      <div className="flex items-center gap-2 mb-2.5 sm:hidden">
-        <span className="text-[10px] text-[#2d3e52] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
-        {match.group && <span className="text-[10px] text-[#2d3e52]">· {match.group}</span>}
-        <div className="ml-auto"><StatusPill status={match.status} /></div>
+      {/* Stage + group + status badge */}
+      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] font-mono tracking-widest uppercase truncate" style={{ color: '#3f5068' }}>
+            {match.stage.replace(/_/g, ' ')}
+          </span>
+          {match.group && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0" style={{ color: '#5a6a82', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              {match.group}
+            </span>
+          )}
+        </div>
+        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} />
       </div>
 
       {/* Teams row */}
@@ -238,18 +263,28 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
           ) : scoreInputs}
         </div>
 
-        {/* Mobile center placeholder — VS or locked status */}
-        <div className="sm:hidden shrink-0 px-1">
+        {/* Mobile center */}
+        <div className="sm:hidden shrink-0 flex items-center gap-1">
           {isLocked ? (
             prediction ? (
-              <span className="font-[family-name:var(--font-oswald)] font-bold text-base text-white">
-                {prediction.predicted_home} – {prediction.predicted_away}
+              <span className="font-[family-name:var(--font-oswald)] font-bold text-base text-white tabular-nums">
+                {prediction.predicted_home}–{prediction.predicted_away}
               </span>
             ) : (
               <span className="text-[10px] text-[#1e2d40] font-bold tracking-widest uppercase">locked</span>
             )
           ) : (
-            <span className="font-[family-name:var(--font-oswald)] font-bold text-[#1e2d40] text-xs tracking-[0.25em]">VS</span>
+            <>
+              <div className="flex items-center gap-1">{scoreInputs}</div>
+              <button
+                onClick={() => save.mutate()}
+                disabled={save.isPending}
+                className="ml-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-200 disabled:opacity-40"
+                style={{ background: '#f0b429', color: '#080c14' }}
+              >
+                {save.isPending ? '…' : '✓'}
+              </button>
+            </>
           )}
         </div>
 
@@ -278,31 +313,6 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
             </button>
           </div>
         )}
-      </div>
-
-      {/* Mobile-only: inputs + save below */}
-      {!isLocked && (
-        <div className="sm:hidden flex items-center justify-center gap-3 mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <div className="flex items-center gap-1.5">
-            {scoreInputs}
-          </div>
-          <button
-            onClick={() => save.mutate()}
-            disabled={save.isPending}
-            className="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-40"
-            style={{ background: '#f0b429', color: '#080c14' }}
-          >
-            {save.isPending ? '…' : prediction ? 'Update' : 'Save'}
-          </button>
-        </div>
-      )}
-
-      {/* Footer meta (desktop) + kickoff (both) */}
-      <div className="flex items-center gap-2 mt-2 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        <span className="hidden sm:inline text-[10px] text-[#2d3e52] font-mono uppercase tracking-wider">{match.stage.replace(/_/g, ' ')}</span>
-        {match.group && <span className="hidden sm:inline text-[10px] text-[#2d3e52]">· {match.group}</span>}
-        <span className="text-[10px] text-[#2d3e52] sm:ml-auto truncate">{kickoff}</span>
-        <div className="ml-auto sm:ml-0 hidden sm:block"><StatusPill status={match.status} /></div>
       </div>
 
       {err && <p className="text-xs text-red-400 mt-2">{err}</p>}
@@ -353,30 +363,6 @@ export default function PredictionsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-      {/* Fixed reload button */}
-      <button
-        onClick={handleRefresh}
-        disabled={refreshing}
-        className="fixed top-[76px] right-4 z-30 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl transition-all duration-200 disabled:opacity-40"
-        style={{
-          background: 'rgba(20,184,166,0.12)',
-          border: '1px solid rgba(20,184,166,0.3)',
-          color: '#2dd4bf',
-        }}
-        onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.2)', borderColor: 'rgba(20,184,166,0.5)' })}
-        onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.12)', borderColor: 'rgba(20,184,166,0.3)' })}
-      >
-        <svg
-          width="16" height="16" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-          className={refreshing ? 'animate-spin' : ''}
-        >
-          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-          <path d="M3 3v5h5" />
-        </svg>
-        {refreshing ? 'Reloading…' : 'Reload'}
-      </button>
-
       {/* Header */}
       <div className="mb-6 sm:mb-8">
         <Link
@@ -385,12 +371,38 @@ export default function PredictionsPage() {
         >
           ← Dashboard
         </Link>
-        <h1 className="font-[family-name:var(--font-oswald)] text-2xl sm:text-3xl font-bold uppercase tracking-wider text-white leading-none">
-          My Predictions
-        </h1>
-        <p className="text-[#3f5068] text-sm mt-1.5 font-medium">
-          Your picks across all competitions
-        </p>
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h1 className="font-[family-name:var(--font-oswald)] text-2xl sm:text-3xl font-bold uppercase tracking-wider text-white leading-none">
+              My Predictions
+            </h1>
+            <p className="text-[#3f5068] text-sm mt-1.5 font-medium">
+              Your picks across all competitions
+            </p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="shrink-0 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl transition-all duration-200 disabled:opacity-40"
+            style={{
+              background: 'rgba(20,184,166,0.12)',
+              border: '1px solid rgba(20,184,166,0.3)',
+              color: '#2dd4bf',
+            }}
+            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.2)', borderColor: 'rgba(20,184,166,0.5)' })}
+            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.12)', borderColor: 'rgba(20,184,166,0.3)' })}
+          >
+            <svg
+              width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              className={refreshing ? 'animate-spin' : ''}
+            >
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            {refreshing ? 'Reloading…' : 'Reload'}
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
