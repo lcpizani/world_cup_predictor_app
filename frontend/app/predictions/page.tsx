@@ -315,6 +315,17 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
 
 export default function PredictionsPage() {
   const [tab, setTab] = useState<'upcoming' | 'finished'>('upcoming')
+  const [refreshing, setRefreshing] = useState(false)
+  const qc = useQueryClient()
+
+  async function handleRefresh() {
+    setRefreshing(true)
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['matches'] }),
+      qc.invalidateQueries({ queryKey: ['predictions-global'] }),
+    ])
+    setRefreshing(false)
+  }
 
   const { data: matches = [], isLoading: matchesLoading } = useQuery({
     queryKey: ['matches'],
@@ -342,6 +353,30 @@ export default function PredictionsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      {/* Fixed reload button */}
+      <button
+        onClick={handleRefresh}
+        disabled={refreshing}
+        className="fixed top-[76px] right-4 z-30 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl transition-all duration-200 disabled:opacity-40"
+        style={{
+          background: 'rgba(20,184,166,0.12)',
+          border: '1px solid rgba(20,184,166,0.3)',
+          color: '#2dd4bf',
+        }}
+        onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.2)', borderColor: 'rgba(20,184,166,0.5)' })}
+        onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.12)', borderColor: 'rgba(20,184,166,0.3)' })}
+      >
+        <svg
+          width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          className={refreshing ? 'animate-spin' : ''}
+        >
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+        </svg>
+        {refreshing ? 'Reloading…' : 'Reload'}
+      </button>
+
       {/* Header */}
       <div className="mb-6 sm:mb-8">
         <Link

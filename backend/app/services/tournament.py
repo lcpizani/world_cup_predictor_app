@@ -3,6 +3,7 @@ import string
 from typing import List
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 
@@ -69,7 +70,11 @@ def join_tournament(db: Session, invite_code: str, user: User) -> TournamentMemb
         raise HTTPException(status_code=409, detail="Already a member")
     member = TournamentMember(tournament_id=tournament.id, user_id=user.id, total_points=0)
     db.add(member)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Already a member")
     db.refresh(member)
     return member
 

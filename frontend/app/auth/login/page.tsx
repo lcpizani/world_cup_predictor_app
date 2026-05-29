@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { api } from '@/lib/api'
 
 function safeNext(next: string | null): string {
   if (!next) return '/dashboard'
@@ -51,6 +52,10 @@ function LoginForm() {
   const registerHref = next !== '/dashboard' ? `/auth/register?next=${encodeURIComponent(next)}` : '/auth/register'
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    api.getMe().then(() => router.replace(next)).catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
