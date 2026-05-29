@@ -23,55 +23,152 @@ const DEFAULT_RULES = {
   correct_goals_one_team_pts: 1,
 }
 
+// ── Late-join warning modal ───────────────────────────────────────────────────
+
+function LateJoinWarningModal({ onConfirm, onCancel }: {
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
+      <div
+        className="relative z-10 w-full max-w-sm rounded-2xl p-7"
+        style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)' }}
+      >
+        <div className="h-px w-full mb-6 rounded-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(240,180,41,0.6), transparent)' }} />
+
+        <div className="flex justify-center mb-5">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center"
+            style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.2)' }}
+          >
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f0b429" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="13" r="8" />
+              <path d="M12 9v4l2.5 2.5" />
+              <path d="M9.5 2.5h5" />
+              <path d="M12 2.5v2" />
+            </svg>
+          </div>
+        </div>
+
+        <h2 className="font-[family-name:var(--font-oswald)] text-xl font-bold uppercase tracking-wider text-white text-center leading-snug mb-4">
+          League already underway
+        </h2>
+
+        <p className="text-[#7a8fa8] text-sm text-center leading-relaxed mb-2">
+          Some matches have already been played. Predictions for past games
+          won&apos;t count toward your score — your tally starts the moment you join.
+        </p>
+        <p className="text-[#3f5068] text-xs text-center leading-relaxed mb-7">
+          Points are only awarded for matches that kick off after you join.
+        </p>
+
+        <div className="space-y-2.5">
+          <button
+            onClick={onConfirm}
+            className="w-full py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-200"
+            style={{ background: '#f0b429', color: '#080c14' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#fcd86e' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#f0b429' }}
+          >
+            Join anyway
+          </button>
+          <button
+            onClick={onCancel}
+            className="w-full py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-200"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', color: '#94a3b8' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'white' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#94a3b8' }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Join panel ────────────────────────────────────────────────────────────────
 
 function JoinPanel({ onJoined }: { onJoined: () => void }) {
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [showWarning, setShowWarning] = useState(false)
+  const [pendingCode, setPendingCode] = useState('')
 
   const mutation = useMutation({
     mutationFn: (c: string) => api.joinTournament(c),
-    onSuccess: () => { setCode(''); setError(''); onJoined() },
-    onError: (err: Error) => setError(err.message),
+    onSuccess: () => { setCode(''); setError(''); setShowWarning(false); onJoined() },
+    onError: (err: Error) => { setError(err.message); setShowWarning(false) },
   })
 
+  async function handleJoinClick() {
+    if (!code) return
+    setError('')
+    setChecking(true)
+    try {
+      const res = await fetch('/api/proxy/matches?match_status=finished')
+      const matches = res.ok ? await res.json() as unknown[] : []
+      if (matches.length > 0) {
+        setPendingCode(code)
+        setShowWarning(true)
+      } else {
+        mutation.mutate(code)
+      }
+    } catch {
+      mutation.mutate(code)
+    } finally {
+      setChecking(false)
+    }
+  }
+
   return (
-    <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em] mb-3" style={{ color: '#5a6a82' }}>
-        Join by invite code
-      </p>
-      <div className="flex gap-2.5">
-        <input
-          value={code}
-          onChange={e => setCode(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && code && mutation.mutate(code)}
-          placeholder="e.g. ABC12345"
-          className="flex-1 rounded-xl px-4 py-2.5 text-white text-sm font-mono tracking-wider transition-all"
-          style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.09)',
-            outline: 'none',
-          }}
-          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
-          onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)'; e.currentTarget.style.boxShadow = 'none' }}
+    <>
+      {showWarning && (
+        <LateJoinWarningModal
+          onConfirm={() => mutation.mutate(pendingCode)}
+          onCancel={() => setShowWarning(false)}
         />
-        <button
-          onClick={() => { setError(''); mutation.mutate(code) }}
-          disabled={!code || mutation.isPending}
-          className="px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-200 disabled:opacity-40"
-          style={{
-            background: 'rgba(255,255,255,0.07)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: 'white',
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)' }}
-        >
-          {mutation.isPending ? '…' : 'Join'}
-        </button>
+      )}
+      <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em] mb-3" style={{ color: '#5a6a82' }}>
+          Join by invite code
+        </p>
+        <div className="flex gap-2.5">
+          <input
+            value={code}
+            onChange={e => setCode(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && code && handleJoinClick()}
+            placeholder="e.g. ABC12345"
+            className="flex-1 rounded-xl px-4 py-2.5 text-white text-sm font-mono tracking-wider transition-all"
+            style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.09)',
+              outline: 'none',
+            }}
+            onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)'; e.currentTarget.style.boxShadow = 'none' }}
+          />
+          <button
+            onClick={handleJoinClick}
+            disabled={!code || mutation.isPending || checking}
+            className="px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-200 disabled:opacity-40"
+            style={{
+              background: 'rgba(255,255,255,0.07)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: 'white',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)' }}
+          >
+            {mutation.isPending || checking ? '…' : 'Join'}
+          </button>
+        </div>
+        {error && <p className="text-sm text-red-400 mt-2">{error}</p>}
       </div>
-      {error && <p className="text-sm text-red-400 mt-2">{error}</p>}
-    </div>
+    </>
   )
 }
 
