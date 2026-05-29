@@ -23,6 +23,10 @@ def update_me(data: UserUpdate, db: Session = Depends(get_db), current_user: Use
         current_user.username = data.username
     if data.display_name is not None:
         current_user.display_name = data.display_name
+    if data.language is not None:
+        current_user.language = data.language
+    if data.timezone is not None:
+        current_user.timezone = data.timezone
     try:
         db.commit()
     except IntegrityError:

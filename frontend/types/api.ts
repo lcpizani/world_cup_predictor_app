@@ -5,6 +5,8 @@ export interface User {
   display_name: string | null
   avatar_url: string | null
   is_admin: boolean
+  language: string | null
+  timezone: string | null
   created_at: string
 }
 

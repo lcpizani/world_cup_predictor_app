@@ -6,8 +6,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { computeAccuracy, formatCountdown } from '@/lib/stats'
-import { getTeamFlagCode, getFlagUrl, getTeamAbbr } from '@/lib/flags'
+import { getTeamFlagCode, getFlagUrl, getTeamAbbr, translateTeamName } from '@/lib/flags'
 import type { Match, Prediction, LeaderboardEntry, Tournament } from '@/types/api'
+import { useOnboardingGuard } from '@/lib/hooks'
+import { useLocale, useTranslations } from 'next-intl'
+import { formatMatchDate, formatMatchTime } from '@/lib/date'
 
 // ── Primitives ────────────────────────────────────────────────────────────────
 
@@ -55,11 +58,7 @@ function usePageSize(): number {
   return size
 }
 
-// ── formatGameDate ────────────────────────────────────────────────────────────
-
-function formatGameDate(kickoffAt: string): string {
-  return new Date(kickoffAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
+// formatGameDate and formatGameTime are replaced by formatMatchDate/formatMatchTime from lib/date
 
 // ── Accuracy Ring ─────────────────────────────────────────────────────────────
 
@@ -134,16 +133,17 @@ function FormStrip({ predictions, matches }: { predictions: Prediction[]; matche
 // ── Accuracy Card ─────────────────────────────────────────────────────────────
 
 function AccuracyCard({ predictions, matches }: { predictions: Prediction[]; matches: Match[] }) {
+  const t = useTranslations('dashboard')
   const { correctOutcomes, exactScores, total } = computeAccuracy(predictions, matches)
 
   if (total === 0) {
     return (
       <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-        <SectionLabel title="Accuracy" />
+        <SectionLabel title={t('accuracy_title')} />
         <div className="py-6 flex flex-col items-center gap-2 text-center">
-          <p className="text-[#5a7090] text-sm">No graded predictions yet</p>
+          <p className="text-[#5a7090] text-sm">{t('no_graded_yet')}</p>
           <Link href="/predictions" className="text-xs text-[#f0b429] hover:text-white transition-colors font-medium">
-            Add picks →
+            {t('add_picks')}
           </Link>
         </div>
       </div>
@@ -159,7 +159,7 @@ function AccuracyCard({ predictions, matches }: { predictions: Prediction[]; mat
         className="rounded-2xl p-5 transition-colors"
         style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
       >
-        <SectionLabel title="Accuracy" />
+        <SectionLabel title={t('accuracy_title')} />
 
         <div className="flex items-center gap-5">
           <div className="relative w-24 h-24 shrink-0">
@@ -179,21 +179,21 @@ function AccuracyCard({ predictions, matches }: { predictions: Prediction[]; mat
               <span className="w-2.5 h-2.5 rounded-full bg-[#f0b429] shrink-0" />
               <div>
                 <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-xl leading-none">{exactScores}</span>
-                <span className="text-[#5a7090] text-xs ml-1.5">exact</span>
+                <span className="text-[#5a7090] text-xs ml-1.5">{t('exact')}</span>
               </div>
             </div>
             <div className="flex items-center gap-2.5">
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: 'rgba(240,180,41,0.25)' }} />
               <div>
                 <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-xl leading-none">{correctOutcomes}</span>
-                <span className="text-[#5a7090] text-xs ml-1.5">correct</span>
+                <span className="text-[#5a7090] text-xs ml-1.5">{t('correct')}</span>
               </div>
             </div>
             <div className="flex items-center gap-2.5">
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
               <div>
                 <span className="font-[family-name:var(--font-oswald)] font-bold text-[#7080a0] text-xl leading-none">{total}</span>
-                <span className="text-[#5a7090] text-xs ml-1.5">graded</span>
+                <span className="text-[#5a7090] text-xs ml-1.5">{t('graded')}</span>
               </div>
             </div>
           </div>
@@ -212,6 +212,7 @@ function LeagueMiniLeaderboard({ entries, currentUserId, isLoading }: {
   currentUserId: string | undefined
   isLoading: boolean
 }) {
+  const t = useTranslations('dashboard')
   if (isLoading) {
     return (
       <div className="space-y-1.5 mt-3">
@@ -222,7 +223,7 @@ function LeagueMiniLeaderboard({ entries, currentUserId, isLoading }: {
 
   const hasScores = entries.some(e => e.total_points > 0)
   if (!hasScores) {
-    return <p className="text-xs text-[#3f5068] mt-3 font-medium">No scores yet</p>
+    return <p className="text-xs text-[#3f5068] mt-3 font-medium">{t('no_scores_yet')}</p>
   }
 
   const top3 = entries.slice(0, 3)
@@ -254,7 +255,7 @@ function LeagueMiniLeaderboard({ entries, currentUserId, isLoading }: {
               {entry.rank}
             </span>
             <span className={`flex-1 text-xs truncate font-medium ${isMe ? 'text-[#f0b429]' : 'text-[#7888a0]'}`}>
-              {entry.user.username}{isMe ? ' (you)' : ''}
+              {entry.user.username}{isMe ? ` (${t('you')})` : ''}
             </span>
             <span className={`text-xs font-bold tabular-nums shrink-0 font-[family-name:var(--font-oswald)] ${isMe ? 'text-[#f0b429]' : 'text-white'}`}>
               {entry.total_points}
@@ -276,7 +277,7 @@ function LeagueMiniLeaderboard({ entries, currentUserId, isLoading }: {
               {userEntry.rank}
             </span>
             <span className="flex-1 text-xs truncate font-medium text-[#f0b429]">
-              {userEntry.user.username} (you)
+              {userEntry.user.username} ({t('you')})
             </span>
             <span className="text-xs font-bold tabular-nums shrink-0 font-[family-name:var(--font-oswald)] text-[#f0b429]">
               {userEntry.total_points}
@@ -294,13 +295,14 @@ function MyLeaguesScroll({ tournaments, leaderboards, currentUserId, loading }: 
   currentUserId: string | undefined
   loading: boolean
 }) {
+  const t = useTranslations('dashboard')
   return (
     <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
       <SectionLabel
-        title="My Leagues"
+        title={t('my_leagues')}
         action={
           <Link href="/leagues" className="text-[11px] text-[#5a7090] hover:text-[#f0b429] transition-colors font-medium">
-            Manage →
+            {t('manage')}
           </Link>
         }
       />
@@ -322,14 +324,14 @@ function MyLeaguesScroll({ tournaments, leaderboards, currentUserId, loading }: 
             🏟️
           </div>
           <div>
-            <p className="text-white text-sm font-semibold mb-1">No leagues yet</p>
-            <p className="text-[#5a7090] text-xs">Join a league or create one to get started</p>
+            <p className="text-white text-sm font-semibold mb-1">{t('no_leagues_title')}</p>
+            <p className="text-[#5a7090] text-xs">{t('no_leagues_desc')}</p>
           </div>
           <Link
             href="/leagues"
             className="bg-[#f0b429] text-[#080c14] px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-[#fcd86e] transition-all"
           >
-            Join or Create
+            {t('join_or_create')}
           </Link>
         </div>
       ) : (
@@ -380,18 +382,12 @@ function MyLeaguesScroll({ tournaments, leaderboards, currentUserId, loading }: 
 
 // ── Match Rail helpers ────────────────────────────────────────────────────────
 
-function formatGameTime(kickoffAt: string): string {
-  return new Date(kickoffAt).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  })
-}
-
 // ── Match Rail ────────────────────────────────────────────────────────────────
 
 
-function MatchRailCard({ match, prediction }: { match: Match; prediction?: Prediction }) {
+function MatchRailCard({ match, prediction, timezone }: { match: Match; prediction?: Prediction; timezone?: string | null }) {
+  const t = useTranslations('dashboard')
+  const locale = useLocale()
   const isLive = match.status === 'live'
   const isFinished = match.status === 'finished'
   const isUpcoming = !isLive && !isFinished
@@ -415,7 +411,7 @@ function MatchRailCard({ match, prediction }: { match: Match; prediction?: Predi
   ) : (
     // upcoming — time only; countdown moves to bottom zone
     <span className="text-[0.65rem] font-bold" style={{ color: '#5a8fbe' }}>
-      {formatGameTime(match.kickoff_at)}
+      {formatMatchTime(match.kickoff_at, timezone)}
     </span>
   )
 
@@ -424,21 +420,21 @@ function MatchRailCard({ match, prediction }: { match: Match; prediction?: Predi
   const mainRow: React.ReactNode = (isFinished || isLive) ? (
     prediction ? (
       <Link href="/predictions" className="text-[0.68rem] font-semibold text-[#f0b429] hover:text-white transition-colors">
-        See your pick →
+        {t('see_your_pick')}
       </Link>
     ) : (
       <Link href="/predictions" className="text-[0.68rem] font-medium text-[#3a4d64] hover:text-[#5a7090] transition-colors">
-        No Pick
+        {t('no_pick')}
       </Link>
     )
   ) : (
     prediction ? (
       <span className="text-[0.65rem] font-semibold" style={{ color: '#4ade80' }}>
-        ✓ <span className="font-[family-name:var(--font-oswald)] font-bold">{prediction.predicted_home}–{prediction.predicted_away}</span> picked
+        ✓ <span className="font-[family-name:var(--font-oswald)] font-bold">{prediction.predicted_home}–{prediction.predicted_away}</span> {t('picked')}
       </span>
     ) : (
       <Link href="/predictions" className="text-[0.7rem] font-bold text-[#f0b429] hover:text-white transition-colors">
-        Pick →
+        {t('pick')}
       </Link>
     )
   )
@@ -451,7 +447,7 @@ function MatchRailCard({ match, prediction }: { match: Match; prediction?: Predi
       {/* Header strip */}
       <div className="px-3.5 py-2.5 flex items-center justify-between" style={headerStyle}>
         <span className="text-[0.65rem] font-bold uppercase tracking-[0.15em]" style={{ color: headerDateColor }}>
-          {formatGameDate(match.kickoff_at)}
+          {formatMatchDate(match.kickoff_at, timezone)}
         </span>
         {statusEl}
       </div>
@@ -463,6 +459,7 @@ function MatchRailCard({ match, prediction }: { match: Match; prediction?: Predi
           { name: match.away_team, score: match.away_score },
         ].map((team) => {
           const flagCode = getTeamFlagCode(team.name)
+          const displayName = translateTeamName(team.name, locale)
           return (
             <div key={team.name} className="flex items-center gap-2 h-[36px]">
               {/* Flag container — object-contain so square/wide flags never clip */}
@@ -473,7 +470,7 @@ function MatchRailCard({ match, prediction }: { match: Match; prediction?: Predi
                 {flagCode ? (
                   <Image
                     src={getFlagUrl(flagCode, 80)}
-                    alt={team.name}
+                    alt={displayName}
                     width={44}
                     height={36}
                     className="rounded object-contain w-full h-full"
@@ -485,7 +482,7 @@ function MatchRailCard({ match, prediction }: { match: Match; prediction?: Predi
               </div>
               {/* Name: full on mobile, abbreviation on desktop (lg+) */}
               <span className="flex-1 lg:hidden font-[family-name:var(--font-oswald)] font-semibold text-[0.8rem] uppercase tracking-wider text-white truncate">
-                {team.name}
+                {displayName}
               </span>
               <span className="flex-1 hidden lg:block font-[family-name:var(--font-oswald)] font-bold text-[0.9rem] uppercase tracking-widest text-white text-center">
                 {getTeamAbbr(team.name)}
@@ -546,11 +543,13 @@ function MatchRailCardSkeleton() {
   )
 }
 
-function MatchRail({ matches, predictions, loading }: {
+function MatchRail({ matches, predictions, loading, timezone }: {
   matches: Match[]
   predictions: Prediction[]
   loading: boolean
+  timezone?: string | null
 }) {
+  const t = useTranslations('dashboard')
   const N = usePageSize()
   const sorted = [...matches].sort(
     (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
@@ -596,7 +595,7 @@ function MatchRail({ matches, predictions, loading }: {
   return (
     <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
       <SectionLabel
-        title="Matches"
+        title={t('matches')}
         action={
           <div className="flex items-center gap-3">
             {!isAtAnchor && (
@@ -605,11 +604,11 @@ function MatchRail({ matches, predictions, loading }: {
                 className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full transition-all hover:brightness-125"
                 style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.25)', color: '#f0b429' }}
               >
-                now
+                {t('now')}
               </button>
             )}
             <Link href="/predictions" className="text-[11px] text-[#5a7090] hover:text-[#f0b429] transition-colors font-medium">
-              All picks →
+              {t('all_picks')}
             </Link>
           </div>
         }
@@ -624,7 +623,7 @@ function MatchRail({ matches, predictions, loading }: {
           ))}
         </div>
       ) : total === 0 ? (
-        <p className="text-[#5a7090] text-sm py-6 text-center">No matches available</p>
+        <p className="text-[#5a7090] text-sm py-6 text-center">{t('no_matches')}</p>
       ) : (
         <div className="flex items-center gap-2">
           {/* Back button — always reserve space */}
@@ -646,7 +645,7 @@ function MatchRail({ matches, predictions, loading }: {
             style={{ gridTemplateColumns: `repeat(${visibleMatches.length}, minmax(0, 1fr))` }}
           >
             {visibleMatches.map(m => (
-              <MatchRailCard key={m.id} match={m} prediction={predByMatch.get(m.id)} />
+              <MatchRailCard key={m.id} match={m} prediction={predByMatch.get(m.id)} timezone={timezone} />
             ))}
           </div>
 
@@ -671,7 +670,9 @@ function MatchRail({ matches, predictions, loading }: {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { data: me } = useQuery({ queryKey: ['me'], queryFn: api.getMe })
+  const t = useTranslations('dashboard')
+  const { data: me, isLoading: meLoading } = useQuery({ queryKey: ['me'], queryFn: api.getMe })
+  useOnboardingGuard(me, meLoading)
 
   const { data: tournaments = [], isLoading: tournamentsLoading } = useQuery({
     queryKey: ['tournaments'],
@@ -704,16 +705,16 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
-          Dashboard
+          {t('title')}
         </h1>
         <p className="text-[#5a7090] text-sm mt-1.5 font-medium">
-          {me ? `Welcome back, ${me.username}` : 'Your World Cup at a glance'}
+          {me ? t('welcome_back', { name: me.username }) : t('subtitle')}
         </p>
       </div>
 
       {/* Tier 1 — Match Rail */}
       <div className="mb-4">
-        <MatchRail matches={matches} predictions={predictions} loading={dataLoading} />
+        <MatchRail matches={matches} predictions={predictions} loading={dataLoading} timezone={me?.timezone} />
       </div>
 
       {/* Tier 2 — Accuracy + My Leagues */}

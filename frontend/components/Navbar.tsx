@@ -6,6 +6,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Cookies from 'js-cookie'
 import { api } from '@/lib/api'
+import { clearLocaleCookie, getLocaleCookie, setLocaleCookie, type SupportedLocale } from '@/lib/locale'
+import { useTranslations } from 'next-intl'
 
 const subscribeNoop = () => () => {}
 const getAuthSnapshot = () => !!Cookies.get('is_authenticated')
@@ -71,9 +73,21 @@ export function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
   const qc = useQueryClient()
+  const t = useTranslations('nav')
 
   const hasToken = useSyncExternalStore(subscribeNoop, getAuthSnapshot, getAuthServerSnapshot)
   const [open, setOpen] = useState(false)
+  const [locale, setLocale] = useState<SupportedLocale>('en')
+
+  useEffect(() => {
+    setLocale(getLocaleCookie())
+  }, [])
+
+  function toggleLocale(lang: SupportedLocale) {
+    setLocaleCookie(lang)
+    setLocale(lang)
+    router.refresh()
+  }
 
   // Lock body scroll while drawer is open
   useEffect(() => {
@@ -93,6 +107,7 @@ export function Navbar() {
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' })
     Cookies.remove('is_authenticated')
+    clearLocaleCookie()
     qc.clear()
     setOpen(false)
     router.push('/')
@@ -119,7 +134,7 @@ export function Navbar() {
             </div>
             <span className="h-4 w-px bg-white/15" />
             <span className="text-[0.7rem] font-semibold text-[#4a5c70] group-hover:text-[#8496b0] transition-colors uppercase tracking-[0.22em]">
-              Predictor
+              {t('predictor')}
             </span>
           </Link>
 
@@ -127,11 +142,11 @@ export function Navbar() {
           <div className="hidden md:flex items-center gap-1">
             {user ? (
               <>
-                <NavLink href="/dashboard" active={isActive('/dashboard')}>Dashboard</NavLink>
-                <NavLink href="/leagues" active={isActive('/leagues')}>Leagues</NavLink>
-                <NavLink href="/predictions" active={isActive('/predictions')}>My Picks</NavLink>
+                <NavLink href="/dashboard" active={isActive('/dashboard')}>{t('dashboard')}</NavLink>
+                <NavLink href="/leagues" active={isActive('/leagues')}>{t('leagues')}</NavLink>
+                <NavLink href="/predictions" active={isActive('/predictions')}>{t('my_picks')}</NavLink>
                 {user.is_admin && (
-                  <NavLink href="/admin" active={isActive('/admin')}>Admin</NavLink>
+                  <NavLink href="/admin" active={isActive('/admin')}>{t('admin')}</NavLink>
                 )}
                 <span className="h-4 w-px bg-white/[0.08] mx-1.5" />
                 <Link
@@ -144,22 +159,38 @@ export function Navbar() {
                   onClick={logout}
                   className="text-[#3f5068] hover:text-red-400/80 transition-colors text-sm px-3 py-1.5 rounded-lg hover:bg-red-500/[0.07] cursor-pointer"
                 >
-                  Logout
+                  {t('logout')}
                 </button>
               </>
             ) : (
               <div className="flex items-center gap-2">
+                {/* Language toggle — unauthenticated only */}
+                <div className="flex items-center rounded-lg overflow-hidden border border-white/[0.08]" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                  {(['en', 'pt'] as SupportedLocale[]).map(lang => (
+                    <button
+                      key={lang}
+                      onClick={() => toggleLocale(lang)}
+                      className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider transition-all duration-200"
+                      style={locale === lang
+                        ? { background: 'rgba(240,180,41,0.15)', color: '#f0b429' }
+                        : { color: '#3f5068' }
+                      }
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
                 <Link
                   href="/auth/login"
                   className="text-[#6b7f96] hover:text-white transition-colors font-medium px-4 py-1.5 rounded-lg hover:bg-white/[0.06] text-sm"
                 >
-                  Log in
+                  {t('log_in')}
                 </Link>
                 <Link
                   href="/auth/register"
                   className="bg-[#f0b429] text-[#080c14] px-5 py-1.5 rounded-lg font-bold text-sm uppercase tracking-wider hover:bg-[#fcd86e] transition-all duration-200"
                 >
-                  Register
+                  {t('register')}
                 </Link>
               </div>
             )}
@@ -172,7 +203,7 @@ export function Navbar() {
                 href="/auth/login"
                 className="text-[#7a8fa8] hover:text-white transition-colors font-medium text-sm px-3 py-1.5 rounded-lg"
               >
-                Log in
+                {t('log_in')}
               </Link>
             )}
             <button
@@ -227,11 +258,11 @@ export function Navbar() {
           <div className="px-4 py-4 space-y-1.5 max-h-[calc(100vh-60px)] overflow-y-auto">
             {user ? (
               <>
-                <MobileNavLink href="/dashboard" active={isActive('/dashboard')} onClick={() => setOpen(false)}>Dashboard</MobileNavLink>
-                <MobileNavLink href="/leagues" active={isActive('/leagues')} onClick={() => setOpen(false)}>Leagues</MobileNavLink>
-                <MobileNavLink href="/predictions" active={isActive('/predictions')} onClick={() => setOpen(false)}>My Picks</MobileNavLink>
+                <MobileNavLink href="/dashboard" active={isActive('/dashboard')} onClick={() => setOpen(false)}>{t('dashboard')}</MobileNavLink>
+                <MobileNavLink href="/leagues" active={isActive('/leagues')} onClick={() => setOpen(false)}>{t('leagues')}</MobileNavLink>
+                <MobileNavLink href="/predictions" active={isActive('/predictions')} onClick={() => setOpen(false)}>{t('my_picks')}</MobileNavLink>
                 {user.is_admin && (
-                  <MobileNavLink href="/admin" active={isActive('/admin')} onClick={() => setOpen(false)}>Admin</MobileNavLink>
+                  <MobileNavLink href="/admin" active={isActive('/admin')} onClick={() => setOpen(false)}>{t('admin')}</MobileNavLink>
                 )}
 
                 <div className="h-px bg-white/[0.06] my-3" />
@@ -247,7 +278,7 @@ export function Navbar() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-white text-sm font-semibold truncate leading-tight">{user.display_name ?? user.username}</p>
-                    <p className="text-[#5a6a82] text-xs mt-0.5">View profile</p>
+                    <p className="text-[#5a6a82] text-xs mt-0.5">{t('view_profile')}</p>
                   </div>
                 </Link>
 
@@ -255,24 +286,40 @@ export function Navbar() {
                   onClick={logout}
                   className="w-full text-left px-4 py-3 rounded-xl text-[#f87171] hover:bg-red-500/[0.08] transition-colors text-sm font-semibold border border-transparent hover:border-red-500/15"
                 >
-                  Logout
+                  {t('logout')}
                 </button>
               </>
             ) : (
               <div className="space-y-2 py-2">
+                {/* Language toggle in mobile drawer */}
+                <div className="flex items-center justify-center gap-1 pb-1">
+                  {(['en', 'pt'] as SupportedLocale[]).map(lang => (
+                    <button
+                      key={lang}
+                      onClick={() => { toggleLocale(lang); setOpen(false) }}
+                      className="flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-200"
+                      style={locale === lang
+                        ? { background: 'rgba(240,180,41,0.15)', color: '#f0b429', border: '1px solid rgba(240,180,41,0.3)' }
+                        : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#3f5068' }
+                      }
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
                 <Link
                   href="/auth/login"
                   onClick={() => setOpen(false)}
                   className="block w-full text-center text-white px-4 py-3 rounded-xl font-semibold text-sm border border-white/[0.1] hover:bg-white/[0.04] transition-colors"
                 >
-                  Log in
+                  {t('log_in')}
                 </Link>
                 <Link
                   href="/auth/register"
                   onClick={() => setOpen(false)}
                   className="block w-full text-center bg-[#f0b429] text-[#080c14] px-4 py-3 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-[#fcd86e] transition-colors"
                 >
-                  Register
+                  {t('register')}
                 </Link>
               </div>
             )}

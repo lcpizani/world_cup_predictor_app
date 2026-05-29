@@ -5,8 +5,11 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { getTeamFlagCode, getFlagUrl } from '@/lib/flags'
+import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
 import type { Match, Prediction } from '@/types/api'
+import { useOnboardingGuard } from '@/lib/hooks'
+import { useLocale, useTranslations } from 'next-intl'
+import { formatMatchDateTime } from '@/lib/date'
 
 function TeamFlag({ name }: { name: string }) {
   const code = getTeamFlagCode(name)
@@ -23,38 +26,37 @@ function outcomeOf(h: number, a: number): number {
 }
 
 function ResultBadge({ exact, winner, hasPred }: { exact: boolean; winner: boolean; hasPred: boolean }) {
+  const t = useTranslations('predictions')
   if (!hasPred) return null
   if (exact) return (
     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
-      Exact
+      {t('exact')}
     </span>
   )
   if (winner) return (
     <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.2)' }}>
-      Winner
+      {t('winner')}
     </span>
   )
   return (
-    <span className="text-[10px] font-medium text-[#2d3e52]">Miss</span>
+    <span className="text-[10px] font-medium text-[#2d3e52]">{t('miss')}</span>
   )
 }
 
-function StatusBadge({ status, kickoff_at }: { status: string; kickoff_at: string }) {
+function StatusBadge({ status, kickoff_at, timezone }: { status: string; kickoff_at: string; timezone?: string | null }) {
+  const t = useTranslations('predictions')
   if (status === 'live') return (
     <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-      Live
+      {t('live')}
     </span>
   )
   if (status === 'finished') return (
     <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider" style={{ color: '#3f5068', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-      FT
+      {t('ft')}
     </span>
   )
-  const label = new Date(kickoff_at).toLocaleString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
-  })
+  const label = formatMatchDateTime(kickoff_at, timezone)
   return (
     <span className="text-[10px] font-bold px-2.5 py-1 rounded-full tracking-wider text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)' }}>
       {label}
@@ -62,7 +64,9 @@ function StatusBadge({ status, kickoff_at }: { status: string; kickoff_at: strin
   )
 }
 
-function PredictionRow({ match, prediction }: { match: Match; prediction?: Prediction }) {
+function PredictionRow({ match, prediction, timezone }: { match: Match; prediction?: Prediction; timezone?: string | null }) {
+  const t = useTranslations('predictions')
+  const locale = useLocale()
   const qc = useQueryClient()
   const [home, setHome] = useState(prediction?.predicted_home?.toString() ?? '')
   const [away, setAway] = useState(prediction?.predicted_away?.toString() ?? '')
@@ -133,7 +137,7 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
           </div>
           <div className="flex items-center gap-2">
             <ResultBadge exact={exact} winner={scoreColors.winner} hasPred={hasPred} />
-            <StatusBadge status={match.status} kickoff_at={match.kickoff_at} />
+            <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} />
           </div>
         </div>
 
@@ -141,7 +145,7 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
         <div className="flex items-center gap-1.5 sm:gap-2">
           <div className="flex-1 flex items-center justify-end gap-2 sm:gap-2.5 min-w-0">
             <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-sm sm:text-base">
-              {match.home_team}
+              {translateTeamName(match.home_team, locale)}
             </span>
             <TeamFlag name={match.home_team} />
           </div>
@@ -176,7 +180,7 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
           <div className="flex-1 flex items-center gap-2 sm:gap-2.5 min-w-0">
             <TeamFlag name={match.away_team} />
             <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-sm sm:text-base">
-              {match.away_team}
+              {translateTeamName(match.away_team, locale)}
             </span>
           </div>
         </div>
@@ -238,14 +242,14 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
             </span>
           )}
         </div>
-        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} />
+        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} />
       </div>
 
       {/* Teams row */}
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
           <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-xs sm:text-sm">
-            {match.home_team}
+            {translateTeamName(match.home_team, locale)}
           </span>
           <TeamFlag name={match.home_team} />
         </div>
@@ -258,7 +262,7 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
                 {prediction.predicted_home} – {prediction.predicted_away}
               </span>
             ) : (
-              <span className="text-xs text-[#1e2d40]">locked</span>
+              <span className="text-xs text-[#1e2d40]">{t('locked')}</span>
             )
           ) : scoreInputs}
         </div>
@@ -271,7 +275,7 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
                 {prediction.predicted_home}–{prediction.predicted_away}
               </span>
             ) : (
-              <span className="text-[10px] text-[#1e2d40] font-bold tracking-widest uppercase">locked</span>
+              <span className="text-[10px] text-[#1e2d40] font-bold tracking-widest uppercase">{t('locked')}</span>
             )
           ) : (
             <>
@@ -291,7 +295,7 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
         <div className="flex-1 flex items-center gap-2 min-w-0">
           <TeamFlag name={match.away_team} />
           <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-xs sm:text-sm">
-            {match.away_team}
+            {translateTeamName(match.away_team, locale)}
           </span>
         </div>
 
@@ -309,14 +313,14 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
               onMouseEnter={e => !save.isPending && ((e.currentTarget as HTMLElement).style.background = '#fcd86e')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#f0b429')}
             >
-              {save.isPending ? '…' : prediction ? 'Update' : 'Save'}
+              {save.isPending ? '…' : prediction ? t('update') : t('save')}
             </button>
           </div>
         )}
       </div>
 
       {err && <p className="text-xs text-red-400 mt-2">{err}</p>}
-      {save.isSuccess && <p className="text-xs text-green-400 mt-2 font-medium">✓ Saved</p>}
+      {save.isSuccess && <p className="text-xs text-green-400 mt-2 font-medium">{t('saved')}</p>}
     </div>
   )
 }
@@ -324,9 +328,12 @@ function PredictionRow({ match, prediction }: { match: Match; prediction?: Predi
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PredictionsPage() {
+  const t = useTranslations('predictions')
   const [tab, setTab] = useState<'upcoming' | 'finished'>('upcoming')
   const [refreshing, setRefreshing] = useState(false)
   const qc = useQueryClient()
+  const { data: me, isLoading: meLoading } = useQuery({ queryKey: ['me'], queryFn: api.getMe })
+  useOnboardingGuard(me, meLoading)
 
   async function handleRefresh() {
     setRefreshing(true)
@@ -369,15 +376,15 @@ export default function PredictionsPage() {
           href="/dashboard"
           className="inline-flex items-center gap-1 text-[#3f5068] hover:text-white text-sm mb-3 transition-colors font-medium"
         >
-          ← Dashboard
+          {t('back_dashboard')}
         </Link>
         <div className="flex items-end justify-between gap-4">
           <div>
             <h1 className="font-[family-name:var(--font-oswald)] text-2xl sm:text-3xl font-bold uppercase tracking-wider text-white leading-none">
-              My Predictions
+              {t('title')}
             </h1>
             <p className="text-[#3f5068] text-sm mt-1.5 font-medium">
-              Your picks across all competitions
+              {t('subtitle')}
             </p>
           </div>
           <button
@@ -400,7 +407,7 @@ export default function PredictionsPage() {
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
               <path d="M3 3v5h5" />
             </svg>
-            {refreshing ? 'Reloading…' : 'Reload'}
+            {refreshing ? t('reloading') : t('reload')}
           </button>
         </div>
       </div>
@@ -415,7 +422,7 @@ export default function PredictionsPage() {
               : 'text-[#5a6a82] hover:text-white'
           }`}
         >
-          Upcoming
+          {t('tab_upcoming')}
           {upcomingMissing > 0 && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'upcoming' ? 'bg-[#080c14]/20 text-[#080c14]' : 'bg-red-500 text-white'}`}>
               {upcomingMissing}
@@ -430,7 +437,7 @@ export default function PredictionsPage() {
               : 'text-[#5a6a82] hover:text-white'
           }`}
         >
-          Finished
+          {t('tab_finished')}
           {finishedWithPred > 0 && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'finished' ? 'bg-[#080c14]/20 text-[#080c14]' : 'bg-white/10 text-[#5a6a82]'}`}>
               {finishedWithPred}
@@ -440,19 +447,19 @@ export default function PredictionsPage() {
       </div>
 
       {isLoading && (
-        <p className="text-center text-[#3f5068] py-16">Loading…</p>
+        <p className="text-center text-[#3f5068] py-16">…</p>
       )}
 
       {!isLoading && tab === 'upcoming' && (
         <div className="space-y-3">
           {upcoming.length === 0 && (
             <div className="text-center py-16">
-              <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-2">No upcoming matches</p>
-              <p className="text-sm text-[#3f5068]">Check back when fixtures are announced.</p>
+              <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-2">{t('no_upcoming_title')}</p>
+              <p className="text-sm text-[#3f5068]">{t('no_upcoming_desc')}</p>
             </div>
           )}
           {upcoming.map((m) => (
-            <PredictionRow key={m.id} match={m} prediction={predByMatch[m.id]} />
+            <PredictionRow key={m.id} match={m} prediction={predByMatch[m.id]} timezone={me?.timezone} />
           ))}
         </div>
       )}
@@ -461,12 +468,12 @@ export default function PredictionsPage() {
         <div className="space-y-3">
           {finished.length === 0 && (
             <div className="text-center py-16">
-              <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-2">No finished matches</p>
-              <p className="text-sm text-[#3f5068]">Results will appear here once games are played.</p>
+              <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-2">{t('no_finished_title')}</p>
+              <p className="text-sm text-[#3f5068]">{t('no_finished_desc')}</p>
             </div>
           )}
           {finished.map((m) => (
-            <PredictionRow key={m.id} match={m} prediction={predByMatch[m.id]} />
+            <PredictionRow key={m.id} match={m} prediction={predByMatch[m.id]} timezone={me?.timezone} />
           ))}
         </div>
       )}

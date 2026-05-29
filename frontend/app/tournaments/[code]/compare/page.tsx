@@ -5,8 +5,11 @@ import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import Image from 'next/image'
 import { api } from '@/lib/api'
-import { getTeamFlagCode, getFlagUrl } from '@/lib/flags'
+import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
+import { formatMatchDateTime } from '@/lib/date'
 import type { Match, TournamentComparePrediction, TournamentCompareMatch } from '@/types/api'
+import { useOnboardingGuard } from '@/lib/hooks'
+import { useLocale, useTranslations } from 'next-intl'
 
 function TeamFlag({ name }: { name: string }) {
   const flagCode = getTeamFlagCode(name)
@@ -18,19 +21,20 @@ function TeamFlag({ name }: { name: string }) {
   )
 }
 
-function StatusBadge({ status, kickoff_at }: { status: string; kickoff_at: string }) {
+function StatusBadge({ status, kickoff_at, timezone }: { status: string; kickoff_at: string; timezone?: string | null }) {
+  const t = useTranslations('compare')
   if (status === 'live') return (
     <span className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-      Live
+      {t('live')}
     </span>
   )
   if (status === 'finished') return (
     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" style={{ color: '#3f5068', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-      FT
+      {t('ft')}
     </span>
   )
-  const label = new Date(kickoff_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const label = formatMatchDateTime(kickoff_at, timezone)
   return (
     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wider text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)' }}>
       {label}
@@ -55,6 +59,7 @@ function getScoreColors(match: Match, pred: TournamentComparePrediction): { home
 }
 
 function ParticipantRow({ match, pred, isMe }: { match: Match; pred: TournamentComparePrediction; isMe: boolean }) {
+  const t = useTranslations('compare')
   const hidden = pred.predicted_home === null && pred.predicted_away === null
   const colors = hidden ? { home: '' as ScoreColor, away: '' as ScoreColor } : getScoreColors(match, pred)
   const isExact = colors.home === 'green' && colors.away === 'green'
@@ -72,7 +77,6 @@ function ParticipantRow({ match, pred, isMe }: { match: Match; pred: TournamentC
         : { border: '1px solid transparent' }
       }
     >
-      {/* Username */}
       <div className="flex-1 min-w-0 flex items-center gap-2">
         <span
           className="font-[family-name:var(--font-oswald)] text-sm uppercase tracking-wide truncate"
@@ -82,12 +86,11 @@ function ParticipantRow({ match, pred, isMe }: { match: Match; pred: TournamentC
         </span>
         {isMe && (
           <span className="text-[10px] px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0 font-bold" style={{ color: '#3f5068', border: '1px solid rgba(255,255,255,0.08)' }}>
-            you
+            {t('you')}
           </span>
         )}
       </div>
 
-      {/* Predicted score */}
       <div
         className="flex items-center gap-1 px-2 py-0.5 rounded-lg shrink-0"
         style={isExact
@@ -100,7 +103,7 @@ function ParticipantRow({ match, pred, isMe }: { match: Match; pred: TournamentC
         {hidden ? (
           <span className="font-[family-name:var(--font-oswald)] text-sm w-10 text-center" style={{ color: '#1e2d40' }}>?–?</span>
         ) : pred.predicted_home === null ? (
-          <span className="text-xs w-10 text-center" style={{ color: '#1e2d40' }}>no pick</span>
+          <span className="text-xs w-10 text-center" style={{ color: '#1e2d40' }}>{t('no_pick')}</span>
         ) : (
           <>
             <span className={`font-[family-name:var(--font-oswald)] font-bold text-sm w-4 text-center ${colors.home === 'green' ? 'text-green-400' : colors.home === 'yellow' ? 'text-[#f0b429]' : 'text-white'}`}>
@@ -114,7 +117,6 @@ function ParticipantRow({ match, pred, isMe }: { match: Match; pred: TournamentC
         )}
       </div>
 
-      {/* Points */}
       {pred.points_awarded !== null ? (
         <div className="shrink-0 w-14 text-right flex items-baseline justify-end gap-0.5">
           <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-sm">+{pred.points_awarded}</span>
@@ -127,8 +129,11 @@ function ParticipantRow({ match, pred, isMe }: { match: Match; pred: TournamentC
   )
 }
 
-function CompareMatchCard({ entry, myUserId }: { entry: TournamentCompareMatch; myUserId: string }) {
+function CompareMatchCard({ entry, myUserId, timezone }: { entry: TournamentCompareMatch; myUserId: string; timezone?: string | null }) {
+  const locale = useLocale()
   const { match, predictions } = entry
+  const homeTeam = translateTeamName(match.home_team, locale)
+  const awayTeam = translateTeamName(match.away_team, locale)
 
   return (
     <div
@@ -149,14 +154,14 @@ function CompareMatchCard({ entry, myUserId }: { entry: TournamentCompareMatch; 
             </span>
           )}
         </div>
-        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} />
+        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} />
       </div>
 
       {/* Teams + actual score */}
       <div className="flex items-center gap-2 mb-4">
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
           <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-sm">
-            {match.home_team}
+            {homeTeam}
           </span>
           <TeamFlag name={match.home_team} />
         </div>
@@ -174,7 +179,7 @@ function CompareMatchCard({ entry, myUserId }: { entry: TournamentCompareMatch; 
         <div className="flex-1 flex items-center gap-2 min-w-0">
           <TeamFlag name={match.away_team} />
           <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-sm">
-            {match.away_team}
+            {awayTeam}
           </span>
         </div>
       </div>
@@ -192,6 +197,7 @@ function CompareMatchCard({ entry, myUserId }: { entry: TournamentCompareMatch; 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ComparePage() {
+  const t = useTranslations('compare')
   const { code } = useParams<{ code: string }>()
 
   const { data: tournament } = useQuery({
@@ -199,10 +205,11 @@ export default function ComparePage() {
     queryFn: () => api.getTournament(code),
   })
 
-  const { data: me } = useQuery({
+  const { data: me, isLoading: meLoading } = useQuery({
     queryKey: ['me'],
     queryFn: () => api.getMe(),
   })
+  useOnboardingGuard(me, meLoading)
 
   const { data: compareData = [], isLoading } = useQuery({
     queryKey: ['compare', code],
@@ -227,14 +234,14 @@ export default function ComparePage() {
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'white' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3f5068' }}
         >
-          ← Matches
+          {t('back_matches')}
         </Link>
         <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
           {tournament?.name ?? '…'}
         </h1>
         <div className="flex items-center gap-2.5 mt-2">
           <span className="block w-0.5 h-3.5 rounded-full" style={{ background: 'rgba(240,180,41,0.7)' }} />
-          <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em]" style={{ color: '#5a6a82' }}>Compare Predictions</p>
+          <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em]" style={{ color: '#5a6a82' }}>{t('compare_predictions')}</p>
         </div>
       </div>
 
@@ -249,12 +256,12 @@ export default function ComparePage() {
       {!isLoading && compareData.length > 0 && !hasAnyPredictions && (
         <div className="text-center py-20 rounded-2xl" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
           <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide mb-2" style={{ color: '#2d3e52' }}>
-            No predictions yet
+            {t('no_predictions_title')}
           </p>
           <p className="text-sm" style={{ color: '#3f5068' }}>
-            Members haven&apos;t submitted picks yet.{' '}
+            {t('no_predictions_desc')}{' '}
             <Link href="/predictions" className="text-[#f0b429] hover:text-white transition-colors font-medium">
-              Add yours →
+              {t('add_yours')}
             </Link>
           </p>
         </div>
@@ -263,23 +270,23 @@ export default function ComparePage() {
       {!isLoading && compareData.length === 0 && (
         <div className="text-center py-20 rounded-2xl" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
           <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide mb-2" style={{ color: '#2d3e52' }}>
-            No matches yet
+            {t('no_matches_title')}
           </p>
-          <p className="text-sm" style={{ color: '#3f5068' }}>An admin needs to sync fixtures first.</p>
+          <p className="text-sm" style={{ color: '#3f5068' }}>{t('no_matches_desc')}</p>
         </div>
       )}
 
       {compareData.length > 0 && hasAnyPredictions && (
         <div className="space-y-3">
           {compareData.map((entry) => (
-            <CompareMatchCard key={entry.match.id} entry={entry} myUserId={myUserId} />
+            <CompareMatchCard key={entry.match.id} entry={entry} myUserId={myUserId} timezone={me?.timezone} />
           ))}
         </div>
       )}
 
       {compareData.length > 0 && (
         <p className="text-center text-[10px] mt-8 font-medium" style={{ color: '#1e2d40' }}>
-          Refreshes every 30 seconds
+          {t('refresh')}
         </p>
       )}
     </div>

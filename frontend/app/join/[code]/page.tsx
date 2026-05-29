@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import Cookies from 'js-cookie'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { useOnboardingGuard } from '@/lib/hooks'
 
 type Phase = 'loading' | 'invite-landing' | 'register' | 'confirm-late-join' | 'joining' | 'already_member' | 'error'
 
@@ -335,6 +338,8 @@ export default function JoinPage() {
   const [phase, setPhase] = useState<Phase>('loading')
   const [leagueName, setLeagueName] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
+  const { data: me, isLoading: meLoading } = useQuery({ queryKey: ['me'], queryFn: api.getMe, retry: false })
+  useOnboardingGuard(me, meLoading)
 
   async function performJoin() {
     setPhase('joining')

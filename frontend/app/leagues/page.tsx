@@ -6,15 +6,17 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import type { Tournament } from '@/types/api'
+import { useOnboardingGuard } from '@/lib/hooks'
+import { useTranslations } from 'next-intl'
 
 // ── Scoring rules ─────────────────────────────────────────────────────────────
 
-const RULE_LABELS: Record<string, { label: string }> = {
-  correct_result_pts:         { label: 'Exact score' },
-  correct_winner_pts:         { label: 'Correct winner / draw' },
-  correct_goal_diff_pts:      { label: 'Correct goal difference' },
-  correct_goals_one_team_pts: { label: "One team's score right" },
-}
+const RULE_KEYS: Array<keyof typeof DEFAULT_RULES> = [
+  'correct_result_pts',
+  'correct_winner_pts',
+  'correct_goal_diff_pts',
+  'correct_goals_one_team_pts',
+]
 
 const DEFAULT_RULES = {
   correct_result_pts: 5,
@@ -29,6 +31,7 @@ function LateJoinWarningModal({ onConfirm, onCancel }: {
   onConfirm: () => void
   onCancel: () => void
 }) {
+  const t = useTranslations('leagues')
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
@@ -53,15 +56,14 @@ function LateJoinWarningModal({ onConfirm, onCancel }: {
         </div>
 
         <h2 className="font-[family-name:var(--font-oswald)] text-xl font-bold uppercase tracking-wider text-white text-center leading-snug mb-4">
-          League already underway
+          {t('late_join_title')}
         </h2>
 
         <p className="text-[#7a8fa8] text-sm text-center leading-relaxed mb-2">
-          Some matches have already been played. Predictions for past games
-          won&apos;t count toward your score — your tally starts the moment you join.
+          {t('late_join_desc')}
         </p>
         <p className="text-[#3f5068] text-xs text-center leading-relaxed mb-7">
-          Points are only awarded for matches that kick off after you join.
+          {t('late_join_note')}
         </p>
 
         <div className="space-y-2.5">
@@ -72,7 +74,7 @@ function LateJoinWarningModal({ onConfirm, onCancel }: {
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#fcd86e' }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#f0b429' }}
           >
-            Join anyway
+            {t('join_anyway')}
           </button>
           <button
             onClick={onCancel}
@@ -81,7 +83,7 @@ function LateJoinWarningModal({ onConfirm, onCancel }: {
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'white' }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#94a3b8' }}
           >
-            Cancel
+            {t('cancel')}
           </button>
         </div>
       </div>
@@ -92,6 +94,7 @@ function LateJoinWarningModal({ onConfirm, onCancel }: {
 // ── Join panel ────────────────────────────────────────────────────────────────
 
 function JoinPanel({ onJoined }: { onJoined: () => void }) {
+  const t = useTranslations('leagues')
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [checking, setChecking] = useState(false)
@@ -134,14 +137,14 @@ function JoinPanel({ onJoined }: { onJoined: () => void }) {
       )}
       <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
         <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em] mb-3" style={{ color: '#5a6a82' }}>
-          Join by invite code
+          {t('join_by_code')}
         </p>
         <div className="flex gap-2.5">
           <input
             value={code}
             onChange={e => setCode(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && code && handleJoinClick()}
-            placeholder="e.g. ABC12345"
+            placeholder={t('code_placeholder')}
             className="flex-1 rounded-xl px-4 py-2.5 text-white text-sm font-mono tracking-wider transition-all"
             style={{
               background: 'rgba(255,255,255,0.03)',
@@ -163,7 +166,7 @@ function JoinPanel({ onJoined }: { onJoined: () => void }) {
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)' }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.07)' }}
           >
-            {mutation.isPending || checking ? '…' : 'Join'}
+            {mutation.isPending || checking ? '…' : t('join')}
           </button>
         </div>
         {error && <p className="text-sm text-red-400 mt-2">{error}</p>}
@@ -175,11 +178,19 @@ function JoinPanel({ onJoined }: { onJoined: () => void }) {
 // ── Create panel ──────────────────────────────────────────────────────────────
 
 function CreatePanel({ onCreated }: { onCreated: () => void }) {
+  const t = useTranslations('leagues')
   const [open, setOpen] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [rules, setRules] = useState(DEFAULT_RULES)
   const qc = useQueryClient()
+
+  const ruleLabels: Record<string, string> = {
+    correct_result_pts: t('exact_score'),
+    correct_winner_pts: t('correct_winner'),
+    correct_goal_diff_pts: t('correct_goal_diff'),
+    correct_goals_one_team_pts: t('one_team_score'),
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -193,7 +204,7 @@ function CreatePanel({ onCreated }: { onCreated: () => void }) {
       setRules(DEFAULT_RULES)
       onCreated()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create')
+      setError(err instanceof Error ? err.message : t('failed_to_create'))
       setLoading(false)
     }
   }
@@ -207,7 +218,7 @@ function CreatePanel({ onCreated }: { onCreated: () => void }) {
         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#fcd86e' }}
         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#f0b429' }}
       >
-        + New League
+        {t('new_league')}
       </button>
     )
   }
@@ -215,7 +226,7 @@ function CreatePanel({ onCreated }: { onCreated: () => void }) {
   return (
     <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(240,180,41,0.22)' }}>
       <div className="flex items-center justify-between mb-5">
-        <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em] text-[#f0b429]">New League</p>
+        <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em] text-[#f0b429]">{t('new_league_label')}</p>
         <button onClick={() => setOpen(false)} className="text-[#3f5068] hover:text-white text-sm transition-colors">✕</button>
       </div>
 
@@ -223,7 +234,7 @@ function CreatePanel({ onCreated }: { onCreated: () => void }) {
         <input
           name="name"
           required
-          placeholder="League name (e.g. Office Cup 2026)"
+          placeholder={t('league_name_placeholder')}
           className="w-full rounded-xl px-4 py-3 text-white text-sm transition-all"
           style={{
             background: 'rgba(255,255,255,0.03)',
@@ -236,11 +247,11 @@ function CreatePanel({ onCreated }: { onCreated: () => void }) {
 
         <div className="space-y-3">
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em]" style={{ color: '#5a6a82' }}>
-            Scoring Rules (pts)
+            {t('scoring_rules')}
           </p>
-          {(Object.keys(RULE_LABELS) as Array<keyof typeof rules>).map(key => (
+          {RULE_KEYS.map(key => (
             <div key={key} className="flex items-center justify-between">
-              <span className="text-sm font-medium" style={{ color: '#8496af' }}>{RULE_LABELS[key].label}</span>
+              <span className="text-sm font-medium" style={{ color: '#8496af' }}>{ruleLabels[key]}</span>
               <div className="flex items-center gap-2.5">
                 <button
                   type="button"
@@ -282,7 +293,7 @@ function CreatePanel({ onCreated }: { onCreated: () => void }) {
           onMouseEnter={e => !loading && ((e.currentTarget as HTMLElement).style.background = '#fcd86e')}
           onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#f0b429')}
         >
-          {loading ? 'Creating…' : 'Create League'}
+          {loading ? t('creating') : t('create_league')}
         </button>
       </form>
     </div>
@@ -291,24 +302,25 @@ function CreatePanel({ onCreated }: { onCreated: () => void }) {
 
 // ── League card ───────────────────────────────────────────────────────────────
 
-function LeagueCard({ t, currentUserId }: { t: Tournament; currentUserId: string | undefined }) {
+function LeagueCard({ tournament, currentUserId }: { tournament: Tournament; currentUserId: string | undefined }) {
+  const tl = useTranslations('leagues')
   const qc = useQueryClient()
   const [copied, setCopied] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const deleteMutation = useMutation({
-    mutationFn: () => api.deleteTournament(t.invite_code),
+    mutationFn: () => api.deleteTournament(tournament.invite_code),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tournaments'] }),
   })
 
   function copyInvite() {
-    const url = `${window.location.origin}/join/${t.invite_code}`
+    const url = `${window.location.origin}/join/${tournament.invite_code}`
     navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const isOwner = t.created_by === currentUserId
+  const isOwner = tournament.created_by === currentUserId
 
   return (
     <div
@@ -321,25 +333,25 @@ function LeagueCard({ t, currentUserId }: { t: Tournament; currentUserId: string
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="font-[family-name:var(--font-oswald)] font-bold text-white uppercase tracking-wide text-lg leading-tight truncate">
-              {t.name}
+              {tournament.name}
             </h3>
             <span
               className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
-              style={t.is_active
+              style={tournament.is_active
                 ? { color: '#f0b429', background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.2)' }
                 : { color: '#3f5068', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }
               }
             >
-              {t.is_active ? 'Active' : 'Inactive'}
+              {tournament.is_active ? tl('active') : tl('inactive')}
             </span>
           </div>
           <p className="text-xs" style={{ color: '#3f5068' }}>
-            Created by <span style={{ color: '#5a6a82' }}>{t.creator?.username}</span>
+            {tl('created_by')} <span style={{ color: '#5a6a82' }}>{tournament.creator?.username}</span>
           </p>
         </div>
 
         <Link
-          href={`/tournaments/${t.invite_code}`}
+          href={`/tournaments/${tournament.invite_code}`}
           className="shrink-0 text-xs font-bold uppercase tracking-wide px-3 py-1.5 rounded-xl transition-all duration-200"
           style={{
             background: 'rgba(255,255,255,0.05)',
@@ -355,7 +367,7 @@ function LeagueCard({ t, currentUserId }: { t: Tournament; currentUserId: string
             ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)'
           }}
         >
-          View →
+          {tl('view')}
         </Link>
       </div>
 
@@ -368,26 +380,26 @@ function LeagueCard({ t, currentUserId }: { t: Tournament; currentUserId: string
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
         >
           <span className="text-xs font-medium" style={{ color: '#5a6a82' }}>
-            {copied ? '✓ Link copied!' : '🔗 Copy invite link'}
+            {copied ? tl('copied') : tl('copy_invite')}
           </span>
         </button>
 
         {isOwner && (
           confirmDelete ? (
             <div className="flex items-center gap-2 ml-auto">
-              <span className="text-xs" style={{ color: '#5a6a82' }}>Delete?</span>
+              <span className="text-xs" style={{ color: '#5a6a82' }}>{tl('delete_confirm')}</span>
               <button
                 onClick={() => deleteMutation.mutate()}
                 disabled={deleteMutation.isPending}
                 className="text-xs text-red-400 hover:text-red-300 font-bold transition-colors disabled:opacity-50"
               >
-                {deleteMutation.isPending ? '…' : 'Yes, delete'}
+                {deleteMutation.isPending ? '…' : tl('delete')}
               </button>
               <button onClick={() => setConfirmDelete(false)} className="text-xs transition-colors" style={{ color: '#3f5068' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'white' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3f5068' }}
               >
-                Cancel
+                {tl('cancel')}
               </button>
             </div>
           ) : (
@@ -398,7 +410,7 @@ function LeagueCard({ t, currentUserId }: { t: Tournament; currentUserId: string
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f87171' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#2d3e52' }}
             >
-              Delete
+              {tl('delete')}
             </button>
           )
         )}
@@ -410,8 +422,10 @@ function LeagueCard({ t, currentUserId }: { t: Tournament; currentUserId: string
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function LeaguesPage() {
+  const t = useTranslations('leagues')
   const qc = useQueryClient()
-  const { data: me } = useQuery({ queryKey: ['me'], queryFn: api.getMe })
+  const { data: me, isLoading: meLoading } = useQuery({ queryKey: ['me'], queryFn: api.getMe })
+  useOnboardingGuard(me, meLoading)
   const { data: tournaments = [], isLoading } = useQuery({
     queryKey: ['tournaments'],
     queryFn: api.listTournaments,
@@ -425,10 +439,10 @@ export default function LeaguesPage() {
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f0b429' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3f5068' }}
         >
-          ← Dashboard
+          {t('back_dashboard')}
         </Link>
         <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
-          My Leagues
+          {t('title')}
         </h1>
       </div>
 
@@ -443,7 +457,7 @@ export default function LeaguesPage() {
         <div className="flex items-center gap-2.5 mb-4">
           <span className="block w-0.5 h-3.5 rounded-full" style={{ background: 'rgba(240,180,41,0.7)' }} />
           <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em]" style={{ color: '#5a6a82' }}>
-            {tournaments.length > 0 ? `${tournaments.length} League${tournaments.length > 1 ? 's' : ''}` : 'Your Leagues'}
+            {tournaments.length > 0 ? `${tournaments.length} ${tournaments.length > 1 ? t('league_plural') : t('league_singular')}` : t('your_leagues')}
           </p>
         </div>
 
@@ -455,13 +469,13 @@ export default function LeaguesPage() {
           </div>
         ) : tournaments.length === 0 ? (
           <div className="rounded-2xl p-10 text-center" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-            <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-white mb-1">No leagues yet</p>
-            <p className="text-sm" style={{ color: '#3f5068' }}>Create one above or join with an invite code.</p>
+            <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-white mb-1">{t('no_leagues_title')}</p>
+            <p className="text-sm" style={{ color: '#3f5068' }}>{t('no_leagues_desc')}</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {tournaments.map(t => (
-              <LeagueCard key={t.id} t={t} currentUserId={me?.id} />
+            {tournaments.map(tour => (
+              <LeagueCard key={tour.id} tournament={tour} currentUserId={me?.id} />
             ))}
           </div>
         )}

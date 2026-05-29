@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { useQuery } from '@tanstack/react-query'
+import { useOnboardingGuard } from '@/lib/hooks'
 
 const RULE_LABELS: Record<string, { label: string; icon: string }> = {
   correct_result_pts:          { label: 'Exact score',             icon: '🎯' },
@@ -23,6 +25,8 @@ const DEFAULT_RULES = {
 export default function NewTournamentPage() {
   const router = useRouter()
   const qc = useQueryClient()
+  const { data: me, isLoading: meLoading } = useQuery({ queryKey: ['me'], queryFn: api.getMe })
+  useOnboardingGuard(me, meLoading)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [rules, setRules] = useState(DEFAULT_RULES)

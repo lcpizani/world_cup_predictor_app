@@ -4,9 +4,15 @@ import { useParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { useOnboardingGuard } from '@/lib/hooks'
+import { useTranslations } from 'next-intl'
 
 export default function LeaderboardPage() {
+  const t = useTranslations('leaderboard')
   const { code } = useParams<{ code: string }>()
+
+  const { data: me, isLoading: meLoading } = useQuery({ queryKey: ['me'], queryFn: api.getMe })
+  useOnboardingGuard(me, meLoading)
 
   const { data: tournament } = useQuery({
     queryKey: ['tournament', code],
@@ -22,6 +28,13 @@ export default function LeaderboardPage() {
   const entries = lb?.entries ?? []
   const hasLive = lb?.has_live_matches ?? false
 
+  function rankDisplay(rank: number): string {
+    if (rank === 1) return t('rank_1st')
+    if (rank === 2) return t('rank_2nd')
+    if (rank === 3) return t('rank_3rd')
+    return t('rank_nth', { n: rank })
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-6 py-10">
 
@@ -34,7 +47,7 @@ export default function LeaderboardPage() {
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'white' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3f5068' }}
         >
-          ← Matches
+          {t('back_matches')}
         </Link>
         <div className="flex items-center gap-3">
           <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
@@ -46,13 +59,13 @@ export default function LeaderboardPage() {
               style={{ background: 'rgba(34,197,94,0.12)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              Live
+              {t('live')}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2.5 mt-2">
           <span className="block w-0.5 h-3.5 rounded-full" style={{ background: 'rgba(240,180,41,0.7)' }} />
-          <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em]" style={{ color: '#5a6a82' }}>Leaderboard</p>
+          <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em]" style={{ color: '#5a6a82' }}>{t('leaderboard')}</p>
         </div>
       </div>
 
@@ -67,9 +80,9 @@ export default function LeaderboardPage() {
       {!isLoading && entries.length === 0 && (
         <div className="text-center py-20 rounded-2xl" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
           <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide mb-2" style={{ color: '#2d3e52' }}>
-            No entries yet
+            {t('no_entries_title')}
           </p>
-          <p className="text-sm" style={{ color: '#3f5068' }}>Submit predictions to appear on the board.</p>
+          <p className="text-sm" style={{ color: '#3f5068' }}>{t('no_entries_desc')}</p>
         </div>
       )}
 
@@ -79,11 +92,6 @@ export default function LeaderboardPage() {
             const isFirst = entry.rank === 1
             const isTop3 = entry.rank <= 3
             const hasProvisional = entry.provisional_points > 0
-
-            const rankDisplay = entry.rank === 1 ? '1st'
-              : entry.rank === 2 ? '2nd'
-              : entry.rank === 3 ? '3rd'
-              : `${entry.rank}th`
 
             return (
               <div
@@ -100,7 +108,7 @@ export default function LeaderboardPage() {
                     className="font-[family-name:var(--font-oswald)] font-bold text-sm tabular-nums"
                     style={{ color: isFirst ? '#f0b429' : isTop3 ? '#8496af' : '#3f5068' }}
                   >
-                    {rankDisplay}
+                    {rankDisplay(entry.rank)}
                   </span>
                 </div>
 
@@ -130,7 +138,7 @@ export default function LeaderboardPage() {
                       +{entry.provisional_points}
                     </span>
                   )}
-                  <span className="text-xs font-medium" style={{ color: '#3f5068' }}>pts</span>
+                  <span className="text-xs font-medium" style={{ color: '#3f5068' }}>{t('pts')}</span>
                 </div>
               </div>
             )
@@ -139,7 +147,7 @@ export default function LeaderboardPage() {
       )}
 
       <p className="text-center text-[10px] mt-8 font-medium" style={{ color: '#1e2d40' }}>
-        {hasLive ? 'Near-live · refreshes every 20 seconds' : 'Refreshes every 20 seconds'}
+        {hasLive ? t('live_refresh') : t('refresh')}
       </p>
     </div>
   )
