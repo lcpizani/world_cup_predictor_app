@@ -54,7 +54,10 @@ def sync_matches(db: Session, competition_code: str = "WC") -> dict:
 
         existing = db.query(Match).filter(Match.external_match_id == ext_id).first()
         if existing:
-            if existing.status != "finished":
+            # Only mutate matches that haven't kicked off. Once status flips to
+            # "live" or "finished", predictions are locked against this match —
+            # changing teams or kickoff time would silently misalign them.
+            if existing.status == "scheduled":
                 existing.kickoff_at = kickoff
                 existing.home_team = home
                 existing.away_team = away

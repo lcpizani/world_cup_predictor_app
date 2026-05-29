@@ -45,8 +45,9 @@ class PredictionHistoryItem(BaseModel):
     home_team: str
     away_team: str
     kickoff_at: datetime
-    predicted_home: int
-    predicted_away: int
+    # Nullable so unfinished-match predictions can be hidden from other users.
+    predicted_home: Optional[int] = None
+    predicted_away: Optional[int] = None
     actual_home: Optional[int] = None
     actual_away: Optional[int] = None
     points_awarded: Optional[int] = None

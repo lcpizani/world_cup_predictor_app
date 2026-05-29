@@ -22,8 +22,8 @@ export interface PredictionHistoryItem {
   home_team: string
   away_team: string
   kickoff_at: string
-  predicted_home: number
-  predicted_away: number
+  predicted_home: number | null
+  predicted_away: number | null
   actual_home: number | null
   actual_away: number | null
   points_awarded: number | null

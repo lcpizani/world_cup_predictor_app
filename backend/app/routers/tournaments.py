@@ -1,11 +1,12 @@
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.limiter import limiter
 from app.logger import logger
 from app.models.tournament import Tournament
 from app.services import tournament as tournament_service
@@ -49,8 +50,12 @@ def join(request: JoinTournamentRequest, db: Session = Depends(get_db), current_
 
 
 @router.get("/{invite_code}/preview", status_code=status.HTTP_200_OK)
-def preview_tournament(invite_code: str, db: Session = Depends(get_db)) -> dict:
-    """Public endpoint — returns just the league name for an invite code, no auth required."""
+@limiter.limit("30/minute")
+def preview_tournament(request: Request, invite_code: str, db: Session = Depends(get_db)) -> dict:
+    """Public endpoint — returns just the league name for an invite code, no auth required.
+
+    Rate-limited because the endpoint is unauthenticated and the 8-char invite
+    code keyspace is small enough that an attacker could otherwise enumerate codes."""
     tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
     if not tournament:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite link not found")

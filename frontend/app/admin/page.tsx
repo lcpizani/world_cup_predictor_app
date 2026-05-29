@@ -181,7 +181,14 @@ function ApplyResultForm({ match }: { match: Match }) {
   const [err, setErr] = useState('')
 
   const mutation = useMutation({
-    mutationFn: () => api.applyResult(match.id, parseInt(home), parseInt(away)),
+    mutationFn: () => {
+      const h = parseInt(home, 10)
+      const a = parseInt(away, 10)
+      if (Number.isNaN(h) || Number.isNaN(a) || h < 0 || a < 0) {
+        throw new Error('Scores must be non-negative integers')
+      }
+      return api.applyResult(match.id, h, a)
+    },
     onSuccess: () => {
       setErr('')
       qc.invalidateQueries({ queryKey: ['matches'] })

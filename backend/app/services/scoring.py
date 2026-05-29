@@ -88,17 +88,31 @@ def apply_match_result(
 
     # Predictions are now global — one per user per match
     predictions = db.query(Prediction).filter(Prediction.match_id == match.id).all()
+    if not predictions:
+        db.commit()
+        db.refresh(match)
+        return match
+
+    # Batch-load all memberships for the predicting users in one query.
+    # Previously this issued one query per prediction; with N predictions × M
+    # tournaments per user that's O(N) joinedload queries per finished match.
+    user_ids = [p.user_id for p in predictions]
+    memberships = (
+        db.query(TournamentMember)
+        .options(joinedload(TournamentMember.tournament).joinedload(Tournament.scoring_rules))
+        .filter(TournamentMember.user_id.in_(user_ids))
+        .all()
+    )
+    memberships_by_user: dict = {}
+    for m in memberships:
+        memberships_by_user.setdefault(m.user_id, []).append(m)
 
     for pred in predictions:
-        # Score this prediction in every tournament the user belongs to
-        memberships = (
-            db.query(TournamentMember)
-            .options(joinedload(TournamentMember.tournament).joinedload(Tournament.scoring_rules))
-            .filter(TournamentMember.user_id == pred.user_id)
-            .all()
-        )
-
-        for membership in memberships:
+        # Score this prediction in every tournament the user belongs to.
+        # Track the per-prediction total across tournaments so we can persist
+        # it on Prediction.points_awarded for the user history endpoint.
+        total_across_tournaments = 0
+        for membership in memberships_by_user.get(pred.user_id, []):
             scoring = membership.tournament.scoring_rules or _default_scoring(membership.tournament_id)
             events = compute_points_for_prediction(pred, scoring, match)
             total_points = sum(pts for _, pts in events)
@@ -115,8 +129,10 @@ def apply_match_result(
 
             membership.total_points = (membership.total_points or 0) + total_points
             db.add(membership)
+            total_across_tournaments += total_points
 
         pred.is_locked = True
+        pred.points_awarded = total_across_tournaments
         db.add(pred)
 
     db.commit()
@@ -145,6 +161,10 @@ def recompute_tournament_scores(db: Session, tournament_id: UUID) -> dict:
         m.user_id
         for m in db.query(TournamentMember).filter(TournamentMember.tournament_id == tournament_id).all()
     ]
+    if not member_ids:
+        # No members means nothing to score. Avoid `IN ()` queries downstream.
+        db.commit()
+        return {"recomputed_matches": 0, "recomputed_predictions": 0}
 
     finished_matches = (
         db.query(Match)

@@ -51,7 +51,7 @@ function PredictionRow({ item }: { item: PredictionHistoryItem }) {
           {item.home_team} vs {item.away_team}
         </p>
         <p className="text-[#4a5c70] text-xs mt-0.5">
-          {kickoff} · Predicted: {item.predicted_home}–{item.predicted_away}
+          {kickoff} · Predicted: {item.predicted_home ?? '—'}–{item.predicted_away ?? '—'}
           {hasResult && ` · Result: ${item.actual_home}–${item.actual_away}`}
         </p>
       </div>

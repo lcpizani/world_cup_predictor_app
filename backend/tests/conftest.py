@@ -9,6 +9,10 @@ from sqlalchemy.pool import StaticPool
 # Set required test environment variables before any app modules import settings.
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("JWT_SECRET", "test-secret")
+# Override .env values so tests run with open registration regardless of the
+# developer's local backend/.env (which may set INVITE_CODE for the dev server).
+os.environ["INVITE_CODE"] = ""
+os.environ["ENVIRONMENT"] = "development"
 
 # Import models to ensure metadata is populated.
 from app.models import match, point_event, prediction, tournament, user  # noqa: F401

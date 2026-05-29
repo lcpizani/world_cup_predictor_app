@@ -260,9 +260,9 @@ export default function JoinPage() {
 
   useEffect(() => {
     async function init() {
-      const token = Cookies.get('auth_token') ?? ''
+      const signedIn = !!Cookies.get('is_authenticated')
 
-      if (!token) {
+      if (!signedIn) {
         // Fetch league name for the invite landing page
         const res = await fetch(`/api/proxy/tournaments/${encodeURIComponent(code)}/preview`)
         if (res.ok) {
@@ -275,14 +275,11 @@ export default function JoinPage() {
         return
       }
 
-      // Authenticated — attempt join
+      // Authenticated — attempt join (proxy injects the Authorization header)
       setPhase('joining')
       const res = await fetch('/api/proxy/tournaments/join', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invite_code: code }),
       })
 
@@ -305,15 +302,11 @@ export default function JoinPage() {
   }, [code, router])
 
   function handleRegistered() {
-    // Token now set — retry the join
+    // Token now set — retry the join (proxy injects the Authorization header)
     setPhase('joining')
-    const token = Cookies.get('auth_token') ?? ''
     fetch('/api/proxy/tournaments/join', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ invite_code: code }),
     }).then(res => {
       if (res.ok || res.status === 409) {

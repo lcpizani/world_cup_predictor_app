@@ -20,7 +20,16 @@ def get_current_user(
 
     token = authorization.removeprefix("Bearer ").strip()
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET,
+            algorithms=[settings.JWT_ALGORITHM],
+            # Defense in depth: refuse tokens that lack the claims we depend on.
+            # python-jose only verifies `exp` when present by default, so without
+            # require_exp a token issued without an exp claim would be accepted
+            # indefinitely.
+            options={"require_exp": True, "require_sub": True},
+        )
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 

@@ -309,7 +309,7 @@ function RegisterForm() {
                 name="password"
                 type="password"
                 required
-                minLength={6}
+                minLength={8}
                 autoComplete="new-password"
                 placeholder="••••••••"
               />
