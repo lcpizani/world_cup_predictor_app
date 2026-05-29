@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import type { Tournament } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
+import { encodeInviteCode } from '@/lib/invite'
 import { useTranslations } from 'next-intl'
 
 // ── Scoring rules ─────────────────────────────────────────────────────────────
@@ -314,7 +315,7 @@ function LeagueCard({ tournament, currentUserId }: { tournament: Tournament; cur
   })
 
   function copyInvite() {
-    const url = `${window.location.origin}/join/${tournament.invite_code}`
+    const url = `${window.location.origin}/join/${encodeInviteCode(tournament.invite_code)}`
     navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)

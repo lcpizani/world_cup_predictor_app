@@ -10,6 +10,7 @@ import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
 import { formatMatchDateTime } from '@/lib/date'
 import type { Match, Prediction } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
+import { encodeInviteCode } from '@/lib/invite'
 import { useLocale, useTranslations } from 'next-intl'
 
 function useMinutesUntil(dt: string): number {
@@ -235,7 +236,7 @@ export default function TournamentPage() {
 
   function copyInviteLink() {
     if (!tournament) return
-    const link = `${window.location.origin}/join/${tournament.invite_code}`
+    const link = `${window.location.origin}/join/${encodeInviteCode(tournament.invite_code)}`
     navigator.clipboard.writeText(link).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)

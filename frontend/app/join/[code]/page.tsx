@@ -7,6 +7,7 @@ import Cookies from 'js-cookie'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useOnboardingGuard } from '@/lib/hooks'
+import { decodeInviteCode } from '@/lib/invite'
 
 type Phase = 'loading' | 'invite-landing' | 'register' | 'confirm-late-join' | 'joining' | 'already_member' | 'error'
 
@@ -138,7 +139,7 @@ function InlineRegisterForm({ code, leagueName, onBack, onSuccess }: InlineRegis
     setLoading(true)
     const fd = new FormData(e.currentTarget)
 
-    const regRes = await fetch(`/api/auth/register?invite_code=${encodeURIComponent(code)}`, {
+    const regRes = await fetch(`/api/auth/register?invite_code=${encodeURIComponent(decodeInviteCode(code))}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -333,7 +334,8 @@ function ConfirmLateJoin({ leagueName, onConfirm, onCancel }: {
 }
 
 export default function JoinPage() {
-  const { code } = useParams<{ code: string }>()
+  const { code: encodedCode } = useParams<{ code: string }>()
+  const code = decodeInviteCode(encodedCode)
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>('loading')
   const [leagueName, setLeagueName] = useState('')
@@ -439,7 +441,7 @@ export default function JoinPage() {
     return (
       <InviteLanding
         leagueName={leagueName}
-        code={code}
+        code={encodedCode}
         onSignUp={() => setPhase('register')}
       />
     )
@@ -448,7 +450,7 @@ export default function JoinPage() {
   if (phase === 'register') {
     return (
       <InlineRegisterForm
-        code={code}
+        code={encodedCode}
         leagueName={leagueName}
         onBack={() => setPhase('invite-landing')}
         onSuccess={handleRegistered}
