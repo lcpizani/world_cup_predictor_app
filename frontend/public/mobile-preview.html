@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WC26 — Multi-device preview</title>
+  <style>
+    :root {
+      --bg: #050810;
+      --panel: #0d1520;
+      --border: rgba(255,255,255,0.09);
+      --text: #ffffff;
+      --muted: #6b7f96;
+      --dim: #3f5068;
+      --gold: #f0b429;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 28px 32px 60px;
+      background-image:
+        radial-gradient(ellipse 60% 40% at 50% 0%, rgba(240,180,41,0.05) 0%, transparent 65%),
+        repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 12px);
+    }
+
+    header {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 16px; margin-bottom: 28px;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .brand .logo {
+      font-family: "Oswald", system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .brand .logo b { color: var(--gold); }
+    .brand .sub {
+      color: var(--dim);
+      font-size: 10px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      font-weight: 600;
+      padding-left: 12px;
+      border-left: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .controls {
+      display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    }
+    .control {
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .control label {
+      font-size: 9px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.22em; font-weight: 700;
+    }
+    select, input[type="text"], button {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 9px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    select:focus, input[type="text"]:focus { border-color: rgba(240,180,41,0.5); }
+    button { cursor: pointer; }
+    button.primary {
+      background: var(--gold); color: #080c14; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase; border: none;
+    }
+    button.primary:hover { background: #fcd86e; }
+    button.ghost { color: var(--muted); }
+    button.ghost:hover { color: white; border-color: rgba(255,255,255,0.18); }
+
+    .legend {
+      font-size: 11px; color: var(--dim); padding: 12px 16px;
+      border: 1px solid var(--border); border-radius: 12px; background: rgba(13,21,32,0.4);
+      margin-bottom: 24px; line-height: 1.6;
+    }
+    .legend kbd {
+      display: inline-block; background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;
+      padding: 1px 6px; font-family: ui-monospace, monospace; font-size: 10px;
+      color: var(--gold);
+    }
+
+    .devices {
+      display: flex; gap: 28px; overflow-x: auto;
+      padding: 8px 4px 32px;
+      scroll-behavior: smooth;
+    }
+    .device { flex-shrink: 0; }
+    .device-label {
+      display: flex; align-items: baseline; gap: 8px;
+      font-size: 10px; color: var(--muted); margin-bottom: 10px;
+      letter-spacing: 0.15em; text-transform: uppercase;
+    }
+    .device-label b { color: var(--text); font-size: 12px; letter-spacing: 0.08em; }
+    .device-label .dims {
+      color: var(--dim); font-family: ui-monospace, monospace; font-size: 10px;
+      letter-spacing: 0.05em; text-transform: none;
+    }
+    .frame {
+      border: 10px solid #1a2330;
+      border-radius: 36px;
+      background: #050810;
+      overflow: hidden;
+      box-shadow:
+        0 24px 64px rgba(0,0,0,0.5),
+        0 0 0 1px rgba(255,255,255,0.04),
+        inset 0 0 0 2px #000;
+      position: relative;
+    }
+    .frame::before {
+      content: ""; position: absolute; top: 6px; left: 50%;
+      transform: translateX(-50%); width: 60px; height: 4px;
+      background: #2a3548; border-radius: 4px; z-index: 2;
+    }
+    .frame iframe { border: 0; display: block; background: #080c14; }
+
+    /* Desktop frame variant */
+    .frame.desktop { border-radius: 8px; border-width: 6px; }
+    .frame.desktop::before { display: none; }
+
+    .empty {
+      padding: 40px 20px; text-align: center; color: var(--dim);
+      border: 1px dashed var(--border); border-radius: 14px;
+    }
+    .empty b { color: var(--gold); display: block; margin-bottom: 8px; font-size: 14px; letter-spacing: 0.15em; text-transform: uppercase; }
+
+    .status {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--muted);
+    }
+    .status .dot {
+      width: 6px; height: 6px; border-radius: 50%; background: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.15);
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="logo"><b>WC</b>26</span>
+      <span class="sub">Multi-device preview</span>
+    </div>
+    <div class="controls">
+      <div class="control">
+        <label for="route">Page</label>
+        <select id="route">
+          <option value="/">Landing</option>
+          <option value="/auth/login">Login</option>
+          <option value="/auth/register">Register</option>
+          <option value="/dashboard">Dashboard</option>
+          <option value="/leagues">Leagues</option>
+          <option value="/predictions">My Picks</option>
+          <option value="/profile">Profile</option>
+        </select>
+      </div>
+      <div class="control">
+        <label for="custom">Or custom path</label>
+        <input id="custom" type="text" placeholder="/tournaments/ABC12345" />
+      </div>
+      <div class="control">
+        <label>&nbsp;</label>
+        <button class="primary" id="go">Load</button>
+      </div>
+      <div class="control">
+        <label>&nbsp;</label>
+        <button class="ghost" id="refresh">↻ Reload all</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="legend">
+    <span class="status"><span class="dot"></span> Pulling pages from <kbd>http://localhost:3000</kbd></span>
+    &nbsp; · &nbsp; Switch the dropdown or type a path, then press <kbd>Load</kbd>. Auth-gated pages need you to log in inside one of the frames first (the cookie will then apply to all frames).
+  </div>
+
+  <div class="devices">
+    <div class="device">
+      <div class="device-label"><b>iPhone SE</b> <span class="dims">375 × 667</span></div>
+      <div class="frame" style="width: 395px;">
+        <iframe data-frame src="/" width="375" height="667" style="width: 375px; height: 667px;"></iframe>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>iPhone 14 Pro</b> <span class="dims">393 × 852</span></div>
+      <div class="frame" style="width: 413px;">
+        <iframe data-frame src="/" width="393" height="852" style="width: 393px; height: 852px;"></iframe>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Pixel 7</b> <span class="dims">412 × 915</span></div>
+      <div class="frame" style="width: 432px;">
+        <iframe data-frame src="/" width="412" height="915" style="width: 412px; height: 915px;"></iframe>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>iPad Mini</b> <span class="dims">768 × 1024</span></div>
+      <div class="frame" style="width: 788px;">
+        <iframe data-frame src="/" width="768" height="1024" style="width: 768px; height: 1024px;"></iframe>
+      </div>
+    </div>
+    <div class="device">
+      <div class="device-label"><b>Desktop</b> <span class="dims">1280 × 800</span></div>
+      <div class="frame desktop" style="width: 1292px;">
+        <iframe data-frame src="/" width="1280" height="800" style="width: 1280px; height: 800px;"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const select = document.getElementById('route');
+    const custom = document.getElementById('custom');
+    const go = document.getElementById('go');
+    const refresh = document.getElementById('refresh');
+    const frames = Array.from(document.querySelectorAll('[data-frame]'));
+
+    function load(path) {
+      if (!path) return;
+      const url = path.startsWith('/') ? path : '/' + path;
+      frames.forEach(f => { f.src = url; });
+    }
+
+    select.addEventListener('change', () => {
+      custom.value = '';
+      load(select.value);
+    });
+    go.addEventListener('click', () => {
+      load(custom.value.trim() || select.value);
+    });
+    custom.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        load(custom.value.trim() || select.value);
+      }
+    });
+    refresh.addEventListener('click', () => {
+      frames.forEach(f => {
+        const src = f.src;
+        f.src = 'about:blank';
+        setTimeout(() => { f.src = src; }, 50);
+      });
+    });
+  </script>
+</body>
+</html>

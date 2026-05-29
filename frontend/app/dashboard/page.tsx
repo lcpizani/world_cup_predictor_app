@@ -2,40 +2,18 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { computeAccuracy, formatCountdown } from '@/lib/stats'
-import { getTeamFlagCode, getFlagUrl } from '@/lib/flags'
+import { getTeamFlagCode, getFlagUrl, getTeamAbbr, translateTeamName } from '@/lib/flags'
 import type { Match, Prediction, LeaderboardEntry, Tournament } from '@/types/api'
+import { useOnboardingGuard } from '@/lib/hooks'
+import { useLocale, useTranslations } from 'next-intl'
+import { formatMatchDate, formatMatchTime } from '@/lib/date'
 
 // ── Primitives ────────────────────────────────────────────────────────────────
 
-function Flag({ name, size = 28 }: { name: string; size?: number }) {
-  const code = getTeamFlagCode(name)
-  if (!code) return (
-    <span
-      className="inline-block rounded shrink-0"
-      style={{
-        width: size,
-        height: Math.round(size * 0.7),
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.08)',
-      }}
-    />
-  )
-  const srcSize = size >= 40 ? 80 : 40
-  return (
-    <Image
-      src={getFlagUrl(code, srcSize)}
-      alt={name}
-      width={size}
-      height={Math.round(size * 0.7)}
-      className="rounded object-cover shrink-0"
-      style={{ border: '1px solid rgba(255,255,255,0.1)' }}
-      unoptimized
-    />
-  )
-}
 
 function Skeleton({ className }: { className?: string }) {
   return (
@@ -46,355 +24,352 @@ function Skeleton({ className }: { className?: string }) {
   )
 }
 
-function SectionLabel({ title }: { title: string }) {
+function SectionLabel({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2.5 mb-4">
-      <span className="block w-0.5 h-3.5 rounded-full bg-[#f0b429]/70" />
-      <p className="font-[family-name:var(--font-oswald)] text-[0.65rem] font-bold uppercase tracking-[0.22em] text-[#5a6a82]">
-        {title}
-      </p>
+    <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center gap-3">
+        <span className="block w-[3px] h-5 rounded-full bg-[#f0b429]" />
+        <p className="font-[family-name:var(--font-oswald)] text-[1.05rem] font-bold uppercase tracking-[0.2em] text-[#90a0b8]">
+          {title}
+        </p>
+      </div>
+      {action}
     </div>
   )
 }
 
-// ── Match row (compact, used in Recent Results) ───────────────────────────────
+// ── usePageSize ───────────────────────────────────────────────────────────────
 
-function MatchRow({ home, away, center, sub }: {
-  home: string
-  away: string
-  center: React.ReactNode
-  sub?: React.ReactNode
-}) {
+function usePageSize(): number {
+  const [size, setSize] = useState(2) // SSR-safe default
+  useEffect(() => {
+    function update() {
+      const w = window.innerWidth
+      if (w >= 1280) setSize(5)
+      else if (w >= 1024) setSize(4)
+      else if (w >= 768) setSize(3)
+      else if (w >= 640) setSize(2)
+      else setSize(1)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+  return size
+}
+
+// formatGameDate and formatGameTime are replaced by formatMatchDate/formatMatchTime from lib/date
+
+// ── Accuracy Ring ─────────────────────────────────────────────────────────────
+
+function AccuracyRing({ pct, exactPct }: { pct: number; exactPct: number }) {
+  const r = 38
+  const circ = 2 * Math.PI * r
+  const ri = r - 13
+  const circi = 2 * Math.PI * ri
   return (
-    <div
-      className="rounded-xl px-3 py-2.5"
-      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}
-    >
-      <div className="flex items-center gap-2 mb-1">
-        <Flag name={home} size={22} />
-        <div className="flex-1 flex flex-col items-center">
-          {center}
-        </div>
-        <Flag name={away} size={22} />
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] text-[#3f5068] truncate max-w-[80px] font-medium">{home}</span>
-        {sub}
-        <span className="text-[10px] text-[#3f5068] truncate max-w-[80px] text-right font-medium">{away}</span>
-      </div>
+    <svg width="96" height="96" viewBox="0 0 96 96" style={{ transform: 'rotate(-90deg)' }}>
+      <circle cx="48" cy="48" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
+      <circle
+        cx="48" cy="48" r={r} fill="none"
+        stroke="rgba(240,180,41,0.25)" strokeWidth="8"
+        strokeDasharray={`${(pct / 100) * circ} ${circ}`}
+        strokeLinecap="round"
+      />
+      <circle cx="48" cy="48" r={ri} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="5" />
+      <circle
+        cx="48" cy="48" r={ri} fill="none"
+        stroke="#f0b429" strokeWidth="5"
+        strokeDasharray={`${(exactPct / 100) * circi} ${circi}`}
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+// ── Form Strip ────────────────────────────────────────────────────────────────
+
+function FormStrip({ predictions, matches }: { predictions: Prediction[]; matches: Match[] }) {
+  const finishedById = new Map(
+    matches.filter(m => m.status === 'finished').map(m => [m.id, m])
+  )
+  const graded = predictions
+    .filter(p => {
+      const m = finishedById.get(p.match_id)
+      return m && m.home_score !== null && m.away_score !== null
+    })
+    .sort((a, b) => {
+      const ma = finishedById.get(a.match_id)
+      const mb = finishedById.get(b.match_id)
+      if (!ma || !mb) return 0
+      return new Date(mb.kickoff_at).getTime() - new Date(ma.kickoff_at).getTime()
+    })
+    .slice(0, 8)
+
+  if (graded.length === 0) return null
+
+  const displayed = [...graded].reverse()
+
+  return (
+    <div className="flex items-center gap-1.5 mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+      <span className="text-[10px] text-[#5a7090] font-medium uppercase tracking-widest mr-1">Form</span>
+      {displayed.map((p, i) => {
+        const m = finishedById.get(p.match_id)!
+        const exact = p.predicted_home === m.home_score && p.predicted_away === m.away_score
+        const correct = Math.sign(p.predicted_home - p.predicted_away) === Math.sign((m.home_score ?? 0) - (m.away_score ?? 0))
+        const bg = exact ? '#4ade80' : correct ? '#f0b429' : '#2a3d55'
+        return (
+          <span
+            key={i}
+            title={`${m.home_team} vs ${m.away_team}: ${exact ? 'Exact' : correct ? 'Correct outcome' : 'Wrong'}`}
+            style={{ width: 9, height: 9, borderRadius: '50%', background: bg, display: 'inline-block', flexShrink: 0 }}
+          />
+        )
+      })}
     </div>
   )
 }
 
-// ── Match card (larger, used in My Picks + Next Games) ────────────────────────
+// ── Accuracy Card ─────────────────────────────────────────────────────────────
 
-function MatchCard({ home, away, center, meta }: {
-  home: string
-  away: string
-  center: React.ReactNode
-  meta: React.ReactNode
-}) {
-  return (
-    <div
-      className="rounded-xl p-4"
-      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}
-    >
-      <div className="flex items-center gap-2 mb-3">
-        <div className="flex-1 flex flex-col items-center gap-2">
-          <Flag name={home} size={44} />
-          <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-xs uppercase tracking-wide text-center leading-tight line-clamp-2">
-            {home}
-          </span>
-        </div>
+function AccuracyCard({ predictions, matches }: { predictions: Prediction[]; matches: Match[] }) {
+  const t = useTranslations('dashboard')
+  const { correctOutcomes, exactScores, total } = computeAccuracy(predictions, matches)
 
-        <div className="shrink-0 flex flex-col items-center px-2">
-          {center}
-        </div>
-
-        <div className="flex-1 flex flex-col items-center gap-2">
-          <Flag name={away} size={44} />
-          <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-xs uppercase tracking-wide text-center leading-tight line-clamp-2">
-            {away}
-          </span>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between pt-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        {meta}
-      </div>
-    </div>
-  )
-}
-
-// ── My Picks ──────────────────────────────────────────────────────────────────
-
-function MyPicksBlock({ matches, predictions, loading }: {
-  matches: Match[]
-  predictions: Prediction[]
-  loading: boolean
-}) {
-  const predByMatch = new Map(predictions.map(p => [p.match_id, p]))
-  const picks = [...matches]
-    .filter(m => m.status === 'scheduled' && predByMatch.has(m.id))
-    .sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime())
-    .slice(0, 3)
-
-  return (
-    <div className="rounded-2xl p-5 flex flex-col" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <div className="flex items-center justify-between">
-        <SectionLabel title="My Picks" />
-        <Link href="/predictions" className="text-[11px] text-[#3f5068] hover:text-[#f0b429] transition-colors mb-4 font-medium">
-          All picks →
-        </Link>
-      </div>
-
-      {loading ? (
-        <div className="space-y-2 flex-1">{[1,2,3].map(i => <Skeleton key={i} className="h-14" />)}</div>
-      ) : picks.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center py-8 text-center gap-2">
-          <p className="text-[#3f5068] text-sm">No upcoming picks yet</p>
+  if (total === 0) {
+    return (
+      <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <SectionLabel title={t('accuracy_title')} />
+        <div className="py-6 flex flex-col items-center gap-2 text-center">
+          <p className="text-[#5a7090] text-sm">{t('no_graded_yet')}</p>
           <Link href="/predictions" className="text-xs text-[#f0b429] hover:text-white transition-colors font-medium">
-            Add your picks →
+            {t('add_picks')}
           </Link>
         </div>
-      ) : (
-        <div className="space-y-2.5 flex-1">
-          {picks.map(m => {
-            const p = predByMatch.get(m.id)!
-            return (
-              <MatchCard
-                key={m.id}
-                home={m.home_team}
-                away={m.away_team}
-                center={
-                  <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-2xl tracking-widest tabular-nums">
-                    {p.predicted_home} – {p.predicted_away}
-                  </span>
-                }
-                meta={
-                  <>
-                    <span className="text-xs text-[#3f5068] font-medium">{formatCountdown(m.kickoff_at)}</span>
-                    <span className="text-xs text-[#3f5068]">{m.stage}</span>
-                  </>
-                }
-              />
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
+      </div>
+    )
+  }
 
-// ── Next Games ────────────────────────────────────────────────────────────────
-
-function NextGamesBlock({ matches, predictions, loading }: {
-  matches: Match[]
-  predictions: Prediction[]
-  loading: boolean
-}) {
-  const predMatchIds = new Set(predictions.map(p => p.match_id))
-  const upcoming = [...matches]
-    .filter(m => m.status === 'scheduled')
-    .sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime())
-    .slice(0, 3)
+  const pct = Math.round((correctOutcomes / total) * 100)
+  const exactPct = correctOutcomes > 0 ? Math.round((exactScores / correctOutcomes) * 100) : 0
 
   return (
-    <div className="rounded-2xl p-5 flex flex-col" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <SectionLabel title="Next Games" />
+    <Link href="/predictions" className="block group">
+      <div
+        className="rounded-2xl p-5 transition-colors"
+        style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
+      >
+        <SectionLabel title={t('accuracy_title')} />
 
-      {loading ? (
-        <div className="space-y-2 flex-1">{[1,2,3].map(i => <Skeleton key={i} className="h-14" />)}</div>
-      ) : upcoming.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center py-8">
-          <p className="text-[#3f5068] text-sm">No upcoming games</p>
+        <div className="flex items-center gap-5">
+          <div className="relative w-24 h-24 shrink-0">
+            <AccuracyRing pct={pct} exactPct={exactPct} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span
+                className="font-[family-name:var(--font-oswald)] font-bold text-white group-hover:text-[#f0b429] transition-colors leading-none tabular-nums"
+                style={{ fontSize: '1.5rem' }}
+              >
+                {pct}%
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 flex-1">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#f0b429] shrink-0" />
+              <div>
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-xl leading-none">{exactScores}</span>
+                <span className="text-[#5a7090] text-xs ml-1.5">{t('exact')}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: 'rgba(240,180,41,0.25)' }} />
+              <div>
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-xl leading-none">{correctOutcomes}</span>
+                <span className="text-[#5a7090] text-xs ml-1.5">{t('correct')}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
+              <div>
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-[#7080a0] text-xl leading-none">{total}</span>
+                <span className="text-[#5a7090] text-xs ml-1.5">{t('graded')}</span>
+              </div>
+            </div>
+          </div>
         </div>
-      ) : (
-        <div className="space-y-2.5 flex-1">
-          {upcoming.map(m => {
-            const hasPick = predMatchIds.has(m.id)
-            return (
-              <MatchCard
-                key={m.id}
-                home={m.home_team}
-                away={m.away_team}
-                center={
-                  <span className="font-[family-name:var(--font-oswald)] font-bold text-[#1e2d40] text-base tracking-[0.25em]">
-                    VS
-                  </span>
-                }
-                meta={
-                  <>
-                    <span className="text-xs text-[#f0b429]/70 font-medium">{formatCountdown(m.kickoff_at)}</span>
-                    {hasPick
-                      ? <span className="flex items-center gap-1 text-xs text-green-500/60 font-medium"><span>✓</span> picked</span>
-                      : <Link href="/predictions" className="text-xs text-[#f0b429] hover:text-white transition-colors font-medium">Add pick →</Link>
-                    }
-                  </>
-                }
-              />
-            )
-          })}
-        </div>
-      )}
-    </div>
+
+        <FormStrip predictions={predictions} matches={matches} />
+      </div>
+    </Link>
   )
 }
 
-// ── Recent Results ────────────────────────────────────────────────────────────
+// ── My Leagues Scroll ─────────────────────────────────────────────────────────
 
-type ResultMeta = { text: string; color: string }
-function getResultMeta(p: Prediction, m: Match): ResultMeta {
-  if (m.home_score === null || m.away_score === null) return { text: '—', color: 'text-[#3f5068]' }
-  const exact = p.predicted_home === m.home_score && p.predicted_away === m.away_score
-  if (exact) return { text: `${p.predicted_home}–${p.predicted_away} ✓`, color: 'text-green-400' }
-  const win = Math.sign(p.predicted_home - p.predicted_away) === Math.sign(m.home_score - m.away_score)
-  if (win) return { text: `${p.predicted_home}–${p.predicted_away} ~`, color: 'text-[#f0b429]' }
-  return { text: `${p.predicted_home}–${p.predicted_away} ✗`, color: 'text-[#3f5068]' }
-}
-
-function RecentResultsBlock({ matches, predictions, loading }: {
-  matches: Match[]
-  predictions: Prediction[]
-  loading: boolean
+function LeagueMiniLeaderboard({ entries, currentUserId, isLoading }: {
+  entries: LeaderboardEntry[]
+  currentUserId: string | undefined
+  isLoading: boolean
 }) {
-  const predByMatch = new Map(predictions.map(p => [p.match_id, p]))
-  const now = Date.now()
-  const oneDayAgo = now - 24 * 60 * 60 * 1000
+  const t = useTranslations('dashboard')
+  if (isLoading) {
+    return (
+      <div className="space-y-1.5 mt-3">
+        {[1, 2, 3].map(i => <Skeleton key={i} className="h-5" />)}
+      </div>
+    )
+  }
 
-  const sorted = [...matches]
-    .filter(m => m.status === 'finished')
-    .sort((a, b) => new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime())
+  const hasScores = entries.some(e => e.total_points > 0)
+  if (!hasScores) {
+    return <p className="text-xs text-[#3f5068] mt-3 font-medium">{t('no_scores_yet')}</p>
+  }
 
-  const lastDay = sorted.filter(m => new Date(m.kickoff_at).getTime() >= oneDayAgo)
-  const recent = lastDay.length > 0 ? lastDay : sorted.slice(0, 5)
+  const top3 = entries.slice(0, 3)
+  const userInTop3 = top3.some(e => e.user.id === currentUserId)
+  const userEntry = !userInTop3 ? entries.find(e => e.user.id === currentUserId) : undefined
+  const displayEntries = userEntry ? top3.slice(0, 2) : top3
+
+  const rankColor = (rank: number) => {
+    if (rank === 1) return '#f0b429'
+    if (rank === 2) return '#94a3b8'
+    if (rank === 3) return '#cd7c41'
+    return '#5a7090'
+  }
 
   return (
-    <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <SectionLabel title="Recent Results" />
+    <div className="mt-3 space-y-0.5">
+      {displayEntries.map(entry => {
+        const isMe = entry.user.id === currentUserId
+        return (
+          <div
+            key={entry.user.id}
+            className="flex items-center gap-2 py-1 px-1.5 rounded-md"
+            style={isMe ? { background: 'rgba(240,180,41,0.07)' } : undefined}
+          >
+            <span
+              className="text-[11px] font-bold shrink-0 w-4 text-center"
+              style={{ color: rankColor(entry.rank) }}
+            >
+              {entry.rank}
+            </span>
+            <span className={`flex-1 text-xs truncate font-medium ${isMe ? 'text-[#f0b429]' : 'text-[#7888a0]'}`}>
+              {entry.user.username}{isMe ? ` (${t('you')})` : ''}
+            </span>
+            <span className={`text-xs font-bold tabular-nums shrink-0 font-[family-name:var(--font-oswald)] ${isMe ? 'text-[#f0b429]' : 'text-white'}`}>
+              {entry.total_points}
+            </span>
+          </div>
+        )
+      })}
 
-      {loading ? (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
-          {[1,2,3].map(i => <Skeleton key={i} className="h-[68px]" />)}
-        </div>
-      ) : recent.length === 0 ? (
-        <p className="text-[#3f5068] text-sm py-6 text-center">No results yet</p>
-      ) : (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
-          {recent.map(m => {
-            const p = predByMatch.get(m.id)
-            const meta = p ? getResultMeta(p, m) : null
-            return (
-              <MatchRow
-                key={m.id}
-                home={m.home_team}
-                away={m.away_team}
-                center={
-                  <span className="font-[family-name:var(--font-oswald)] font-bold text-white text-xl tracking-wide">
-                    {m.home_score} – {m.away_score}
-                  </span>
-                }
-                sub={
-                  meta
-                    ? <span className={`text-[10px] font-mono font-bold ${meta.color}`}>{meta.text}</span>
-                    : <span className="text-[10px] text-[#1e2d40]">no pick</span>
-                }
-              />
-            )
-          })}
-        </div>
+      {userEntry && (
+        <>
+          <div className="px-1.5 py-0.5">
+            <span className="text-[10px] text-[#3f5068] tracking-widest font-bold">···</span>
+          </div>
+          <div
+            className="flex items-center gap-2 py-1 px-1.5 rounded-md"
+            style={{ background: 'rgba(240,180,41,0.07)' }}
+          >
+            <span className="text-[11px] font-bold shrink-0 w-4 text-center" style={{ color: rankColor(userEntry.rank) }}>
+              {userEntry.rank}
+            </span>
+            <span className="flex-1 text-xs truncate font-medium text-[#f0b429]">
+              {userEntry.user.username} ({t('you')})
+            </span>
+            <span className="text-xs font-bold tabular-nums shrink-0 font-[family-name:var(--font-oswald)] text-[#f0b429]">
+              {userEntry.total_points}
+            </span>
+          </div>
+        </>
       )}
     </div>
   )
 }
 
-// ── My Leagues ────────────────────────────────────────────────────────────────
-
-function MyLeaguesBlock({ tournaments, leaderboards, currentUserId, loading }: {
+function MyLeaguesScroll({ tournaments, leaderboards, currentUserId, loading }: {
   tournaments: Tournament[]
   leaderboards: Array<{ data: { entries: LeaderboardEntry[] } | undefined; isLoading: boolean }>
   currentUserId: string | undefined
   loading: boolean
 }) {
+  const t = useTranslations('dashboard')
   return (
     <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <div className="flex items-center justify-between">
-        <SectionLabel title="My Leagues" />
-        <Link href="/leagues" className="text-[11px] text-[#3f5068] hover:text-[#f0b429] transition-colors mb-4 font-medium">
-          Manage leagues →
-        </Link>
-      </div>
+      <SectionLabel
+        title={t('my_leagues')}
+        action={
+          <Link href="/leagues" className="text-[11px] text-[#5a7090] hover:text-[#f0b429] transition-colors font-medium">
+            {t('manage')}
+          </Link>
+        }
+      />
 
       {loading ? (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
-          {[1,2].map(i => <Skeleton key={i} className="h-16" />)}
+        <div className="flex gap-3">
+          {[1, 2].map(i => (
+            <div key={i} style={{ minWidth: 200 }}>
+              <Skeleton className="h-[116px] w-full" />
+            </div>
+          ))}
         </div>
       ) : tournaments.length === 0 ? (
-        <div className="flex flex-col items-center py-10 gap-4 text-center">
+        <div className="flex flex-col items-center py-6 gap-3 text-center">
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
+            className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl"
             style={{ background: 'rgba(240,180,41,0.07)', border: '1px solid rgba(240,180,41,0.15)' }}
           >
             🏟️
           </div>
           <div>
-            <p className="text-white text-sm font-semibold mb-1">No leagues yet</p>
-            <p className="text-[#3f5068] text-xs">Join a league or create one to get started</p>
+            <p className="text-white text-sm font-semibold mb-1">{t('no_leagues_title')}</p>
+            <p className="text-[#5a7090] text-xs">{t('no_leagues_desc')}</p>
           </div>
           <Link
             href="/leagues"
             className="bg-[#f0b429] text-[#080c14] px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-[#fcd86e] transition-all"
           >
-            Join or Create a League
+            {t('join_or_create')}
           </Link>
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
+        <div
+          className="flex gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-track]:bg-transparent"
+          style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}
+        >
           {tournaments.map((t, i) => {
             const lb = leaderboards[i]
             const entries = lb?.data?.entries ?? []
-            const leader = entries[0]
-            const userEntry = entries.find(e => e.user.id === currentUserId)
             return (
-              <Link key={t.id} href={`/tournaments/${t.invite_code}`}>
+              <Link
+                key={t.id}
+                href={`/tournaments/${t.invite_code}`}
+                className="block shrink-0 group"
+                style={{ minWidth: 200, maxWidth: 248 }}
+              >
                 <div
-                  className="rounded-xl px-4 py-3 transition-all duration-200 cursor-pointer h-full group"
+                  className="rounded-xl p-3.5 transition-all duration-200"
                   style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)' }}
                   onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'
-                    ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(240,180,41,0.18)'
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(240,180,41,0.2)'
                   }}
                   onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.025)'
-                    ;(e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.05)'
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.05)'
                   }}
                 >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-[family-name:var(--font-oswald)] font-semibold text-white text-sm uppercase tracking-wide truncate max-w-[160px] group-hover:text-[#f0b429] transition-colors">
+                  <div className="flex items-center justify-between">
+                    <span className="font-[family-name:var(--font-oswald)] font-semibold text-white text-sm uppercase tracking-wide truncate group-hover:text-[#f0b429] transition-colors">
                       {t.name}
                     </span>
-                    <span className="text-[#3f5068] group-hover:text-[#f0b429] transition-colors text-sm shrink-0 ml-2">→</span>
+                    <span className="text-[#5a7090] text-xs shrink-0 ml-1.5 group-hover:text-[#f0b429] transition-colors">→</span>
                   </div>
-                  {lb?.isLoading ? (
-                    <Skeleton className="h-3 w-28 mt-1" />
-                  ) : leader ? (
-                    <div className="space-y-0.5">
-                      <p className="text-xs text-[#3f5068]">
-                        <span className="text-[#f0b429]/80 font-semibold">{leader.user.username}</span>
-                        <span className="text-[#1e2d40]"> · {leader.total_points} pts</span>
-                      </p>
-                      {userEntry && userEntry.rank > 1 && (
-                        <p className="text-[10px] text-[#2d3e52]">
-                          You: #{userEntry.rank} · {userEntry.total_points} pts
-                        </p>
-                      )}
-                      {userEntry?.rank === 1 && (
-                        <p className="text-[11px] text-[#f0b429]/60 font-medium">Leading</p>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-[#1e2d40]">No scores yet</p>
-                  )}
+                  <LeagueMiniLeaderboard
+                    entries={entries}
+                    currentUserId={currentUserId}
+                    isLoading={lb?.isLoading ?? false}
+                  />
                 </div>
               </Link>
             )
@@ -405,40 +380,289 @@ function MyLeaguesBlock({ tournaments, leaderboards, currentUserId, loading }: {
   )
 }
 
-// ── Accuracy Bar ──────────────────────────────────────────────────────────────
+// ── Match Rail helpers ────────────────────────────────────────────────────────
 
-function AccuracyBar({ predictions, matches }: { predictions: Prediction[]; matches: Match[] }) {
-  const { correctOutcomes, exactScores, total } = computeAccuracy(predictions, matches)
-  if (total === 0) return null
-  const pct = Math.round((correctOutcomes / total) * 100)
-  const exactPct = Math.round((exactScores / total) * 100)
-  return (
-    <div className="rounded-2xl px-5 py-4 mb-4 flex flex-wrap items-center gap-x-6 gap-y-2" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-      <span className="font-[family-name:var(--font-oswald)] text-[0.65rem] font-bold uppercase tracking-[0.22em] text-[#5a6a82]">
-        Accuracy
+// ── Match Rail ────────────────────────────────────────────────────────────────
+
+
+function MatchRailCard({ match, prediction, timezone }: { match: Match; prediction?: Prediction; timezone?: string | null }) {
+  const t = useTranslations('dashboard')
+  const locale = useLocale()
+  const isLive = match.status === 'live'
+  const isFinished = match.status === 'finished'
+  const isUpcoming = !isLive && !isFinished
+
+  // ── Header — semantic colour per state ──────────────────────────────────────
+  const headerStyle = isLive
+    ? { background: 'linear-gradient(135deg, #c8900a 0%, #f0b429 55%, #f5c842 100%)' }
+    : isUpcoming
+    ? { background: 'linear-gradient(135deg, #0c1e3c 0%, #0f2848 60%, #0c1e3c 100%)', borderBottom: '1px solid rgba(80,140,220,0.12)' }
+    : { background: 'rgba(255,255,255,0.04)' }
+
+  const headerDateColor = isLive ? '#3a2200' : isUpcoming ? '#5a8fbe' : '#4a6080'
+
+  const statusEl = isLive ? (
+    <span className="flex items-center gap-1.5" style={{ color: '#3a2200' }}>
+      <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-700 animate-pulse-live" />
+      <span className="text-[0.65rem] font-bold uppercase tracking-wider">LIVE</span>
+    </span>
+  ) : isFinished ? (
+    <span className="text-[0.65rem] font-bold uppercase tracking-wider" style={{ color: '#4a6080' }}>FT</span>
+  ) : (
+    // upcoming — time only; countdown moves to bottom zone
+    <span className="text-[0.65rem] font-bold" style={{ color: '#5a8fbe' }}>
+      {formatMatchTime(match.kickoff_at, timezone)}
+    </span>
+  )
+
+  // ── Bottom zone — fixed two-row structure on every card ───────────────────
+  // Row 1: pick / action link  |  Row 2: countdown (upcoming) or invisible spacer
+  const mainRow: React.ReactNode = (isFinished || isLive) ? (
+    prediction ? (
+      <Link href="/predictions" className="text-[0.68rem] font-semibold text-[#f0b429] hover:text-white transition-colors">
+        {t('see_your_pick')}
+      </Link>
+    ) : (
+      <Link href="/predictions" className="text-[0.68rem] font-medium text-[#3a4d64] hover:text-[#5a7090] transition-colors">
+        {t('no_pick')}
+      </Link>
+    )
+  ) : (
+    prediction ? (
+      <span className="text-[0.65rem] font-semibold" style={{ color: '#4ade80' }}>
+        ✓ <span className="font-[family-name:var(--font-oswald)] font-bold">{prediction.predicted_home}–{prediction.predicted_away}</span> {t('picked')}
       </span>
-      <div className="flex items-center gap-3 flex-1 min-w-[180px]">
-        <div className="h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-          {/* Full correct-outcome bar */}
-          <div className="h-full rounded-full relative" style={{ width: `${pct}%`, background: 'rgba(240,180,41,0.35)' }}>
-            {/* Exact-score overlay on top */}
+    ) : (
+      <Link href="/predictions" className="text-[0.7rem] font-bold text-[#f0b429] hover:text-white transition-colors">
+        {t('pick')}
+      </Link>
+    )
+  )
+
+  return (
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.09)' }}
+    >
+      {/* Header strip */}
+      <div className="px-3.5 py-2.5 flex items-center justify-between" style={headerStyle}>
+        <span className="text-[0.65rem] font-bold uppercase tracking-[0.15em]" style={{ color: headerDateColor }}>
+          {formatMatchDate(match.kickoff_at, timezone)}
+        </span>
+        {statusEl}
+      </div>
+
+      {/* Team rows — each row is fixed height; flag uses object-contain so no cropping */}
+      <div className="px-3 py-4 space-y-2.5">
+        {[
+          { name: match.home_team, score: match.home_score },
+          { name: match.away_team, score: match.away_score },
+        ].map((team) => {
+          const flagCode = getTeamFlagCode(team.name)
+          const displayName = translateTeamName(team.name, locale)
+          return (
+            <div key={team.name} className="flex items-center gap-2 h-[36px]">
+              {/* Flag container — object-contain so square/wide flags never clip */}
+              <div
+                className="shrink-0 rounded flex items-center justify-center"
+                style={{ width: 44, height: 36 }}
+              >
+                {flagCode ? (
+                  <Image
+                    src={getFlagUrl(flagCode, 80)}
+                    alt={displayName}
+                    width={44}
+                    height={36}
+                    className="rounded object-contain w-full h-full"
+                    unoptimized
+                  />
+                ) : (
+                  <span className="text-[8px] text-white/20">?</span>
+                )}
+              </div>
+              {/* Name: full on mobile, abbreviation on desktop (lg+) */}
+              <span className="flex-1 lg:hidden font-[family-name:var(--font-oswald)] font-semibold text-[0.8rem] uppercase tracking-wider text-white truncate">
+                {displayName}
+              </span>
+              <span className="flex-1 hidden lg:block font-[family-name:var(--font-oswald)] font-bold text-[0.9rem] uppercase tracking-widest text-white text-center">
+                {getTeamAbbr(team.name)}
+              </span>
+              {/* Score — always rendered; invisible for upcoming to lock card height */}
+              <span
+                className="font-[family-name:var(--font-oswald)] font-bold text-[1.75rem] text-[#f0b429] leading-none tabular-nums shrink-0 w-8 text-right"
+                style={{ visibility: (isFinished || isLive) ? 'visible' : 'hidden' }}
+              >
+                {team.score ?? '—'}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Divider */}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }} />
+
+      {/* Bottom zone — fixed height, two-row layout, same structure on every card */}
+      <div className="px-3.5 flex flex-col items-center justify-center h-[48px] gap-0.5">
+        {mainRow}
+        {/* Countdown for upcoming; invisible spacer for past/live keeps height identical */}
+        <span
+          className="text-[0.58rem] font-medium text-[#2e4a66]"
+          style={{ visibility: isUpcoming ? 'visible' : 'hidden' }}
+        >
+          {formatCountdown(match.kickoff_at)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function MatchRailCardSkeleton() {
+  return (
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.09)' }}
+    >
+      <div className="px-3.5 py-2.5" style={{ background: 'rgba(255,255,255,0.03)' }}>
+        <div className="h-2.5 w-14 rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.07)' }} />
+      </div>
+      <div className="px-3.5 py-4 space-y-3.5">
+        {[1, 2].map(i => (
+          <div key={i} className="flex items-center gap-2.5">
             <div
-              className="absolute left-0 top-0 h-full rounded-full"
-              style={{ width: `${total > 0 ? Math.round((exactScores / correctOutcomes) * 100) : 0}%`, background: '#f0b429' }}
+              className="rounded shrink-0 animate-pulse"
+              style={{ width: 38, height: 27, background: 'rgba(255,255,255,0.06)' }}
             />
+            <div className="flex-1 h-3 rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.05)' }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }} />
+      <div className="min-h-[44px]" />
+    </div>
+  )
+}
+
+function MatchRail({ matches, predictions, loading, timezone }: {
+  matches: Match[]
+  predictions: Prediction[]
+  loading: boolean
+  timezone?: string | null
+}) {
+  const t = useTranslations('dashboard')
+  const N = usePageSize()
+  const sorted = [...matches].sort(
+    (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
+  )
+  const predByMatch = new Map(predictions.map(p => [p.match_id, p]))
+  const total = sorted.length
+
+  const [startIndex, setStartIndex] = useState(0)
+  const anchoredRef = useRef(false)
+
+  // Anchor to first live → first scheduled → 0, once data arrives
+  useEffect(() => {
+    if (!loading && total > 0 && !anchoredRef.current) {
+      anchoredRef.current = true
+      const liveIdx = sorted.findIndex(m => m.status === 'live')
+      const scheduledIdx = sorted.findIndex(m => m.status === 'scheduled')
+      const anchor = liveIdx !== -1 ? liveIdx : scheduledIdx !== -1 ? scheduledIdx : 0
+      setStartIndex(Math.min(anchor, Math.max(0, total - N)))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, total])
+
+  // Clamp when N changes (e.g. window resize)
+  useEffect(() => {
+    setStartIndex(prev => Math.min(prev, Math.max(0, total - N)))
+  }, [N, total])
+
+  const maxStart = Math.max(0, total - N)
+  const canGoBack = startIndex > 0
+  const canGoForward = startIndex < maxStart
+  const visibleMatches = sorted.slice(startIndex, startIndex + N)
+
+  // Anchor index — first live, else first scheduled, else 0 (clamped to last page)
+  const liveIdx = sorted.findIndex(m => m.status === 'live')
+  const scheduledIdx = sorted.findIndex(m => m.status === 'scheduled')
+  const anchorRaw = liveIdx !== -1 ? liveIdx : scheduledIdx !== -1 ? scheduledIdx : 0
+  const anchorIndex = Math.min(anchorRaw, Math.max(0, total - N))
+  const isAtAnchor = startIndex === anchorIndex
+
+  const navBtnClass =
+    'w-8 h-8 rounded-full flex items-center justify-center text-[#5a7090] hover:text-white hover:bg-white/10 transition-all text-2xl leading-none select-none'
+
+  return (
+    <div className="rounded-2xl p-5" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <SectionLabel
+        title={t('matches')}
+        action={
+          <div className="flex items-center gap-3">
+            {!isAtAnchor && (
+              <button
+                onClick={() => setStartIndex(anchorIndex)}
+                className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full transition-all hover:brightness-125"
+                style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.25)', color: '#f0b429' }}
+              >
+                {t('now')}
+              </button>
+            )}
+            <Link href="/predictions" className="text-[11px] text-[#5a7090] hover:text-[#f0b429] transition-colors font-medium">
+              {t('all_picks')}
+            </Link>
+          </div>
+        }
+      />
+
+      {loading ? (
+        <div className="flex gap-3">
+          {Array.from({ length: N }).map((_, i) => (
+            <div key={i} style={{ flex: 1, minWidth: 0 }}>
+              <MatchRailCardSkeleton />
+            </div>
+          ))}
+        </div>
+      ) : total === 0 ? (
+        <p className="text-[#5a7090] text-sm py-6 text-center">{t('no_matches')}</p>
+      ) : (
+        <div className="flex items-center gap-2">
+          {/* Back button — always reserve space */}
+          <div style={{ width: 32, flexShrink: 0 }}>
+            {canGoBack && (
+              <button
+                onClick={() => setStartIndex(i => Math.max(0, i - N))}
+                className={navBtnClass}
+                aria-label="Previous matches"
+              >
+                ‹
+              </button>
+            )}
+          </div>
+
+          {/* Cards */}
+          <div
+            className="flex-1 grid gap-3"
+            style={{ gridTemplateColumns: `repeat(${visibleMatches.length}, minmax(0, 1fr))` }}
+          >
+            {visibleMatches.map(m => (
+              <MatchRailCard key={m.id} match={m} prediction={predByMatch.get(m.id)} timezone={timezone} />
+            ))}
+          </div>
+
+          {/* Forward button — always reserve space */}
+          <div style={{ width: 32, flexShrink: 0 }}>
+            {canGoForward && (
+              <button
+                onClick={() => setStartIndex(i => Math.min(maxStart, i + N))}
+                className={navBtnClass}
+                aria-label="Next matches"
+              >
+                ›
+              </button>
+            )}
           </div>
         </div>
-        <span className="text-sm font-bold text-white tabular-nums font-[family-name:var(--font-oswald)]">{pct}%</span>
-      </div>
-      <div className="flex items-center gap-3 text-xs text-[#3f5068]">
-        <span>
-          <span className="text-white font-semibold">{correctOutcomes}</span>/{total} correct
-        </span>
-        <span className="text-[#1e2d40]">·</span>
-        <span>
-          <span className="text-[#f0b429] font-semibold">{exactScores}</span> exact
-        </span>
-      </div>
+      )}
     </div>
   )
 }
@@ -446,7 +670,9 @@ function AccuracyBar({ predictions, matches }: { predictions: Prediction[]; matc
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { data: me } = useQuery({ queryKey: ['me'], queryFn: api.getMe })
+  const t = useTranslations('dashboard')
+  const { data: me, isLoading: meLoading } = useQuery({ queryKey: ['me'], queryFn: api.getMe })
+  useOnboardingGuard(me, meLoading)
 
   const { data: tournaments = [], isLoading: tournamentsLoading } = useQuery({
     queryKey: ['tournaments'],
@@ -479,34 +705,29 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
-          Dashboard
+          {t('title')}
         </h1>
-        <p className="text-[#3f5068] text-sm mt-1.5 font-medium">
-          {me ? `Welcome back, ${me.username}` : 'Your World Cup at a glance'}
+        <p className="text-[#5a7090] text-sm mt-1.5 font-medium">
+          {me ? t('welcome_back', { name: me.username }) : t('subtitle')}
         </p>
       </div>
 
-      {/* Accuracy bar */}
-      {!dataLoading && <AccuracyBar predictions={predictions} matches={matches} />}
-
-      {/* Row 1: My Picks + Next Games */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        <MyPicksBlock matches={matches} predictions={predictions} loading={dataLoading} />
-        <NextGamesBlock matches={matches} predictions={predictions} loading={dataLoading} />
-      </div>
-
-      {/* Row 2: Recent Results */}
+      {/* Tier 1 — Match Rail */}
       <div className="mb-4">
-        <RecentResultsBlock matches={matches} predictions={predictions} loading={dataLoading} />
+        <MatchRail matches={matches} predictions={predictions} loading={dataLoading} timezone={me?.timezone} />
       </div>
 
-      {/* Row 3: My Leagues */}
-      <MyLeaguesBlock
-        tournaments={tournaments}
-        leaderboards={leaderboards as Array<{ data: { entries: LeaderboardEntry[] } | undefined; isLoading: boolean }>}
-        currentUserId={me?.id}
-        loading={tournamentsLoading}
-      />
+      {/* Tier 2 — Accuracy + My Leagues */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <AccuracyCard predictions={predictions} matches={matches} />
+        <MyLeaguesScroll
+          tournaments={tournaments}
+          leaderboards={leaderboards as Array<{ data: { entries: LeaderboardEntry[] } | undefined; isLoading: boolean }>}
+          currentUserId={me?.id}
+          loading={tournamentsLoading}
+        />
+      </div>
+
     </div>
   )
 }

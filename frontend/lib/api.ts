@@ -1,6 +1,6 @@
-import Cookies from 'js-cookie'
 import type {
   LeaderboardResponse,
+  LiveLeaderboardResponse,
   Match,
   Prediction,
   PredictionHistoryItem,
@@ -15,18 +15,14 @@ const BASE_URL = typeof window === 'undefined'
   ? (process.env.BACKEND_URL ?? 'http://localhost:8080')
   : '/api/proxy'
 
-function getToken(): string {
-  if (typeof window === 'undefined') return ''
-  return Cookies.get('auth_token') ?? ''
-}
-
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = getToken()
+  // Auth is forwarded by the same-origin /api/proxy route, which reads the
+  // httpOnly cookie and injects the Authorization header server-side.
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   })
@@ -41,7 +37,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   // ── Auth ──────────────────────────────────────────────────────────────────
   getMe: () => request<User>('/auth/me'),
-  updateMe: (data: { username?: string; display_name?: string }) =>
+  updateMe: (data: { username?: string; display_name?: string; language?: string; timezone?: string }) =>
     request<User>('/users/me', { method: 'PUT', body: JSON.stringify(data) }),
 
   // ── Users ─────────────────────────────────────────────────────────────────
@@ -70,6 +66,8 @@ export const api = {
     request<void>(`/tournaments/${invite_code}`, { method: 'DELETE' }),
   getLeaderboard: (code: string) =>
     request<LeaderboardResponse>(`/tournaments/${code}/leaderboard`),
+  getLiveLeaderboard: (code: string) =>
+    request<LiveLeaderboardResponse>(`/tournaments/${code}/leaderboard/live`),
   listCompare: (code: string) =>
     request<TournamentCompareMatch[]>(`/tournaments/${code}/compare`),
 

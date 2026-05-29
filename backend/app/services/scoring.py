@@ -88,17 +88,37 @@ def apply_match_result(
 
     # Predictions are now global — one per user per match
     predictions = db.query(Prediction).filter(Prediction.match_id == match.id).all()
+    if not predictions:
+        db.commit()
+        db.refresh(match)
+        return match
+
+    # Batch-load all memberships for the predicting users in one query.
+    # Previously this issued one query per prediction; with N predictions × M
+    # tournaments per user that's O(N) joinedload queries per finished match.
+    user_ids = [p.user_id for p in predictions]
+    memberships = (
+        db.query(TournamentMember)
+        .options(joinedload(TournamentMember.tournament).joinedload(Tournament.scoring_rules))
+        .filter(TournamentMember.user_id.in_(user_ids))
+        .all()
+    )
+    memberships_by_user: dict = {}
+    for m in memberships:
+        memberships_by_user.setdefault(m.user_id, []).append(m)
 
     for pred in predictions:
-        # Score this prediction in every tournament the user belongs to
-        memberships = (
-            db.query(TournamentMember)
-            .options(joinedload(TournamentMember.tournament).joinedload(Tournament.scoring_rules))
-            .filter(TournamentMember.user_id == pred.user_id)
-            .all()
-        )
-
-        for membership in memberships:
+        # Score this prediction in every tournament the user belongs to.
+        # Track the per-prediction total across tournaments so we can persist
+        # it on Prediction.points_awarded for the user history endpoint.
+        total_across_tournaments = 0
+        for membership in memberships_by_user.get(pred.user_id, []):
+            # Snapshot-at-join fairness: only score under tournaments the user
+            # was already a member of before kickoff. Joining after kickoff
+            # would otherwise let players cherry-pick which leagues to join
+            # based on how their picks turned out.
+            if membership.joined_at > match.kickoff_at:
+                continue
             scoring = membership.tournament.scoring_rules or _default_scoring(membership.tournament_id)
             events = compute_points_for_prediction(pred, scoring, match)
             total_points = sum(pts for _, pts in events)
@@ -115,13 +135,56 @@ def apply_match_result(
 
             membership.total_points = (membership.total_points or 0) + total_points
             db.add(membership)
+            total_across_tournaments += total_points
 
         pred.is_locked = True
+        pred.points_awarded = total_across_tournaments
         db.add(pred)
 
     db.commit()
     db.refresh(match)
     return match
+
+
+def compute_provisional_points(db: Session, tournament_id: UUID, user_id: UUID) -> int:
+    """Compute provisional points for a user from currently live matches.
+
+    Runs entirely in memory — no PointEvent rows are written.
+    Returns 0 if no live matches exist or the user has no predictions for them.
+    """
+    live_matches = db.query(Match).filter(
+        Match.status == "live",
+        Match.home_score.is_not(None),
+        Match.away_score.is_not(None),
+    ).all()
+    if not live_matches:
+        return 0
+
+    membership = (
+        db.query(TournamentMember)
+        .options(joinedload(TournamentMember.tournament).joinedload(Tournament.scoring_rules))
+        .filter(TournamentMember.tournament_id == tournament_id, TournamentMember.user_id == user_id)
+        .first()
+    )
+    if membership is None:
+        return 0
+
+    scoring = membership.tournament.scoring_rules or _default_scoring(tournament_id)
+    total = 0
+    for match in live_matches:
+        prediction = (
+            db.query(Prediction)
+            .filter(Prediction.match_id == match.id, Prediction.user_id == user_id)
+            .first()
+        )
+        if prediction is None:
+            continue
+        try:
+            events = compute_points_for_prediction(prediction, scoring, match)
+            total += sum(pts for _, pts in events)
+        except ValueError:
+            pass
+    return total
 
 
 def recompute_tournament_scores(db: Session, tournament_id: UUID) -> dict:
@@ -141,10 +204,15 @@ def recompute_tournament_scores(db: Session, tournament_id: UUID) -> dict:
 
     scoring = tournament.scoring_rules or _default_scoring(tournament_id)
 
-    member_ids = [
-        m.user_id
-        for m in db.query(TournamentMember).filter(TournamentMember.tournament_id == tournament_id).all()
-    ]
+    members = db.query(TournamentMember).filter(TournamentMember.tournament_id == tournament_id).all()
+    if not members:
+        # No members means nothing to score. Avoid `IN ()` queries downstream.
+        db.commit()
+        return {"recomputed_matches": 0, "recomputed_predictions": 0}
+    member_ids = [m.user_id for m in members]
+    # Snapshot-at-join: a member is only eligible to be scored on matches that
+    # kicked off after they joined.
+    joined_at_by_user = {m.user_id: m.joined_at for m in members}
 
     finished_matches = (
         db.query(Match)
@@ -171,6 +239,12 @@ def recompute_tournament_scores(db: Session, tournament_id: UUID) -> dict:
             )
             .all()
         )
+        # Filter out predictions from members who joined after kickoff —
+        # their picks for this match don't count in this tournament.
+        predictions = [
+            p for p in predictions
+            if joined_at_by_user[p.user_id] <= match.kickoff_at
+        ]
         if not predictions:
             continue
 

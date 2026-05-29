@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { getTranslations } from 'next-intl/server'
 import { MARQUEE_NATIONS, getFlagUrl } from '@/lib/flags'
 
 const MARQUEE = [...MARQUEE_NATIONS, ...MARQUEE_NATIONS]
@@ -30,14 +31,16 @@ const FEATURED: Array<{ name: string; code: string }> = [
   { name: 'South Korea', code: 'kr' },
 ]
 
-const HOW_IT_WORKS = [
-  { step: '01', title: 'Create a League', desc: 'Set up a private tournament and choose your own scoring rules.' },
-  { step: '02', title: 'Invite Friends', desc: 'Share your invite code and get everyone in your league.' },
-  { step: '03', title: 'Predict Scores', desc: 'Submit your predicted scores before each match kicks off.' },
-  { step: '04', title: 'Win Glory', desc: 'Earn points for every correct prediction. Crown the champion.' },
-]
+export default async function LandingPage() {
+  const t = await getTranslations('landing')
 
-export default function LandingPage() {
+  const HOW_IT_WORKS = [
+    { step: '01', title: t('step1_title'), desc: t('step1_desc') },
+    { step: '02', title: t('step2_title'), desc: t('step2_desc') },
+    { step: '03', title: t('step3_title'), desc: t('step3_desc') },
+    { step: '04', title: t('step4_title'), desc: t('step4_desc') },
+  ]
+
   return (
     <div className="bg-[#080c14] text-white overflow-x-hidden">
 
@@ -75,7 +78,7 @@ export default function LandingPage() {
           className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-white/[0.08]"
         />
 
-        <div className="relative z-10 max-w-6xl mx-auto px-6 py-24 w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <div className="relative z-10 max-w-6xl mx-auto px-5 sm:px-6 py-16 sm:py-24 w-full grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
 
           {/* Left — copy */}
           <div>
@@ -88,22 +91,21 @@ export default function LandingPage() {
             >
               <span className="animate-pulse-live inline-block w-1.5 h-1.5 rounded-full bg-[#f0b429]" />
               <span className="text-[#f0b429] text-xs font-bold tracking-[0.25em] uppercase">
-                World Cup 2026 · Predict Now
+                {t('live_badge')}
               </span>
             </div>
 
             <h1
               className="font-[family-name:var(--font-oswald)] font-bold leading-[0.95] uppercase animate-fade-up-delay"
-              style={{ fontSize: 'clamp(3.2rem, 8.5vw, 5.8rem)' }}
+              style={{ fontSize: 'clamp(2.6rem, 8.5vw, 5.8rem)' }}
             >
-              Predict the<br />
-              <span className="text-gold-gradient">Beautiful</span>{' '}
-              Game
+              {t('hero_title_line1')}<br />
+              <span className="text-gold-gradient">{t('hero_title_highlight')}</span>{' '}
+              {t('hero_title_line2')}
             </h1>
 
             <p className="mt-6 text-[#7a8fa8] text-[1.05rem] leading-relaxed max-w-[26rem] animate-fade-up-delay2">
-              Create private leagues, predict match scores with friends, and
-              crown the ultimate football genius. May the best fan win.
+              {t('hero_subtitle')}
             </p>
 
             <div className="flex flex-wrap gap-3 mt-10 animate-fade-up-delay2">
@@ -111,22 +113,22 @@ export default function LandingPage() {
                 href="/auth/register"
                 className="inline-flex items-center gap-2 bg-[#f0b429] text-[#080c14] px-8 py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-[#fcd86e] transition-all duration-200 shadow-lg"
               >
-                Get Started
+                {t('get_started')}
               </Link>
               <Link
                 href="/auth/login"
                 className="inline-flex items-center gap-2 border border-white/[0.15] text-white px-8 py-3.5 rounded-xl font-semibold text-sm uppercase tracking-wider hover:border-white/40 hover:bg-white/[0.04] transition-all duration-200"
               >
-                Log In
+                {t('log_in')}
               </Link>
             </div>
 
             {/* Stats row */}
             <div className="mt-12 flex gap-8 animate-fade-up-delay2">
               {[
-                { value: '32', label: 'Nations' },
-                { value: '64', label: 'Matches' },
-                { value: '∞', label: 'Bragging rights' },
+                { value: '32', label: t('stat_nations') },
+                { value: '64', label: t('stat_matches') },
+                { value: '∞', label: t('stat_bragging') },
               ].map(({ value, label }) => (
                 <div key={label} className="group">
                   <p className="font-[family-name:var(--font-oswald)] text-2xl font-bold text-[#f0b429] leading-none">
@@ -198,7 +200,7 @@ export default function LandingPage() {
               {/* "What would you predict?" */}
               <div className="px-5 py-4">
                 <p className="text-[0.7rem] text-[#3f5068] text-center font-semibold tracking-[0.12em] uppercase mb-3">
-                  What would <span className="text-[#f0b429]">you</span> predict?
+                  {t('hero_card_what_predict')} <span className="text-[#f0b429]">{t('hero_card_you')}</span> {t('hero_card_predict_suffix')}
                 </p>
                 <div className="flex items-center justify-center gap-3">
                   <div
@@ -254,13 +256,13 @@ export default function LandingPage() {
       </div>
 
       {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
-      <section className="max-w-5xl mx-auto px-6 py-28">
-        <div className="text-center mb-16">
+      <section className="max-w-5xl mx-auto px-5 sm:px-6 py-20 sm:py-28">
+        <div className="text-center mb-12 sm:mb-16">
           <p className="text-[#f0b429] text-[0.65rem] font-bold uppercase tracking-[0.35em] mb-3">
-            How it works
+            {t('how_it_works_label')}
           </p>
-          <h2 className="font-[family-name:var(--font-oswald)] text-4xl font-bold uppercase tracking-wide">
-            Simple. Competitive. Glorious.
+          <h2 className="font-[family-name:var(--font-oswald)] text-3xl sm:text-4xl font-bold uppercase tracking-wide">
+            {t('how_it_works_title')}
           </h2>
         </div>
 
@@ -305,11 +307,11 @@ export default function LandingPage() {
         className="py-20"
         style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: '#070a11' }}
       >
-        <div className="max-w-5xl mx-auto px-6">
-          <p className="text-center text-[#f0b429] text-[0.65rem] font-bold uppercase tracking-[0.35em] mb-12">
-            Join the world
+        <div className="max-w-5xl mx-auto px-5 sm:px-6">
+          <p className="text-center text-[#f0b429] text-[0.65rem] font-bold uppercase tracking-[0.35em] mb-10 sm:mb-12">
+            {t('join_world')}
           </p>
-          <div className="grid grid-cols-4 sm:grid-cols-8 gap-5">
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-4 sm:gap-5">
             {FEATURED.map(({ name, code }) => (
               <div key={code} className="flex flex-col items-center gap-2 group cursor-default">
                 <div
@@ -339,7 +341,7 @@ export default function LandingPage() {
 
       {/* ── FOOTER CTA ───────────────────────────────────────────────────── */}
       <section
-        className="relative py-28 text-center overflow-hidden"
+        className="relative py-20 sm:py-28 px-5 sm:px-6 text-center overflow-hidden"
         style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
       >
         {/* Ambient center glow */}
@@ -352,23 +354,23 @@ export default function LandingPage() {
 
         <div className="relative z-10">
           <p className="text-[#f0b429] text-[0.65rem] font-bold uppercase tracking-[0.35em] mb-5">
-            Free to play · No downloads
+            {t('cta_badge')}
           </p>
           <h2
             className="font-[family-name:var(--font-oswald)] font-bold uppercase leading-[0.9] mb-8"
-            style={{ fontSize: 'clamp(2.8rem, 6vw, 5rem)' }}
+            style={{ fontSize: 'clamp(2.3rem, 6vw, 5rem)' }}
           >
-            Ready to{' '}
-            <span className="text-gold-gradient">prove it?</span>
+            {t('cta_title_line1')}{' '}
+            <span className="text-gold-gradient">{t('cta_title_highlight')}</span>
           </h2>
           <p className="text-[#3f5068] mb-10 text-base max-w-sm mx-auto leading-relaxed">
-            Just football. Just friends. Just bragging rights.
+            {t('cta_subtitle')}
           </p>
           <Link
             href="/auth/register"
             className="inline-flex items-center gap-2 bg-[#f0b429] text-[#080c14] px-10 py-4 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-[#fcd86e] transition-all duration-200 shadow-xl"
           >
-            Start Predicting
+            {t('cta_button')}
           </Link>
         </div>
       </section>

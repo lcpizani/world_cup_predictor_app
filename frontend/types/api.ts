@@ -5,6 +5,8 @@ export interface User {
   display_name: string | null
   avatar_url: string | null
   is_admin: boolean
+  language: string | null
+  timezone: string | null
   created_at: string
 }
 
@@ -22,8 +24,8 @@ export interface PredictionHistoryItem {
   home_team: string
   away_team: string
   kickoff_at: string
-  predicted_home: number
-  predicted_away: number
+  predicted_home: number | null
+  predicted_away: number | null
   actual_home: number | null
   actual_away: number | null
   points_awarded: number | null
@@ -55,8 +57,6 @@ export interface TournamentMember {
   joined_at: string
   user: User
 }
-
-export type MatchStatus = 'scheduled' | 'live' | 'finished'
 
 export interface Match {
   id: string
@@ -107,3 +107,19 @@ export interface LeaderboardResponse {
   tournament_id: string
   entries: LeaderboardEntry[]
 }
+
+export interface LiveLeaderboardEntry {
+  rank: number
+  user: User
+  total_points: number
+  provisional_points: number
+  live_total: number
+}
+
+export interface LiveLeaderboardResponse {
+  tournament_id: string
+  has_live_matches: boolean
+  entries: LiveLeaderboardEntry[]
+}
+
+export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'suspended'

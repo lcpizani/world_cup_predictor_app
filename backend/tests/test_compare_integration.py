@@ -84,6 +84,7 @@ def test_non_member_compare_returns_403(client, db):
 def test_scheduled_match_hides_other_members_scores(client, db):
     creator = register_user(client, "c2@example.com", "creator2", "password123")
     creator_token = login_user(client, "c2@example.com", "password123")
+    grant_admin(db, "c2@example.com")
 
     t = client.post("/tournaments", json={"name": "Pool2", "scoring_rules": SCORING_RULES},
                     headers=auth_headers(creator_token)).json()

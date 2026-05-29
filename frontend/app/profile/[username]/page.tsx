@@ -1,11 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Cookies from 'js-cookie'
 import { api } from '@/lib/api'
 import type { PredictionHistoryItem } from '@/types/api'
+import { useOnboardingGuard } from '@/lib/hooks'
+import { formatMatchDate } from '@/lib/date'
+import { setLocaleCookie, type SupportedLocale } from '@/lib/locale'
+import { useLocale, useTranslations } from 'next-intl'
+import { translateTeamName } from '@/lib/flags'
 
 function Avatar({ name }: { name: string }) {
   const letter = name.trim()[0]?.toUpperCase() ?? '?'
@@ -25,21 +30,22 @@ function Avatar({ name }: { name: string }) {
   )
 }
 
-function PredictionRow({ item }: { item: PredictionHistoryItem }) {
+function PredictionRow({ item, timezone }: { item: PredictionHistoryItem; timezone?: string | null }) {
+  const t = useTranslations('profile')
+  const locale = useLocale()
   const hasResult = item.actual_home !== null && item.actual_away !== null
   const pts = item.points_awarded
 
   let statusColor = 'rgba(255,255,255,0.15)'
-  let statusLabel = hasResult ? '0 pts' : 'Pending'
+  let statusLabel = hasResult ? t('zero_pts') : t('pending')
   if (pts !== null && pts !== undefined) {
-    statusLabel = `+${pts} pts`
+    statusLabel = `+${pts} ${t('pts_short')}`
     statusColor = pts > 0 ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.1)'
   }
 
-  const kickoff = new Date(item.kickoff_at).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  })
+  const kickoff = formatMatchDate(item.kickoff_at, timezone)
+  const homeTeam = translateTeamName(item.home_team, locale)
+  const awayTeam = translateTeamName(item.away_team, locale)
 
   return (
     <div
@@ -48,11 +54,11 @@ function PredictionRow({ item }: { item: PredictionHistoryItem }) {
     >
       <div className="min-w-0 flex-1">
         <p className="text-white text-sm font-medium truncate">
-          {item.home_team} vs {item.away_team}
+          {homeTeam} {t('vs')} {awayTeam}
         </p>
         <p className="text-[#4a5c70] text-xs mt-0.5">
-          {kickoff} · Predicted: {item.predicted_home}–{item.predicted_away}
-          {hasResult && ` · Result: ${item.actual_home}–${item.actual_away}`}
+          {kickoff} · {t('predicted')}: {item.predicted_home ?? '—'}–{item.predicted_away ?? '—'}
+          {hasResult && ` · ${t('result')}: ${item.actual_home}–${item.actual_away}`}
         </p>
       </div>
       <span
@@ -79,6 +85,8 @@ function EditProfileForm({
   const [displayName, setDisplayName] = useState(currentDisplayName ?? '')
   const [error, setError] = useState('')
 
+  const t = useTranslations('profile')
+
   const mutation = useMutation({
     mutationFn: () => api.updateMe({ username, display_name: displayName || undefined }),
     onSuccess: () => {
@@ -95,12 +103,12 @@ function EditProfileForm({
       style={{ background: '#0d1520', border: '1px solid rgba(240,180,41,0.2)' }}
     >
       <h3 className="font-[family-name:var(--font-oswald)] text-lg font-bold uppercase tracking-wider text-white mb-4">
-        Edit Profile
+        {t('edit_profile')}
       </h3>
       <div className="space-y-3">
         <div>
           <label className="block text-[0.65rem] font-bold uppercase tracking-[0.2em] mb-1.5" style={{ color: '#5a6a82' }}>
-            Username
+            {t('username')}
           </label>
           <input
             value={username}
@@ -111,12 +119,12 @@ function EditProfileForm({
         </div>
         <div>
           <label className="block text-[0.65rem] font-bold uppercase tracking-[0.2em] mb-1.5" style={{ color: '#5a6a82' }}>
-            Display Name
+            {t('display_name')}
           </label>
           <input
             value={displayName}
             onChange={e => setDisplayName(e.target.value)}
-            placeholder="Your full name (optional)"
+            placeholder={t('display_name_optional')}
             className="w-full rounded-xl px-4 py-2.5 text-white text-sm"
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', outline: 'none' }}
           />
@@ -133,14 +141,14 @@ function EditProfileForm({
             className="px-5 py-2 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50"
             style={{ background: '#f0b429', color: '#080c14' }}
           >
-            {mutation.isPending ? 'Saving…' : 'Save'}
+            {mutation.isPending ? t('saving') : t('save')}
           </button>
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl font-bold text-xs uppercase tracking-wider"
             style={{ background: 'rgba(255,255,255,0.05)', color: '#6b7f96' }}
           >
-            Cancel
+            {t('cancel')}
           </button>
         </div>
       </div>
@@ -148,17 +156,109 @@ function EditProfileForm({
   )
 }
 
+// Brazilian timezones shown first in the preferences dropdown
+const BRAZIL_TZ = ['America/Sao_Paulo', 'America/Manaus', 'America/Belem', 'America/Fortaleza', 'America/Recife', 'America/Bahia', 'America/Cuiaba', 'America/Porto_Velho', 'America/Boa_Vista', 'America/Rio_Branco', 'America/Noronha']
+const OTHER_TZ = ['UTC', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Lisbon', 'America/New_York', 'America/Chicago', 'America/Los_Angeles', 'America/Toronto', 'America/Mexico_City', 'America/Buenos_Aires', 'America/Lima', 'America/Bogota', 'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Kolkata', 'Asia/Dubai', 'Australia/Sydney', 'Pacific/Auckland']
+const ALL_TZ = [...BRAZIL_TZ, ...OTHER_TZ]
+
+function PreferencesSection({ me, qc, t, router }: {
+  me: import('@/types/api').User
+  qc: ReturnType<typeof useQueryClient>
+  t: ReturnType<typeof useTranslations>
+  router: ReturnType<typeof useRouter>
+}) {
+  const [savingLang, setSavingLang] = useState(false)
+  const [savingTz, setSavingTz] = useState(false)
+
+  async function handleLanguageChange(lang: SupportedLocale) {
+    setSavingLang(true)
+    try {
+      await api.updateMe({ language: lang })
+      setLocaleCookie(lang)
+      qc.invalidateQueries({ queryKey: ['me'] })
+      router.refresh()
+    } finally {
+      setSavingLang(false)
+    }
+  }
+
+  async function handleTimezoneChange(tz: string) {
+    setSavingTz(true)
+    try {
+      await api.updateMe({ timezone: tz })
+      qc.invalidateQueries({ queryKey: ['me'] })
+      router.refresh()
+    } finally {
+      setSavingTz(false)
+    }
+  }
+
+  return (
+    <div className="rounded-2xl p-5 mb-6" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <h3 className="font-[family-name:var(--font-oswald)] text-sm font-bold uppercase tracking-[0.2em] mb-4" style={{ color: '#5a6a82' }}>
+        {t('preferences')}
+      </h3>
+      <div className="space-y-4">
+        {/* Language */}
+        <div>
+          <label className="block text-[0.65rem] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: '#5a6a82' }}>
+            {t('language')}
+          </label>
+          <div className="flex gap-2">
+            {(['en', 'pt'] as SupportedLocale[]).map(lang => (
+              <button
+                key={lang}
+                onClick={() => handleLanguageChange(lang)}
+                disabled={savingLang}
+                className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50"
+                style={me.language === lang
+                  ? { background: '#f0b429', color: '#080c14' }
+                  : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)', color: '#7a8fa8' }
+                }
+              >
+                {lang === 'en' ? t('language_en') : t('language_pt')}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Timezone */}
+        <div>
+          <label className="block text-[0.65rem] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: '#5a6a82' }}>
+            {t('timezone')}
+          </label>
+          <select
+            value={me.timezone ?? ''}
+            onChange={e => handleTimezoneChange(e.target.value)}
+            disabled={savingTz}
+            className="w-full rounded-xl px-3 py-2 text-white text-xs disabled:opacity-50"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', outline: 'none' }}
+          >
+            {ALL_TZ.map(tz => (
+              <option key={tz} value={tz} style={{ background: '#0d1520' }}>{tz}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ProfilePage() {
+  const t = useTranslations('profile')
+  const locale = useLocale()
+  const qc = useQueryClient()
+  const router = useRouter()
   const { username } = useParams<{ username: string }>()
   const [editing, setEditing] = useState(false)
-  const hasToken = typeof window !== 'undefined' && !!Cookies.get('auth_token')
+  const hasToken = typeof window !== 'undefined' && !!Cookies.get('is_authenticated')
 
-  const { data: me } = useQuery({
+  const { data: me, isLoading: meLoading } = useQuery({
     queryKey: ['me'],
     queryFn: api.getMe,
     enabled: hasToken,
     retry: false,
   })
+  useOnboardingGuard(me, meLoading)
 
   const { data: profile, isLoading: profileLoading, isError: profileError } = useQuery({
     queryKey: ['profile', username],
@@ -178,7 +278,7 @@ export default function ProfilePage() {
   if (profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-[88vh]">
-        <p className="text-[#64748b] text-sm animate-pulse">Loading profile…</p>
+        <p className="text-[#64748b] text-sm animate-pulse">{t('loading')}</p>
       </div>
     )
   }
@@ -189,10 +289,10 @@ export default function ProfilePage() {
         <div className="text-center max-w-sm">
           <span className="text-5xl">👤</span>
           <h1 className="font-[family-name:var(--font-oswald)] text-2xl font-bold uppercase tracking-wider text-white mt-4">
-            User Not Found
+            {t('not_found_title')}
           </h1>
           <p className="text-[#64748b] text-sm mt-2">
-            No player with that username exists.
+            {t('not_found_desc')}
           </p>
         </div>
       </div>
@@ -200,7 +300,7 @@ export default function ProfilePage() {
   }
 
   const displayName = profile.display_name ?? profile.username
-  const memberSince = new Date(profile.created_at).toLocaleDateString(undefined, {
+  const memberSince = new Date(profile.created_at).toLocaleDateString(locale === 'pt' ? 'pt-BR' : 'en-US', {
     month: 'long',
     year: 'numeric',
   })
@@ -217,7 +317,7 @@ export default function ProfilePage() {
           {profile.display_name && (
             <p className="text-[#4a5c70] text-sm mt-0.5">@{profile.username}</p>
           )}
-          <p className="text-[#3f5068] text-xs mt-1">Member since {memberSince}</p>
+          <p className="text-[#3f5068] text-xs mt-1">{t('member_since')} {memberSince}</p>
         </div>
         {isOwnProfile && !editing && (
           <button
@@ -225,7 +325,7 @@ export default function ProfilePage() {
             className="shrink-0 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#6b7f96' }}
           >
-            Edit
+            {t('edit')}
           </button>
         )}
       </div>
@@ -244,8 +344,8 @@ export default function ProfilePage() {
         className="grid grid-cols-2 gap-3 mb-8"
       >
         {[
-          { label: 'Tournaments', value: profile.tournaments_count },
-          { label: 'Total Points', value: profile.total_points },
+          { label: t('tournaments_played'), value: profile.tournaments_count },
+          { label: t('total_points'), value: profile.total_points },
         ].map(stat => (
           <div
             key={stat.label}
@@ -263,20 +363,25 @@ export default function ProfilePage() {
         ))}
       </div>
 
+      {/* Preferences — own profile only */}
+      {isOwnProfile && me && (
+        <PreferencesSection me={me} qc={qc} t={t} router={router} />
+      )}
+
       {/* Divider */}
       <div className="h-px mb-6" style={{ background: 'rgba(255,255,255,0.06)' }} />
 
       {/* Prediction history */}
       <h2 className="font-[family-name:var(--font-oswald)] text-sm font-bold uppercase tracking-[0.2em] mb-4" style={{ color: '#5a6a82' }}>
-        Predictions
+        {t('prediction_history')}
       </h2>
 
       {predsLoading ? (
-        <p className="text-[#3f5068] text-sm animate-pulse">Loading predictions…</p>
+        <p className="text-[#3f5068] text-sm animate-pulse">{t('loading_predictions')}</p>
       ) : predictions && predictions.length > 0 ? (
         <div className="space-y-2">
           {predictions.map(item => (
-            <PredictionRow key={item.match_id} item={item} />
+            <PredictionRow key={item.match_id} item={item} timezone={me?.timezone} />
           ))}
         </div>
       ) : (
@@ -284,7 +389,7 @@ export default function ProfilePage() {
           className="rounded-xl px-4 py-8 text-center"
           style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
         >
-          <p className="text-[#3f5068] text-sm">No predictions yet.</p>
+          <p className="text-[#3f5068] text-sm">{t('no_predictions')}</p>
         </div>
       )}
     </div>

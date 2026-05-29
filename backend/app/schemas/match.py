@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class MatchCreate(BaseModel):
@@ -30,6 +30,6 @@ class MatchResponse(BaseModel):
 
 
 class MatchResultUpdate(BaseModel):
-    home_score: int
-    away_score: int
+    home_score: int = Field(ge=0)
+    away_score: int = Field(ge=0)
     status: Optional[str] = "finished"

@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { api } from '@/lib/api'
+import { setLocaleCookie, type SupportedLocale } from '@/lib/locale'
 
 function safeNext(next: string | null): string {
   if (!next) return '/dashboard'
@@ -52,6 +54,10 @@ function LoginForm() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    api.getMe().then(() => router.replace(next)).catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
@@ -70,6 +76,8 @@ function LoginForm() {
       setError((data as { error?: string }).error ?? 'Login failed')
       return
     }
+    const me = await api.getMe().catch(() => null)
+    if (me?.language) setLocaleCookie(me.language as SupportedLocale)
     router.push(next)
     router.refresh()
   }

@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import Cookies from 'js-cookie'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
+import { useOnboardingGuard } from '@/lib/hooks'
 
-type Phase = 'loading' | 'invite-landing' | 'register' | 'joining' | 'already_member' | 'error'
+type Phase = 'loading' | 'invite-landing' | 'register' | 'confirm-late-join' | 'joining' | 'already_member' | 'error'
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -108,6 +111,11 @@ function InviteLanding({ leagueName, code, onSignUp }: InviteLandingProps) {
             </Link>
           </div>
         </div>
+
+        <p className="text-center text-xs mt-5 px-4 leading-relaxed" style={{ color: '#5a6a82' }}>
+          You&apos;ll be scored on matches kicking off after you join.
+          Past matches in this league won&apos;t count toward your total here.
+        </p>
       </div>
     </div>
   )
@@ -251,19 +259,119 @@ function InlineRegisterForm({ code, leagueName, onBack, onSuccess }: InlineRegis
   )
 }
 
+function ConfirmLateJoin({ leagueName, onConfirm, onCancel }: {
+  leagueName: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="relative flex items-center justify-center min-h-[88vh] px-4 overflow-hidden">
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(240,180,41,0.07) 0%, transparent 65%)' }}
+      />
+      <div className="relative z-10 w-full max-w-sm animate-fade-up">
+        <div
+          className="rounded-2xl p-7"
+          style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 24px 64px rgba(0,0,0,0.4)' }}
+        >
+          <div className="h-px w-full mb-6 rounded-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(240,180,41,0.6), transparent)' }} />
+
+          <div className="flex justify-center mb-5">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center"
+              style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.2)' }}
+            >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f0b429" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="13" r="8" />
+                <path d="M12 9v4l2.5 2.5" />
+                <path d="M9.5 2.5h5" />
+                <path d="M12 2.5v2" />
+              </svg>
+            </div>
+          </div>
+
+          <h2 className="font-[family-name:var(--font-oswald)] text-xl font-bold uppercase tracking-wider text-white text-center leading-snug mb-2">
+            League already underway
+          </h2>
+          {leagueName && (
+            <p className="text-[#f0b429] text-sm font-semibold text-center mb-4">{leagueName}</p>
+          )}
+
+          <p className="text-[#7a8fa8] text-sm text-center leading-relaxed mb-2">
+            Some matches have already been played. Predictions for past games
+            won&apos;t count toward your score — your tally starts the moment you join.
+          </p>
+          <p className="text-[#3f5068] text-xs text-center leading-relaxed mb-7">
+            Points are only awarded for matches that kick off after you join.
+          </p>
+
+          <div className="space-y-2.5">
+            <button
+              onClick={onConfirm}
+              className="w-full py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-200"
+              style={{ background: '#f0b429', color: '#080c14' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#fcd86e' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#f0b429' }}
+            >
+              Join anyway
+            </button>
+            <button
+              onClick={onCancel}
+              className="w-full py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-200"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', color: '#94a3b8' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'white' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#94a3b8' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function JoinPage() {
   const { code } = useParams<{ code: string }>()
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>('loading')
   const [leagueName, setLeagueName] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
+  const { data: me, isLoading: meLoading } = useQuery({ queryKey: ['me'], queryFn: api.getMe, retry: false })
+  useOnboardingGuard(me, meLoading)
+
+  async function performJoin() {
+    setPhase('joining')
+    const res = await fetch('/api/proxy/tournaments/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invite_code: code }),
+    })
+    if (res.ok || res.status === 409) {
+      router.replace(`/tournaments/${code}`)
+      return
+    }
+    const err = await res.json().catch(() => ({}))
+    setErrorMsg((err as { detail?: string }).detail ?? 'Something went wrong.')
+    setPhase('error')
+  }
+
+  async function checkLateJoin(): Promise<boolean> {
+    try {
+      const res = await fetch('/api/proxy/matches?match_status=finished')
+      const matches = res.ok ? await res.json() as unknown[] : []
+      return matches.length > 0
+    } catch {
+      return false
+    }
+  }
 
   useEffect(() => {
     async function init() {
-      const token = Cookies.get('auth_token') ?? ''
+      const signedIn = !!Cookies.get('is_authenticated')
 
-      if (!token) {
-        // Fetch league name for the invite landing page
+      if (!signedIn) {
         const res = await fetch(`/api/proxy/tournaments/${encodeURIComponent(code)}/preview`)
         if (res.ok) {
           const data = await res.json() as { name: string }
@@ -275,56 +383,46 @@ export default function JoinPage() {
         return
       }
 
-      // Authenticated — attempt join
-      setPhase('joining')
-      const res = await fetch('/api/proxy/tournaments/join', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ invite_code: code }),
-      })
+      // Authenticated — fetch league name and check if matches have started
+      const [previewRes, isLate] = await Promise.all([
+        fetch(`/api/proxy/tournaments/${encodeURIComponent(code)}/preview`),
+        checkLateJoin(),
+      ])
+      if (previewRes.ok) {
+        const data = await previewRes.json() as { name: string }
+        setLeagueName(data.name)
+      } else {
+        setLeagueName('this league')
+      }
 
-      if (res.ok) {
-        router.replace(`/tournaments/${code}`)
+      if (isLate) {
+        setPhase('confirm-late-join')
         return
       }
 
-      if (res.status === 409) {
-        setPhase('already_member')
-        return
-      }
-
-      const err = await res.json().catch(() => ({}))
-      setErrorMsg((err as { detail?: string }).detail ?? 'Something went wrong.')
-      setPhase('error')
+      await performJoin()
     }
 
     init()
-  }, [code, router])
+  }, [code, router]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleRegistered() {
-    // Token now set — retry the join
-    setPhase('joining')
-    const token = Cookies.get('auth_token') ?? ''
-    fetch('/api/proxy/tournaments/join', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ invite_code: code }),
-    }).then(res => {
-      if (res.ok || res.status === 409) {
-        router.replace(`/tournaments/${code}`)
-      } else {
-        res.json().catch(() => ({})).then(err => {
-          setErrorMsg((err as { detail?: string }).detail ?? 'Something went wrong.')
-          setPhase('error')
-        })
-      }
-    })
+  async function handleRegistered() {
+    const isLate = await checkLateJoin()
+    if (isLate) {
+      setPhase('confirm-late-join')
+    } else {
+      await performJoin()
+    }
+  }
+
+  if (phase === 'confirm-late-join') {
+    return (
+      <ConfirmLateJoin
+        leagueName={leagueName}
+        onConfirm={performJoin}
+        onCancel={() => router.replace('/')}
+      />
+    )
   }
 
   if (phase === 'loading' || phase === 'joining') {

@@ -17,10 +17,15 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def validate_invite_code(db: Session, invite_code: str) -> bool:
-    """Accept registration when: INVITE_CODE is not set (open/dev mode),
-    invite_code matches the global secret, or invite_code is a valid tournament code."""
+    """Accept registration when: INVITE_CODE is not set in dev (open mode),
+    invite_code matches the global secret, or invite_code is a valid tournament code.
+
+    In production, an empty INVITE_CODE fails closed — otherwise a misconfigured
+    deploy would allow open registration."""
     global_secret = settings.INVITE_CODE
     if not global_secret:
+        if settings.ENVIRONMENT == "production":
+            return False
         return True
     if invite_code and secrets.compare_digest(invite_code, global_secret):
         return True

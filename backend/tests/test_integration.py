@@ -23,12 +23,13 @@ def test_register_login_me(client):
     assert profile["id"] == user["id"]
 
 
-def test_tournament_create_join_leaderboard_and_predictions(client):
+def test_tournament_create_join_leaderboard_and_predictions(client, db):
     creator_email = "creator@example.com"
     creator_username = "creator"
     creator_password = "creatorpass1"
     creator = register_user(client, creator_email, creator_username, creator_password)
     creator_token = login_user(client, creator_email, creator_password)
+    grant_admin(db, creator_email)
 
     tournament_payload = {
         "name": "World Cup Pool",
@@ -235,9 +236,10 @@ def test_prediction_for_nonexistent_match_returns_404(client):
     assert response.status_code == 404
 
 
-def test_duplicate_prediction_for_same_match_is_rejected(client):
+def test_duplicate_prediction_for_same_match_is_rejected(client, db):
     creator = register_user(client, "dup_creator@example.com", "dupcreator", "duppass123")
     token = login_user(client, "dup_creator@example.com", "duppass123")
+    grant_admin(db, "dup_creator@example.com")
 
     tournament_payload = {
         "name": "Dup Test Pool",

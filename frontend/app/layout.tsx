@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { Plus_Jakarta_Sans, Oswald } from 'next/font/google'
+import { NextIntlClientProvider } from 'next-intl'
+import { getMessages, getLocale } from 'next-intl/server'
 import './globals.css'
 import { Providers } from '@/lib/providers'
 import { Navbar } from '@/components/Navbar'
@@ -21,14 +23,19 @@ export const metadata: Metadata = {
   description: 'Predict match scores and compete with friends',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale()
+  const messages = await getMessages()
+
   return (
-    <html lang="en" className={`${jakartaSans.variable} ${oswald.variable} h-full`}>
+    <html lang={locale} className={`${jakartaSans.variable} ${oswald.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-[#080c14] font-[family-name:var(--font-geist)] antialiased">
-        <Providers>
-          <Navbar />
-          <main className="flex-1">{children}</main>
-        </Providers>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <Providers>
+            <Navbar />
+            <main className="flex-1">{children}</main>
+          </Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   )

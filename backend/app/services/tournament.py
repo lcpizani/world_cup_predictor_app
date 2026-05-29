@@ -3,6 +3,7 @@ import string
 from typing import List
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 
@@ -69,7 +70,11 @@ def join_tournament(db: Session, invite_code: str, user: User) -> TournamentMemb
         raise HTTPException(status_code=409, detail="Already a member")
     member = TournamentMember(tournament_id=tournament.id, user_id=user.id, total_points=0)
     db.add(member)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Already a member")
     db.refresh(member)
     return member
 
@@ -202,8 +207,13 @@ def get_compare(db: Session, invite_code: str, current_user: User) -> List[Tourn
         is_finished = match.status == "finished"
         entries = []
         for member in members:
+            # Snapshot-at-join: predictions for matches that kicked off before
+            # this member joined the tournament don't count and aren't shown.
+            # Their global prediction may exist (they're in another league) but
+            # within this league they joined too late to participate.
+            eligible_here = member.joined_at <= match.kickoff_at
             pred = pred_by_user_match.get((member.user_id, match.id))
-            if pred is not None:
+            if pred is not None and eligible_here:
                 ph, pa = _apply_spoiler(
                     is_finished,
                     member.user_id == current_user.id,
@@ -212,7 +222,7 @@ def get_compare(db: Session, invite_code: str, current_user: User) -> List[Tourn
                 )
             else:
                 ph, pa = None, None
-            pts = points_by_user_match.get((member.user_id, match.id)) if is_finished else None
+            pts = points_by_user_match.get((member.user_id, match.id)) if (is_finished and eligible_here) else None
             entries.append(TournamentComparePrediction(
                 user_id=member.user_id,
                 username=member.user.username,
