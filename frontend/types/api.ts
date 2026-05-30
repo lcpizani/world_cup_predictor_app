@@ -69,6 +69,7 @@ export interface Match {
   status: MatchStatus
   home_score: number | null
   away_score: number | null
+  minute: number | null
   created_at: string
 }
 

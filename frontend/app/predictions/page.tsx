@@ -46,12 +46,12 @@ function ResultBadge({ exact, winner, hasPred }: { exact: boolean; winner: boole
   )
 }
 
-function StatusBadge({ status, kickoff_at, timezone }: { status: string; kickoff_at: string; timezone?: string | null }) {
+function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string; kickoff_at: string; timezone?: string | null; minute?: number | null }) {
   const t = useTranslations('predictions')
   if (status === 'live') return (
     <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-      {t('live')}
+      {minute != null ? `${minute}'` : t('live')}
     </span>
   )
   if (status === 'finished') return (
@@ -137,7 +137,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
           </div>
           <div className="flex items-center gap-2">
             <ResultBadge exact={exact} winner={scoreColors.winner} hasPred={hasPred} />
-            <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} />
+            <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} minute={match.minute} />
           </div>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -224,7 +224,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
             </span>
           )}
         </div>
-        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} />
+        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} minute={match.minute} />
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
@@ -472,7 +472,7 @@ function KnockoutStageView({
                 {away}
               </span>
             </div>
-            <StatusBadge status={m.status} kickoff_at={m.kickoff_at} timezone={timezone} />
+            <StatusBadge status={m.status} kickoff_at={m.kickoff_at} timezone={timezone} minute={m.minute} />
           </div>
         )
 

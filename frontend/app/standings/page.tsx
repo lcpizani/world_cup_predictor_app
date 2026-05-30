@@ -493,7 +493,9 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
           {isLive && (
             <>
               <span className="animate-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#f0b429', letterSpacing: '.06em' }}>LIVE</span>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#f0b429', letterSpacing: '.06em' }}>
+                {match?.minute != null ? `${match.minute}'` : 'LIVE'}
+              </span>
             </>
           )}
           {isFinished && <span style={{ fontSize: 9, fontWeight: 700, color: '#3a5070' }}>FT</span>}

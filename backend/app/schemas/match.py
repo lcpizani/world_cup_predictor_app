@@ -24,6 +24,7 @@ class MatchResponse(BaseModel):
     status: str
     home_score: Optional[int] = None
     away_score: Optional[int] = None
+    minute: Optional[int] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

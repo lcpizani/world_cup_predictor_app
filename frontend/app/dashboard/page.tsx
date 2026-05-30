@@ -404,7 +404,9 @@ function MatchRailCard({ match, prediction, timezone }: { match: Match; predicti
   const statusEl = isLive ? (
     <span className="flex items-center gap-1.5" style={{ color: '#3a2200' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-700 animate-pulse-live" />
-      <span className="text-[0.65rem] font-bold uppercase tracking-wider">LIVE</span>
+      <span className="text-[0.65rem] font-bold uppercase tracking-wider">
+        {match.minute != null ? `${match.minute}'` : 'LIVE'}
+      </span>
     </span>
   ) : isFinished ? (
     <span className="text-[0.65rem] font-bold uppercase tracking-wider" style={{ color: '#4a6080' }}>FT</span>

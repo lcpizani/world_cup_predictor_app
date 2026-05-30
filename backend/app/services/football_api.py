@@ -158,6 +158,7 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
                 match.status = "live"
                 match.home_score = home_score
                 match.away_score = away_score
+                match.minute = fixture.get("minute")
                 db.add(match)
                 live_updated += 1
             continue
@@ -170,6 +171,7 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
                 continue
             try:
                 apply_match_result(db, match.id, home_score, away_score, status="finished")
+                match.minute = None
                 scored += 1
             except HTTPException as exc:
                 logger.warning("Skipped scoring match", ext_id=ext_id, detail=exc.detail)
