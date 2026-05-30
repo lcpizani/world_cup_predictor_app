@@ -88,8 +88,8 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
     onError: (e: Error) => setErr(e.message),
   })
 
-  // ── Finished match ────────────────────────────────────────────────────────
-  if (match.status === 'finished') {
+  // ── Finished or live-with-scores match ───────────────────────────────────
+  if (match.status === 'finished' || (match.status === 'live' && match.home_score !== null)) {
     const hasPred = !!prediction
     const ah = match.home_score, aa = match.away_score
     const ph = prediction?.predicted_home, pa = prediction?.predicted_away

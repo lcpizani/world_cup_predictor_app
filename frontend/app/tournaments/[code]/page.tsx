@@ -61,8 +61,10 @@ function MatchCard({ match, prediction, timezone }: { match: Match; prediction?:
   const isScheduled = match.status === 'scheduled'
   const noPredictionYet = isScheduled && !prediction
 
+  const hasScores = (match.status === 'finished' || match.status === 'live') && match.home_score !== null && match.away_score !== null
+
   const scoreColors = (() => {
-    if (match.status !== 'finished' || !prediction || match.home_score === null || match.away_score === null) {
+    if (!hasScores || !prediction || match.home_score === null || match.away_score === null) {
       return { home: '', away: '', winner: false }
     }
     const ph = prediction.predicted_home, pa = prediction.predicted_away
@@ -77,7 +79,7 @@ function MatchCard({ match, prediction, timezone }: { match: Match; prediction?:
   })()
 
   const accentColor = (() => {
-    if (match.status !== 'finished' || !prediction) return 'transparent'
+    if (!hasScores || !prediction) return 'transparent'
     if (scoreColors.home === 'green' && scoreColors.away === 'green') return 'rgba(34,197,94,0.7)'
     if (scoreColors.winner) return 'rgba(240,180,41,0.7)'
     return 'rgba(255,255,255,0.1)'
@@ -93,7 +95,7 @@ function MatchCard({ match, prediction, timezone }: { match: Match; prediction?:
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)' }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
     >
-      {match.status === 'finished' && prediction && (
+      {hasScores && prediction && (
         <div
           className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full"
           style={{ background: accentColor }}
@@ -125,7 +127,7 @@ function MatchCard({ match, prediction, timezone }: { match: Match; prediction?:
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {match.status === 'finished' ? (
+          {hasScores ? (
             prediction ? (
               <div className="flex flex-col items-center gap-1 w-20 sm:w-24">
                 <div
