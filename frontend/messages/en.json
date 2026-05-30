@@ -127,7 +127,21 @@
     "update": "Update",
     "saved": "✓ Saved",
     "save": "Save",
-    "enter_valid_scores": "Enter valid scores"
+    "enter_valid_scores": "Enter valid scores",
+    "view_chronological": "Chronological",
+    "view_by_stage": "By Stage",
+    "filter_team_placeholder": "Search team…",
+    "filter_group_all": "All Groups",
+    "filter_no_results": "No matches found",
+    "stage_group_stage": "Group Stage",
+    "stage_round_of_16": "Round of 16",
+    "stage_quarter_finals": "Quarterfinals",
+    "stage_semi_finals": "Semifinals",
+    "stage_third_place": "Third Place",
+    "stage_final": "Final",
+    "missing_picks": "{count} missing",
+    "stage_not_yet_seeded": "Matches not yet determined",
+    "stage_seeded_later": "Teams will be confirmed after the group stage."
   },
   "leagues": {
     "title": "My Leagues",

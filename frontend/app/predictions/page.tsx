@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -10,6 +11,8 @@ import type { Match, Prediction } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { useLocale, useTranslations } from 'next-intl'
 import { formatMatchDateTime } from '@/lib/date'
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function TeamFlag({ name }: { name: string }) {
   const code = getTeamFlagCode(name)
@@ -85,7 +88,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
     onError: (e: Error) => setErr(e.message),
   })
 
-  // ── Finished match ───────────────────────────────────────────────────────────
+  // ── Finished match ────────────────────────────────────────────────────────
   if (match.status === 'finished') {
     const hasPred = !!prediction
     const ah = match.home_score, aa = match.away_score
@@ -118,12 +121,9 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
 
     return (
       <div className="rounded-2xl p-3 sm:p-4 transition-all duration-200 overflow-hidden relative" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
-        {/* Left-edge accent bar */}
         {hasPred && (
           <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full" style={{ background: accentColor }} />
         )}
-
-        {/* Stage + group + result + FT badge */}
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-[10px] font-mono tracking-widest uppercase truncate" style={{ color: '#3f5068' }}>
@@ -140,8 +140,6 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
             <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} />
           </div>
         </div>
-
-        {/* Teams + scores */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           <div className="flex-1 flex items-center justify-end gap-2 sm:gap-2.5 min-w-0">
             <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-sm sm:text-base">
@@ -149,11 +147,9 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
             </span>
             <TeamFlag name={match.home_team} />
           </div>
-
           <div className="flex items-center gap-1.5 shrink-0">
             {hasPred ? (
               <div className="flex flex-col items-center gap-1 w-20 sm:w-24">
-                {/* Prediction — big, per-digit colored, in a pill */}
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg" style={pillStyle}>
                   <span className={`font-[family-name:var(--font-oswald)] font-bold text-xl w-5 text-center ${scoreColors.home === 'green' ? 'text-green-400' : scoreColors.home === 'yellow' ? 'text-[#f0b429]' : 'text-white'}`}>
                     {ph}
@@ -163,7 +159,6 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
                     {pa}
                   </span>
                 </div>
-                {/* Actual result — small, dim */}
                 <div className="flex items-center gap-1">
                   <span className="font-[family-name:var(--font-oswald)] text-sm w-4 text-center" style={{ color: '#3f5068' }}>{ah}</span>
                   <span className="text-xs" style={{ color: '#1e2d40' }}>–</span>
@@ -176,7 +171,6 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
               </span>
             )}
           </div>
-
           <div className="flex-1 flex items-center gap-2 sm:gap-2.5 min-w-0">
             <TeamFlag name={match.away_team} />
             <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-sm sm:text-base">
@@ -188,7 +182,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
     )
   }
 
-  // ── Upcoming / live ──────────────────────────────────────────────────────────
+  // ── Upcoming / live ───────────────────────────────────────────────────────
   const scoreInputs = (
     <>
       <input
@@ -198,11 +192,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
         inputMode="numeric"
         aria-label={`${match.home_team} score`}
         className="w-12 sm:w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
-        style={{
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          outline: 'none',
-        }}
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
         onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
         onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
       />
@@ -214,11 +204,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
         inputMode="numeric"
         aria-label={`${match.away_team} score`}
         className="w-12 sm:w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
-        style={{
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          outline: 'none',
-        }}
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
         onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
         onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
       />
@@ -226,11 +212,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
   )
 
   return (
-    <div
-      className="rounded-2xl p-3 sm:p-4 transition-all duration-200"
-      style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
-    >
-      {/* Stage + group + status badge */}
+    <div className="rounded-2xl p-3 sm:p-4 transition-all duration-200" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-[10px] font-mono tracking-widest uppercase truncate" style={{ color: '#3f5068' }}>
@@ -244,8 +226,6 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
         </div>
         <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} />
       </div>
-
-      {/* Teams row */}
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
           <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-xs sm:text-sm">
@@ -253,8 +233,6 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
           </span>
           <TeamFlag name={match.home_team} />
         </div>
-
-        {/* Desktop centered inputs */}
         <div className="hidden sm:flex items-center gap-1.5 shrink-0 w-28 justify-center">
           {isLocked ? (
             prediction ? (
@@ -266,8 +244,6 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
             )
           ) : scoreInputs}
         </div>
-
-        {/* Mobile center */}
         <div className="sm:hidden shrink-0 flex items-center gap-1">
           {isLocked ? (
             prediction ? (
@@ -291,25 +267,19 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
             </>
           )}
         </div>
-
         <div className="flex-1 flex items-center gap-2 min-w-0">
           <TeamFlag name={match.away_team} />
           <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-xs sm:text-sm">
             {translateTeamName(match.away_team, locale)}
           </span>
         </div>
-
-        {/* Desktop save button */}
         {!isLocked && (
           <div className="shrink-0 hidden sm:block">
             <button
               onClick={() => save.mutate()}
               disabled={save.isPending}
               className="px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-40"
-              style={{
-                background: '#f0b429',
-                color: '#080c14',
-              }}
+              style={{ background: '#f0b429', color: '#080c14' }}
               onMouseEnter={e => !save.isPending && ((e.currentTarget as HTMLElement).style.background = '#fcd86e')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#f0b429')}
             >
@@ -318,19 +288,225 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
           </div>
         )}
       </div>
-
       {err && <p className="text-xs text-red-400 mt-2">{err}</p>}
       {save.isSuccess && <p className="text-xs text-green-400 mt-2 font-medium">{t('saved')}</p>}
     </div>
   )
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+// ── Stage constants ────────────────────────────────────────────────────────────
+
+const STAGE_ORDER = ['group_stage', 'round_of_16', 'quarter_finals', 'semi_finals', 'third_place', 'final']
+
+// ── Accordion helpers ──────────────────────────────────────────────────────────
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+      className={`transition-transform duration-200 shrink-0 ${open ? 'rotate-180' : ''}`}
+      style={{ color: '#3f5068' }}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+}
+
+function AccordionSection({
+  sectionKey, header, isOpen, onToggle, children,
+}: {
+  sectionKey: string
+  header: ReactNode
+  isOpen: boolean
+  onToggle: (key: string) => void
+  children: ReactNode
+}) {
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+      <button
+        onClick={() => onToggle(sectionKey)}
+        className="w-full flex items-center justify-between gap-3 p-3 sm:p-4 text-left transition-colors duration-150"
+        style={{ background: '#0d1520' }}
+        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = '#111e2e')}
+        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#0d1520')}
+      >
+        {header}
+        <Chevron open={isOpen} />
+      </button>
+      {isOpen && (
+        <div className="px-3 pb-3 pt-2 space-y-3" style={{ background: '#080c14', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── GroupStageView ─────────────────────────────────────────────────────────────
+
+function GroupStageView({
+  matches, predByMatch, openSections, onToggle, timezone,
+}: {
+  matches: Match[]
+  predByMatch: Record<string, Prediction>
+  openSections: Set<string>
+  onToggle: (key: string) => void
+  timezone?: string | null
+}) {
+  const t = useTranslations('predictions')
+
+  const groups = useMemo(() => {
+    const groupSet = new Set<string>()
+    matches
+      .filter(m => m.stage === 'group_stage' && m.group)
+      .forEach(m => groupSet.add(m.group!))
+    return Array.from(groupSet).sort()
+  }, [matches])
+
+  const groupMatches = useMemo(() => {
+    const map: Record<string, Match[]> = {}
+    for (const g of groups) {
+      map[g] = matches
+        .filter(m => m.group === g)
+        .sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime())
+    }
+    return map
+  }, [matches, groups])
+
+  if (groups.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52]">
+          {t('stage_not_yet_seeded')}
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {groups.map(group => {
+        const gMatches = groupMatches[group] ?? []
+        const missingCount = gMatches.filter(
+          m => m.status === 'scheduled' && !predByMatch[m.id]
+        ).length
+        const isOpen = openSections.has(group)
+
+        const header = (
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <span className="font-[family-name:var(--font-oswald)] font-bold text-sm sm:text-base uppercase tracking-wider text-white truncate">
+              {group}
+            </span>
+            {missingCount > 0 && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-red-500 text-white shrink-0">
+                {t('missing_picks', { count: missingCount })}
+              </span>
+            )}
+          </div>
+        )
+
+        return (
+          <AccordionSection
+            key={group}
+            sectionKey={group}
+            header={header}
+            isOpen={isOpen}
+            onToggle={onToggle}
+          >
+            {gMatches.map(m => (
+              <PredictionRow key={m.id} match={m} prediction={predByMatch[m.id]} timezone={timezone} />
+            ))}
+          </AccordionSection>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── KnockoutStageView ──────────────────────────────────────────────────────────
+
+function KnockoutStageView({
+  matches, predByMatch, openSections, onToggle, timezone,
+}: {
+  matches: Match[]
+  predByMatch: Record<string, Prediction>
+  openSections: Set<string>
+  onToggle: (key: string) => void
+  timezone?: string | null
+}) {
+  const t = useTranslations('predictions')
+  const locale = useLocale()
+
+  const sortedMatches = useMemo(
+    () => [...matches].sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()),
+    [matches]
+  )
+
+  if (sortedMatches.length === 0) {
+    return (
+      <div className="rounded-2xl p-8 text-center" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-1">
+          {t('stage_not_yet_seeded')}
+        </p>
+        <p className="text-sm text-[#3f5068]">{t('stage_seeded_later')}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {sortedMatches.map(m => {
+        const isOpen = openSections.has(m.id)
+        const home = translateTeamName(m.home_team, locale)
+        const away = translateTeamName(m.away_team, locale)
+
+        const header = (
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="flex items-center gap-1 min-w-0 flex-1">
+              <span className="font-[family-name:var(--font-oswald)] font-semibold text-sm sm:text-base text-white uppercase tracking-wide truncate">
+                {home}
+              </span>
+              <span className="text-[#3f5068] text-xs font-bold shrink-0 mx-1">vs</span>
+              <span className="font-[family-name:var(--font-oswald)] font-semibold text-sm sm:text-base text-white uppercase tracking-wide truncate">
+                {away}
+              </span>
+            </div>
+            <StatusBadge status={m.status} kickoff_at={m.kickoff_at} timezone={timezone} />
+          </div>
+        )
+
+        return (
+          <AccordionSection
+            key={m.id}
+            sectionKey={m.id}
+            header={header}
+            isOpen={isOpen}
+            onToggle={onToggle}
+          >
+            <PredictionRow match={m} prediction={predByMatch[m.id]} timezone={timezone} />
+          </AccordionSection>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function PredictionsPage() {
   const t = useTranslations('predictions')
+  const locale = useLocale()
   const [tab, setTab] = useState<'upcoming' | 'finished'>('upcoming')
   const [refreshing, setRefreshing] = useState(false)
+
+  // view mode state (tasks 1.1–1.4)
+  const [viewMode, setViewMode] = useState<'chronological' | 'stage-group'>('chronological')
+  const [teamSearch, setTeamSearch] = useState('')
+  const [groupFilter, setGroupFilter] = useState('')
+  const [activeStage, setActiveStage] = useState('')
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set())
+
   const qc = useQueryClient()
   const { data: me, isLoading: meLoading } = useQuery({ queryKey: ['me'], queryFn: api.getMe })
   useOnboardingGuard(me, meLoading)
@@ -354,22 +530,91 @@ export default function PredictionsPage() {
     queryFn: () => api.listPredictions(),
   })
 
-  const predByMatch = Object.fromEntries(predictions.map((p) => [p.match_id, p]))
+  const predByMatch = Object.fromEntries(predictions.map(p => [p.match_id, p]))
 
-  const sorted = [...matches].sort(
-    (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
+  // task 1.5 — available stages in fixed priority order
+  const availableStages = useMemo(() => {
+    const stageSet = new Set(matches.map(m => m.stage))
+    return STAGE_ORDER.filter(s => stageSet.has(s))
+  }, [matches])
+
+  // task 1.6 — available groups sorted alphabetically
+  const availableGroups = useMemo(() => {
+    const groupSet = new Set<string>()
+    matches.forEach(m => { if (m.group) groupSet.add(m.group) })
+    return Array.from(groupSet).sort()
+  }, [matches])
+
+  const sorted = useMemo(
+    () => [...matches].sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()),
+    [matches]
   )
 
-  const upcoming = sorted.filter((m) => m.status === 'scheduled' || m.status === 'live')
-  const finished = sorted.filter((m) => m.status === 'finished').reverse()
+  // task 1.7 — filtered matches for chronological mode
+  // checks both the raw (English) team name and the translated name so filters work in any language
+  const filteredMatches = useMemo(() => {
+    return sorted.filter(m => {
+      if (teamSearch) {
+        const s = teamSearch.toLowerCase()
+        const homeRaw = m.home_team.toLowerCase()
+        const awayRaw = m.away_team.toLowerCase()
+        const homeTranslated = translateTeamName(m.home_team, locale).toLowerCase()
+        const awayTranslated = translateTeamName(m.away_team, locale).toLowerCase()
+        if (
+          !homeRaw.includes(s) && !awayRaw.includes(s) &&
+          !homeTranslated.includes(s) && !awayTranslated.includes(s)
+        ) return false
+      }
+      if (groupFilter && m.group !== groupFilter) return false
+      return true
+    })
+  }, [sorted, teamSearch, groupFilter, locale])
 
-  const upcomingMissing = upcoming.filter((m) => !predByMatch[m.id]).length
-  const finishedWithPred = finished.filter((m) => !!predByMatch[m.id]).length
+  const upcoming = filteredMatches.filter(m => m.status === 'scheduled' || m.status === 'live')
+  const finished = filteredMatches.filter(m => m.status === 'finished').reverse()
+
+  const upcomingMissing = upcoming.filter(m => !predByMatch[m.id]).length
+  const finishedWithPred = finished.filter(m => !!predByMatch[m.id]).length
+
+  const hasActiveFilters = teamSearch !== '' || groupFilter !== ''
 
   const isLoading = matchesLoading || predsLoading
 
+  // task 4.3 — stage display name lookup (type-safe, uses t())
+  const stageLabels: Record<string, string> = {
+    group_stage: t('stage_group_stage'),
+    round_of_16: t('stage_round_of_16'),
+    quarter_finals: t('stage_quarter_finals'),
+    semi_finals: t('stage_semi_finals'),
+    third_place: t('stage_third_place'),
+    final: t('stage_final'),
+  }
+
+  // matches for the currently active knockout stage
+  const stageMatches = useMemo(
+    () => matches.filter(m => m.stage === activeStage),
+    [matches, activeStage]
+  )
+
+  function toggleSection(key: string) {
+    setOpenSections(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // task 4.5 — entering stage-group mode sets active stage and resets open sections
+  function enterStageGroupMode() {
+    setViewMode('stage-group')
+    setActiveStage(availableStages[0] ?? '')
+    setOpenSections(new Set())
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+
       {/* Header */}
       <div className="mb-6 sm:mb-8">
         <Link
@@ -383,27 +628,17 @@ export default function PredictionsPage() {
             <h1 className="font-[family-name:var(--font-oswald)] text-2xl sm:text-3xl font-bold uppercase tracking-wider text-white leading-none">
               {t('title')}
             </h1>
-            <p className="text-[#3f5068] text-sm mt-1.5 font-medium">
-              {t('subtitle')}
-            </p>
+            <p className="text-[#3f5068] text-sm mt-1.5 font-medium">{t('subtitle')}</p>
           </div>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
             className="shrink-0 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl transition-all duration-200 disabled:opacity-40"
-            style={{
-              background: 'rgba(20,184,166,0.12)',
-              border: '1px solid rgba(20,184,166,0.3)',
-              color: '#2dd4bf',
-            }}
+            style={{ background: 'rgba(20,184,166,0.12)', border: '1px solid rgba(20,184,166,0.3)', color: '#2dd4bf' }}
             onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.2)', borderColor: 'rgba(20,184,166,0.5)' })}
             onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.12)', borderColor: 'rgba(20,184,166,0.3)' })}
           >
-            <svg
-              width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-              className={refreshing ? 'animate-spin' : ''}
-            >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={refreshing ? 'animate-spin' : ''}>
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
               <path d="M3 3v5h5" />
             </svg>
@@ -412,71 +647,203 @@ export default function PredictionsPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 rounded-xl p-1 mb-6 w-fit" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+      {/* tasks 2.1–2.2 — View mode toggle */}
+      <div className="flex gap-1 rounded-xl p-1 mb-5 w-fit" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
         <button
-          onClick={() => setTab('upcoming')}
-          className={`px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all duration-200 flex items-center gap-2 ${
-            tab === 'upcoming'
-              ? 'bg-[#f0b429] text-[#080c14]'
-              : 'text-[#5a6a82] hover:text-white'
+          onClick={() => setViewMode('chronological')}
+          className={`px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all duration-200 ${
+            viewMode === 'chronological' ? 'bg-[#f0b429] text-[#080c14]' : 'text-[#5a6a82] hover:text-white'
           }`}
         >
-          {t('tab_upcoming')}
-          {upcomingMissing > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'upcoming' ? 'bg-[#080c14]/20 text-[#080c14]' : 'bg-red-500 text-white'}`}>
-              {upcomingMissing}
-            </span>
-          )}
+          {t('view_chronological')}
         </button>
         <button
-          onClick={() => setTab('finished')}
-          className={`px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all duration-200 flex items-center gap-2 ${
-            tab === 'finished'
-              ? 'bg-[#f0b429] text-[#080c14]'
-              : 'text-[#5a6a82] hover:text-white'
+          onClick={enterStageGroupMode}
+          className={`px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all duration-200 ${
+            viewMode === 'stage-group' ? 'bg-[#f0b429] text-[#080c14]' : 'text-[#5a6a82] hover:text-white'
           }`}
         >
-          {t('tab_finished')}
-          {finishedWithPred > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'finished' ? 'bg-[#080c14]/20 text-[#080c14]' : 'bg-white/10 text-[#5a6a82]'}`}>
-              {finishedWithPred}
-            </span>
-          )}
+          {t('view_by_stage')}
         </button>
       </div>
 
-      {isLoading && (
-        <p className="text-center text-[#3f5068] py-16">…</p>
-      )}
+      {/* ── CHRONOLOGICAL MODE ──────────────────────────────────────────────── */}
+      {viewMode === 'chronological' && (
+        <>
+          {/* tasks 3.1–3.3 — Filter bar */}
+          <div className="flex flex-col sm:flex-row gap-2 mb-5">
+            <div className="relative flex-1">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: '#3f5068' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={teamSearch}
+                onChange={e => setTeamSearch(e.target.value)}
+                placeholder={t('filter_team_placeholder')}
+                className="w-full pl-9 pr-3 py-2 rounded-xl text-sm text-white transition-all"
+                style={{
+                  background: '#0d1520',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                  outline: 'none',
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.boxShadow = 'none' }}
+              />
+            </div>
+            <select
+              value={groupFilter}
+              onChange={e => setGroupFilter(e.target.value)}
+              className="px-3 py-2 rounded-xl text-sm font-bold transition-all sm:w-44"
+              style={{
+                background: '#0d1520',
+                border: '1px solid rgba(255,255,255,0.07)',
+                color: groupFilter ? 'white' : '#5a6a82',
+                outline: 'none',
+              }}
+              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)' }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)' }}
+            >
+              <option value="">{t('filter_group_all')}</option>
+              {availableGroups.map(g => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+          </div>
 
-      {!isLoading && tab === 'upcoming' && (
-        <div className="space-y-3">
-          {upcoming.length === 0 && (
-            <div className="text-center py-16">
-              <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-2">{t('no_upcoming_title')}</p>
-              <p className="text-sm text-[#3f5068]">{t('no_upcoming_desc')}</p>
+          {/* Upcoming / Finished tabs */}
+          <div className="flex gap-1 rounded-xl p-1 mb-6 w-fit" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <button
+              onClick={() => setTab('upcoming')}
+              className={`px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all duration-200 flex items-center gap-2 ${
+                tab === 'upcoming' ? 'bg-[#f0b429] text-[#080c14]' : 'text-[#5a6a82] hover:text-white'
+              }`}
+            >
+              {t('tab_upcoming')}
+              {upcomingMissing > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'upcoming' ? 'bg-[#080c14]/20 text-[#080c14]' : 'bg-red-500 text-white'}`}>
+                  {upcomingMissing}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setTab('finished')}
+              className={`px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all duration-200 flex items-center gap-2 ${
+                tab === 'finished' ? 'bg-[#f0b429] text-[#080c14]' : 'text-[#5a6a82] hover:text-white'
+              }`}
+            >
+              {t('tab_finished')}
+              {finishedWithPred > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'finished' ? 'bg-[#080c14]/20 text-[#080c14]' : 'bg-white/10 text-[#5a6a82]'}`}>
+                  {finishedWithPred}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {isLoading && <p className="text-center text-[#3f5068] py-16">…</p>}
+
+          {/* task 3.4 — upcoming list from filteredMatches; task 3.5 — filter-aware empty state */}
+          {!isLoading && tab === 'upcoming' && (
+            <div className="space-y-3">
+              {upcoming.length === 0 && (
+                <div className="text-center py-16">
+                  <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-2">
+                    {hasActiveFilters ? t('filter_no_results') : t('no_upcoming_title')}
+                  </p>
+                  {!hasActiveFilters && <p className="text-sm text-[#3f5068]">{t('no_upcoming_desc')}</p>}
+                </div>
+              )}
+              {upcoming.map(m => (
+                <PredictionRow key={m.id} match={m} prediction={predByMatch[m.id]} timezone={me?.timezone} />
+              ))}
             </div>
           )}
-          {upcoming.map((m) => (
-            <PredictionRow key={m.id} match={m} prediction={predByMatch[m.id]} timezone={me?.timezone} />
-          ))}
-        </div>
-      )}
 
-      {!isLoading && tab === 'finished' && (
-        <div className="space-y-3">
-          {finished.length === 0 && (
-            <div className="text-center py-16">
-              <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-2">{t('no_finished_title')}</p>
-              <p className="text-sm text-[#3f5068]">{t('no_finished_desc')}</p>
+          {!isLoading && tab === 'finished' && (
+            <div className="space-y-3">
+              {finished.length === 0 && (
+                <div className="text-center py-16">
+                  <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-2">
+                    {hasActiveFilters ? t('filter_no_results') : t('no_finished_title')}
+                  </p>
+                  {!hasActiveFilters && <p className="text-sm text-[#3f5068]">{t('no_finished_desc')}</p>}
+                </div>
+              )}
+              {finished.map(m => (
+                <PredictionRow key={m.id} match={m} prediction={predByMatch[m.id]} timezone={me?.timezone} />
+              ))}
             </div>
           )}
-          {finished.map((m) => (
-            <PredictionRow key={m.id} match={m} prediction={predByMatch[m.id]} timezone={me?.timezone} />
-          ))}
-        </div>
+        </>
       )}
+
+      {/* ── BY STAGE/GROUP MODE ─────────────────────────────────────────────── */}
+      {viewMode === 'stage-group' && (
+        <>
+          {isLoading && <p className="text-center text-[#3f5068] py-16">…</p>}
+
+          {!isLoading && availableStages.length === 0 && (
+            <div className="text-center py-16">
+              <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52]">
+                {t('no_upcoming_title')}
+              </p>
+              <p className="text-sm text-[#3f5068] mt-2">{t('no_upcoming_desc')}</p>
+            </div>
+          )}
+
+          {!isLoading && availableStages.length > 0 && (
+            <>
+              {/* tasks 4.1–4.2 — stage selector, horizontally scrollable */}
+              <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
+                {availableStages.map(stage => (
+                  <button
+                    key={stage}
+                    onClick={() => { setActiveStage(stage); setOpenSections(new Set()) }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-200 shrink-0 ${
+                      activeStage === stage
+                        ? 'bg-[#f0b429] text-[#080c14]'
+                        : 'text-[#5a6a82] hover:text-white'
+                    }`}
+                    style={activeStage === stage
+                      ? {}
+                      : { background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }
+                    }
+                  >
+                    {stageLabels[stage] ?? stage}
+                  </button>
+                ))}
+              </div>
+
+              {/* tasks 5.1–5.7 — group stage accordion */}
+              {activeStage === 'group_stage' && (
+                <GroupStageView
+                  matches={matches}
+                  predByMatch={predByMatch}
+                  openSections={openSections}
+                  onToggle={toggleSection}
+                  timezone={me?.timezone}
+                />
+              )}
+
+              {/* tasks 6.1–6.5 — knockout stage accordion */}
+              {activeStage !== 'group_stage' && activeStage !== '' && (
+                <KnockoutStageView
+                  matches={stageMatches}
+                  predByMatch={predByMatch}
+                  openSections={openSections}
+                  onToggle={toggleSection}
+                  timezone={me?.timezone}
+                />
+              )}
+            </>
+          )}
+        </>
+      )}
+
     </div>
   )
 }

@@ -127,7 +127,21 @@
     "update": "Atualizar",
     "saved": "✓ Salvo",
     "save": "Salvar",
-    "enter_valid_scores": "Insira placares válidos"
+    "enter_valid_scores": "Insira placares válidos",
+    "view_chronological": "Cronológico",
+    "view_by_stage": "Por Fase",
+    "filter_team_placeholder": "Buscar seleção…",
+    "filter_group_all": "Todos os Grupos",
+    "filter_no_results": "Nenhum jogo encontrado",
+    "stage_group_stage": "Fase de Grupos",
+    "stage_round_of_16": "Oitavas de Final",
+    "stage_quarter_finals": "Quartas de Final",
+    "stage_semi_finals": "Semifinais",
+    "stage_third_place": "Terceiro Lugar",
+    "stage_final": "Final",
+    "missing_picks": "{count} faltando",
+    "stage_not_yet_seeded": "Jogos ainda não definidos",
+    "stage_seeded_later": "Os times serão confirmados após a fase de grupos."
   },
   "leagues": {
     "title": "Minhas Ligas",
