@@ -17,9 +17,9 @@ from app.schemas.tournament import TournamentCreate, TournamentComparePrediction
 from app.schemas.leaderboard import LeaderboardResponse, LeaderboardEntry
 
 
-def _apply_spoiler(is_finished: bool, is_own: bool, predicted_home: int, predicted_away: int):
+def _apply_spoiler(is_finished: bool, is_own: bool, predicted_home: int, predicted_away: int, is_live: bool = False):
     """Return (predicted_home, predicted_away) with spoiler rule applied."""
-    if is_finished or is_own:
+    if is_finished or is_own or is_live:
         return predicted_home, predicted_away
     return None, None
 
@@ -205,6 +205,7 @@ def get_compare(db: Session, invite_code: str, current_user: User) -> List[Tourn
     result = []
     for match in matches:
         is_finished = match.status == "finished"
+        is_live = match.status == "live"
         entries = []
         for member in members:
             # Snapshot-at-join: predictions for matches that kicked off before
@@ -219,6 +220,7 @@ def get_compare(db: Session, invite_code: str, current_user: User) -> List[Tourn
                     member.user_id == current_user.id,
                     pred.predicted_home,
                     pred.predicted_away,
+                    is_live=is_live,
                 )
             else:
                 ph, pa = None, None

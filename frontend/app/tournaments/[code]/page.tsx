@@ -8,10 +8,24 @@ import Image from 'next/image'
 import { api } from '@/lib/api'
 import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
 import { formatMatchDateTime } from '@/lib/date'
-import type { Match, Prediction } from '@/types/api'
+import type { Match, Prediction, ScoringRules } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { encodeInviteCode } from '@/lib/invite'
 import { useLocale, useTranslations } from 'next-intl'
+
+function computeProvisionalPoints(
+  predictedHome: number, predictedAway: number,
+  actualHome: number, actualAway: number,
+  s: ScoringRules,
+): number {
+  const outcome = (h: number, a: number) => h > a ? 1 : h < a ? -1 : 0
+  if (predictedHome === actualHome && predictedAway === actualAway) return s.correct_result_pts
+  let total = 0
+  if (outcome(predictedHome, predictedAway) === outcome(actualHome, actualAway)) total += s.correct_winner_pts
+  if ((predictedHome - predictedAway) === (actualHome - actualAway)) total += s.correct_goal_diff_pts
+  if (predictedHome === actualHome || predictedAway === actualAway) total += s.correct_goals_one_team_pts
+  return total
+}
 
 function useMinutesUntil(dt: string): number {
   const calc = () => Math.floor((new Date(dt).getTime() - Date.now()) / 60000)
@@ -54,7 +68,7 @@ function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string;
   )
 }
 
-function MatchCard({ match, prediction, timezone }: { match: Match; prediction?: Prediction; timezone?: string | null }) {
+function MatchCard({ match, prediction, timezone, scoring }: { match: Match; prediction?: Prediction; timezone?: string | null; scoring?: ScoringRules }) {
   const t = useTranslations('tournament')
   const locale = useLocale()
   const minutesLeft = useMinutesUntil(match.kickoff_at)
@@ -194,6 +208,22 @@ function MatchCard({ match, prediction, timezone }: { match: Match; prediction?:
             <span className="text-xs font-medium" style={{ color: '#5a6a82' }}>{t('pts')}</span>
           </div>
         )}
+        {match.status === 'live' && scoring && prediction &&
+          match.home_score !== null && match.away_score !== null && (() => {
+            const pts = computeProvisionalPoints(
+              prediction.predicted_home, prediction.predicted_away,
+              match.home_score, match.away_score, scoring,
+            )
+            return pts > 0 ? (
+              <div className="ml-auto flex items-baseline gap-1">
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-lg" style={{ color: '#22c55e' }}>
+                  +{pts}
+                </span>
+                <span className="text-xs font-medium" style={{ color: '#5a6a82' }}>{t('pts')}</span>
+              </div>
+            ) : null
+          })()
+        }
       </div>
     </div>
   )
@@ -417,7 +447,7 @@ export default function TournamentPage() {
 
       <div className="space-y-3">
         {sorted.map((match) => (
-          <MatchCard key={match.id} match={match} prediction={predByMatch[match.id]} timezone={me?.timezone} />
+          <MatchCard key={match.id} match={match} prediction={predByMatch[match.id]} timezone={me?.timezone} scoring={tournament?.scoring_rules} />
         ))}
       </div>
     </div>
