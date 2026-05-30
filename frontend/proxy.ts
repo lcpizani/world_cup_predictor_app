@@ -8,14 +8,17 @@ const PROTECTED_PREFIXES = [
   '/profile',
   '/onboarding',
   '/admin',
+  '/standings',
 ]
 
 export function proxy(req: NextRequest) {
-  const token = req.cookies.get('auth_token')?.value ?? req.cookies.get('is_authenticated')?.value
+  const token = req.cookies.get('auth_token')?.value
   const { pathname } = req.nextUrl
 
   if (PROTECTED_PREFIXES.some((p) => pathname.startsWith(p)) && !token) {
-    return NextResponse.redirect(new URL('/', req.url))
+    const url = new URL('/', req.url)
+    url.searchParams.set('auth_required', '1')
+    return NextResponse.redirect(url)
   }
 
   return NextResponse.next()
@@ -30,5 +33,6 @@ export const config = {
     '/profile/:path*',
     '/onboarding/:path*',
     '/admin/:path*',
+    '/standings/:path*',
   ],
 }

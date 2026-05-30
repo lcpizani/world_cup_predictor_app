@@ -69,6 +69,7 @@ export interface Match {
   status: MatchStatus
   home_score: number | null
   away_score: number | null
+  minute: number | null
   created_at: string
 }
 
@@ -123,3 +124,37 @@ export interface LiveLeaderboardResponse {
 }
 
 export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'suspended'
+
+export interface LiveMatchBadge {
+  team_score: number
+  opp_score: number
+  result: 'W' | 'D' | 'L'
+}
+
+export interface GroupStandingRow {
+  position: number
+  team_name: string
+  group: string
+  played: number
+  won: number
+  drawn: number
+  lost: number
+  goals_for: number
+  goals_against: number
+  goal_difference: number
+  points: number
+  live_match?: LiveMatchBadge | null
+}
+
+export interface GroupData {
+  group: string
+  standings: GroupStandingRow[]
+}
+
+export interface BracketSlot {
+  slot_id: number
+  round: string
+  home_label: string
+  away_label: string
+  match: Match | null
+}

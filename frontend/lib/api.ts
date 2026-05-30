@@ -1,4 +1,6 @@
 import type {
+  BracketSlot,
+  GroupData,
   LeaderboardResponse,
   LiveLeaderboardResponse,
   Match,
@@ -107,6 +109,10 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  // ── Standings & Bracket ───────────────────────────────────────────────────
+  getStandings: () => request<GroupData[]>('/standings'),
+  getBracket: () => request<BracketSlot[]>('/standings/bracket'),
+
   // ── Admin ─────────────────────────────────────────────────────────────────
   getRegistrationInvite: () => request<{ invite_code: string }>('/admin/registration-invite'),
   applyResult: (match_id: string, home_score: number, away_score: number) =>
@@ -129,6 +135,11 @@ export const api = {
   syncResults: (competition_code = 'WC') =>
     request<{ scored: number }>(
       `/admin/sync/results?competition_code=${competition_code}`,
+      { method: 'POST' }
+    ),
+  syncStandings: (competition_code = 'WC') =>
+    request<{ synced: number }>(
+      `/admin/sync/standings?competition_code=${competition_code}`,
       { method: 'POST' }
     ),
 }

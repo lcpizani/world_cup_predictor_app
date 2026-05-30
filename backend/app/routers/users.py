@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.limiter import limiter
 from app.models.user import User
 from app.models.tournament import TournamentMember
 from app.models.prediction import Prediction
@@ -15,7 +16,8 @@ router = APIRouter()
 
 
 @router.put("/me", response_model=UserResponse)
-def update_me(data: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@limiter.limit("20/minute")
+def update_me(request: Request, data: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if data.username is not None and data.username != current_user.username:
         taken = db.query(User).filter(User.username == data.username, User.id != current_user.id).first()
         if taken:
@@ -39,7 +41,8 @@ def update_me(data: UserUpdate, db: Session = Depends(get_db), current_user: Use
 
 
 @router.get("/{username}", response_model=UserStatsResponse)
-def get_profile(username: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@limiter.limit("60/minute")
+def get_profile(request: Request, username: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -63,7 +66,8 @@ def get_profile(username: str, db: Session = Depends(get_db), current_user: User
 
 
 @router.get("/{username}/predictions", response_model=list[PredictionHistoryItem])
-def get_predictions(username: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@limiter.limit("60/minute")
+def get_predictions(request: Request, username: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")

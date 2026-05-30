@@ -11,6 +11,7 @@ from app.logger import logger
 from app.services import scoring as scoring_service
 from app.services import football_api
 from app.services.football_api import FOOTBALL_API_BASE
+from app.services.standings import recalculate_standings_from_matches
 from app.models.match import Match
 from app.models.prediction import Prediction
 from app.models.point_event import PointEvent
@@ -114,4 +115,32 @@ def sync_results(
         logger.error("Failed to sync results", competition_code=competition_code, detail=exc.detail)
         raise
     logger.info("Results synced", competition_code=competition_code, scored=result.get("scored"))
+    return result
+
+
+@router.post("/standings/recalculate", status_code=status.HTTP_200_OK)
+def recalculate_standings(
+    db: Session = Depends(get_db),
+    admin=Depends(get_admin_user),
+) -> dict:
+    """Recompute all group standings from finished match results in the DB."""
+    logger.info("Recalculating standings from match results", admin=str(admin.id))
+    result = recalculate_standings_from_matches(db)
+    logger.info("Standings recalculated", recalculated=result.get("recalculated"))
+    return result
+
+
+@router.post("/sync/standings", status_code=status.HTTP_200_OK)
+def sync_standings(
+    competition_code: str = "WC",
+    db: Session = Depends(get_db),
+    admin=Depends(get_admin_user),
+) -> dict:
+    logger.info("Syncing standings from football-data.org", competition_code=competition_code)
+    try:
+        result = football_api.sync_standings(db, competition_code)
+    except HTTPException as exc:
+        logger.error("Failed to sync standings", competition_code=competition_code, detail=exc.detail)
+        raise
+    logger.info("Standings synced", competition_code=competition_code, synced=result.get("synced"))
     return result

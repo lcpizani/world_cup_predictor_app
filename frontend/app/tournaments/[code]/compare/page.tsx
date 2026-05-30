@@ -7,9 +7,23 @@ import Image from 'next/image'
 import { api } from '@/lib/api'
 import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
 import { formatMatchDateTime } from '@/lib/date'
-import type { Match, TournamentComparePrediction, TournamentCompareMatch } from '@/types/api'
+import type { Match, TournamentComparePrediction, TournamentCompareMatch, ScoringRules } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { useLocale, useTranslations } from 'next-intl'
+
+function computeProvisionalPoints(
+  predictedHome: number, predictedAway: number,
+  actualHome: number, actualAway: number,
+  s: ScoringRules,
+): number {
+  const outcome = (h: number, a: number) => h > a ? 1 : h < a ? -1 : 0
+  if (predictedHome === actualHome && predictedAway === actualAway) return s.correct_result_pts
+  let total = 0
+  if (outcome(predictedHome, predictedAway) === outcome(actualHome, actualAway)) total += s.correct_winner_pts
+  if ((predictedHome - predictedAway) === (actualHome - actualAway)) total += s.correct_goal_diff_pts
+  if (predictedHome === actualHome || predictedAway === actualAway) total += s.correct_goals_one_team_pts
+  return total
+}
 
 function TeamFlag({ name }: { name: string }) {
   const flagCode = getTeamFlagCode(name)
@@ -21,12 +35,12 @@ function TeamFlag({ name }: { name: string }) {
   )
 }
 
-function StatusBadge({ status, kickoff_at, timezone }: { status: string; kickoff_at: string; timezone?: string | null }) {
+function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string; kickoff_at: string; timezone?: string | null; minute?: number | null }) {
   const t = useTranslations('compare')
   if (status === 'live') return (
     <span className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-      {t('live')}
+      {minute != null ? `${minute}'` : t('live')}
     </span>
   )
   if (status === 'finished') return (
@@ -45,7 +59,7 @@ function StatusBadge({ status, kickoff_at, timezone }: { status: string; kickoff
 type ScoreColor = 'green' | 'yellow' | ''
 
 function getScoreColors(match: Match, pred: TournamentComparePrediction): { home: ScoreColor; away: ScoreColor } {
-  if (match.status !== 'finished' || pred.predicted_home === null || pred.predicted_away === null || match.home_score === null || match.away_score === null) {
+  if ((match.status !== 'finished' && match.status !== 'live') || pred.predicted_home === null || pred.predicted_away === null || match.home_score === null || match.away_score === null) {
     return { home: '', away: '' }
   }
   const ph = pred.predicted_home, pa = pred.predicted_away
@@ -58,12 +72,12 @@ function getScoreColors(match: Match, pred: TournamentComparePrediction): { home
   }
 }
 
-function ParticipantRow({ match, pred, isMe }: { match: Match; pred: TournamentComparePrediction; isMe: boolean }) {
+function ParticipantRow({ match, pred, isMe, scoring }: { match: Match; pred: TournamentComparePrediction; isMe: boolean; scoring?: ScoringRules }) {
   const t = useTranslations('compare')
   const hidden = pred.predicted_home === null && pred.predicted_away === null
   const colors = hidden ? { home: '' as ScoreColor, away: '' as ScoreColor } : getScoreColors(match, pred)
   const isExact = colors.home === 'green' && colors.away === 'green'
-  const isWinner = !isExact && match.status === 'finished' &&
+  const isWinner = !isExact && (match.status === 'finished' || match.status === 'live') &&
     pred.predicted_home !== null && pred.predicted_away !== null &&
     match.home_score !== null && match.away_score !== null &&
     (pred.predicted_home - pred.predicted_away > 0) === (match.home_score - match.away_score > 0) &&
@@ -101,7 +115,9 @@ function ParticipantRow({ match, pred, isMe }: { match: Match; pred: TournamentC
         }
       >
         {hidden ? (
-          <span className="font-[family-name:var(--font-oswald)] text-sm w-10 text-center" style={{ color: '#1e2d40' }}>?–?</span>
+          (match.status === 'live' || match.status === 'finished')
+            ? <span className="text-xs w-10 text-center" style={{ color: '#1e2d40' }}>{t('no_pick')}</span>
+            : <span className="font-[family-name:var(--font-oswald)] text-sm w-10 text-center" style={{ color: '#1e2d40' }}>?–?</span>
         ) : pred.predicted_home === null ? (
           <span className="text-xs w-10 text-center" style={{ color: '#1e2d40' }}>{t('no_pick')}</span>
         ) : (
@@ -122,14 +138,22 @@ function ParticipantRow({ match, pred, isMe }: { match: Match; pred: TournamentC
           <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-sm">+{pred.points_awarded}</span>
           <span className="text-[10px] font-medium" style={{ color: '#3f5068' }}>pts</span>
         </div>
-      ) : (
+      ) : match.status === 'live' && scoring && pred.predicted_home !== null && pred.predicted_away !== null && match.home_score !== null && match.away_score !== null ? (() => {
+        const pts = computeProvisionalPoints(pred.predicted_home, pred.predicted_away, match.home_score, match.away_score, scoring)
+        return pts > 0 ? (
+          <div className="shrink-0 w-14 text-right flex items-baseline justify-end gap-0.5">
+            <span className="font-[family-name:var(--font-oswald)] font-bold text-sm" style={{ color: '#22c55e' }}>+{pts}</span>
+            <span className="text-[10px] font-medium" style={{ color: '#3f5068' }}>pts</span>
+          </div>
+        ) : <span className="w-14 shrink-0" />
+      })() : (
         <span className="w-14 shrink-0" />
       )}
     </div>
   )
 }
 
-function CompareMatchCard({ entry, myUserId, timezone }: { entry: TournamentCompareMatch; myUserId: string; timezone?: string | null }) {
+function CompareMatchCard({ entry, myUserId, timezone, scoring }: { entry: TournamentCompareMatch; myUserId: string; timezone?: string | null; scoring?: ScoringRules }) {
   const locale = useLocale()
   const { match, predictions } = entry
   const homeTeam = translateTeamName(match.home_team, locale)
@@ -154,7 +178,7 @@ function CompareMatchCard({ entry, myUserId, timezone }: { entry: TournamentComp
             </span>
           )}
         </div>
-        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} />
+        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} minute={match.minute} />
       </div>
 
       {/* Teams + actual score */}
@@ -187,7 +211,7 @@ function CompareMatchCard({ entry, myUserId, timezone }: { entry: TournamentComp
       {/* Participant rows */}
       <div className="space-y-0.5 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         {predictions.map((pred) => (
-          <ParticipantRow key={pred.user_id} match={match} pred={pred} isMe={pred.user_id === myUserId} />
+          <ParticipantRow key={pred.user_id} match={match} pred={pred} isMe={pred.user_id === myUserId} scoring={scoring} />
         ))}
       </div>
     </div>
@@ -279,7 +303,7 @@ export default function ComparePage() {
       {compareData.length > 0 && hasAnyPredictions && (
         <div className="space-y-3">
           {compareData.map((entry) => (
-            <CompareMatchCard key={entry.match.id} entry={entry} myUserId={myUserId} timezone={me?.timezone} />
+            <CompareMatchCard key={entry.match.id} entry={entry} myUserId={myUserId} timezone={me?.timezone} scoring={tournament?.scoring_rules} />
           ))}
         </div>
       )}

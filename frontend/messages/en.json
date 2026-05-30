@@ -18,6 +18,7 @@
     "dashboard": "Dashboard",
     "leagues": "Leagues",
     "my_picks": "My Picks",
+    "standings": "Standings",
     "admin": "Admin",
     "view_profile": "View profile",
     "logout": "Logout",
@@ -104,7 +105,30 @@
     "picked": "picked",
     "pick": "Pick →",
     "no_scores_yet": "No scores yet",
-    "you": "you"
+    "you": "you",
+    "standings_title": "Standings & Bracket",
+    "standings_desc": "Live group tables and knockout bracket"
+  },
+  "standings": {
+    "title": "World Cup 2026",
+    "subtitle": "Live standings & bracket",
+    "tab_groups": "Group Tables",
+    "tab_bracket": "Bracket",
+    "reload": "Reload",
+    "reloading": "Reloading…",
+    "no_data": "Standings not yet available",
+    "best_third": "Best Third Place",
+    "advances": "Advances",
+    "bracket_paths_pending": "Bracket paths will be confirmed after the group stage",
+    "col_team": "Team",
+    "col_p": "P",
+    "col_w": "W",
+    "col_d": "D",
+    "col_l": "L",
+    "col_gf": "GF",
+    "col_ga": "GA",
+    "col_gd": "GD",
+    "col_pts": "Pts"
   },
   "predictions": {
     "title": "My Predictions",
@@ -127,7 +151,21 @@
     "update": "Update",
     "saved": "✓ Saved",
     "save": "Save",
-    "enter_valid_scores": "Enter valid scores"
+    "enter_valid_scores": "Enter valid scores",
+    "view_chronological": "Chronological",
+    "view_by_stage": "By Stage",
+    "filter_team_placeholder": "Search team…",
+    "filter_group_all": "All Groups",
+    "filter_no_results": "No matches found",
+    "stage_group_stage": "Group Stage",
+    "stage_round_of_16": "Round of 16",
+    "stage_quarter_finals": "Quarterfinals",
+    "stage_semi_finals": "Semifinals",
+    "stage_third_place": "Third Place",
+    "stage_final": "Final",
+    "missing_picks": "{count} missing",
+    "stage_not_yet_seeded": "Matches not yet determined",
+    "stage_seeded_later": "Teams will be confirmed after the group stage."
   },
   "leagues": {
     "title": "My Leagues",
@@ -283,6 +321,10 @@
     "preferences": "Preferences",
     "language_en": "English",
     "language_pt": "Português"
+  },
+  "auth_required": {
+    "message": "You are not logged in.",
+    "cta": "Log in to access this page."
   },
   "onboarding": {
     "title": "Welcome!",

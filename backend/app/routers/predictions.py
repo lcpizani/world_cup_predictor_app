@@ -1,11 +1,12 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.limiter import limiter
 from app.logger import logger
 from app.services import prediction as prediction_service
 from app.schemas.prediction import PredictionCreate, PredictionUpdate, PredictionResponse
@@ -14,7 +15,8 @@ router = APIRouter()
 
 
 @router.post("", response_model=PredictionResponse, status_code=status.HTTP_201_CREATED)
-def submit_prediction(data: PredictionCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+def submit_prediction(request: Request, data: PredictionCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     try:
         result = prediction_service.submit_prediction(db, data, current_user)
     except HTTPException as exc:
@@ -25,7 +27,8 @@ def submit_prediction(data: PredictionCreate, db: Session = Depends(get_db), cur
 
 
 @router.put("/{prediction_id}", response_model=PredictionResponse)
-def update_prediction(prediction_id: UUID, data: PredictionUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@limiter.limit("30/minute")
+def update_prediction(request: Request, prediction_id: UUID, data: PredictionUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     try:
         result = prediction_service.update_prediction(db, prediction_id, data, current_user)
     except HTTPException as exc:

@@ -382,15 +382,18 @@ export default function AdminPage() {
     (resultsPage + 1) * RESULTS_PAGE_SIZE,
   )
 
-  async function sync(type: 'matches' | 'results') {
+  async function sync(type: 'matches' | 'results' | 'standings') {
     setSyncMsg('Syncing…')
     try {
       const result =
         type === 'matches'
           ? await api.syncMatches(competitionCode)
-          : await api.syncResults(competitionCode)
+          : type === 'results'
+          ? await api.syncResults(competitionCode)
+          : await api.syncStandings(competitionCode)
       setSyncMsg(JSON.stringify(result))
       qc.invalidateQueries({ queryKey: ['matches'] })
+      if (type === 'standings') qc.invalidateQueries({ queryKey: ['standings'] })
     } catch (e: unknown) {
       setSyncMsg(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`)
     }
@@ -434,7 +437,7 @@ export default function AdminPage() {
             className="w-20 bg-[#080c14] border border-white/10 rounded-xl px-3 py-2 text-white text-sm text-center focus:outline-none focus:border-[#f0b429]/50 focus:ring-1 focus:ring-[#f0b429]/30 transition font-mono tracking-widest"
           />
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button
             onClick={() => sync('matches')}
             className="bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-white/10 transition"
@@ -446,6 +449,12 @@ export default function AdminPage() {
             className="bg-[#f0b429] text-[#080c14] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-white transition"
           >
             Sync Results
+          </button>
+          <button
+            onClick={() => sync('standings')}
+            className="bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-white/10 transition"
+          >
+            Sync Standings
           </button>
         </div>
         {syncMsg && (

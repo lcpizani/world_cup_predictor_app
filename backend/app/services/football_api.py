@@ -5,7 +5,7 @@ Requires FOOTBALL_API_KEY in settings.
 Free tier: 10 requests/minute, covers major competitions.
 World Cup competition code: "WC"
 """
-from datetime import datetime
+from datetime import datetime, timezone
 
 import httpx
 from fastapi import HTTPException
@@ -14,18 +14,25 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.logger import logger
 from app.models.match import Match
+from app.models.group_standing import GroupStanding
 from app.services.scoring import apply_match_result
 
 FOOTBALL_API_BASE = "https://api.football-data.org/v4"
 
 _LIVE_STATUSES = {"IN_PLAY", "PAUSED"}
 _EDGE_STATUSES = {"CANCELLED", "POSTPONED", "SUSPENDED", "AWARDED"}
+_ALLOWED_COMPETITION_CODES = {"WC", "EC", "PL", "PD", "BL1", "SA", "FL1", "CL", "EL"}
 
 
 def _headers() -> dict:
     if not settings.FOOTBALL_API_KEY:
         raise HTTPException(status_code=503, detail="FOOTBALL_API_KEY not configured")
     return {"X-Auth-Token": settings.FOOTBALL_API_KEY}
+
+
+def _validate_competition_code(code: str) -> None:
+    if code not in _ALLOWED_COMPETITION_CODES:
+        raise HTTPException(status_code=400, detail=f"Unknown competition code '{code}'")
 
 
 def _map_api_status(api_status: str) -> str:
@@ -40,6 +47,7 @@ def _map_api_status(api_status: str) -> str:
 
 def sync_matches(db: Session, competition_code: str = "WC") -> dict:
     """Fetch fixtures from football-data.org and upsert Match rows."""
+    _validate_competition_code(competition_code)
     logger.info("Fetching fixtures from football-data.org", competition_code=competition_code)
     with httpx.Client(timeout=15) as client:
         resp = client.get(
@@ -96,6 +104,7 @@ def sync_matches(db: Session, competition_code: str = "WC") -> dict:
 
 def sync_results(db: Session, competition_code: str = "WC") -> dict:
     """Fetch all in-progress and finished matches and update their status/scores."""
+    _validate_competition_code(competition_code)
     logger.info("Syncing match statuses from football-data.org", competition_code=competition_code)
     with httpx.Client(timeout=15) as client:
         resp = client.get(
@@ -149,6 +158,7 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
                 match.status = "live"
                 match.home_score = home_score
                 match.away_score = away_score
+                match.minute = fixture.get("minute")
                 db.add(match)
                 live_updated += 1
             continue
@@ -161,6 +171,7 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
                 continue
             try:
                 apply_match_result(db, match.id, home_score, away_score, status="finished")
+                match.minute = None
                 scored += 1
             except HTTPException as exc:
                 logger.warning("Skipped scoring match", ext_id=ext_id, detail=exc.detail)
@@ -174,3 +185,58 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
         suspended=suspended,
     )
     return {"scored": scored, "live_updated": live_updated, "suspended": suspended}
+
+
+def sync_standings(db: Session, competition_code: str = "WC") -> dict:
+    """Fetch group standings from football-data.org and upsert into group_standings."""
+    _validate_competition_code(competition_code)
+    logger.info("Fetching standings from football-data.org", competition_code=competition_code)
+    with httpx.Client(timeout=15) as client:
+        resp = client.get(
+            f"{FOOTBALL_API_BASE}/competitions/{competition_code}/standings",
+            headers=_headers(),
+        )
+        if not resp.is_success:
+            logger.error("football-data.org standings request failed", status_code=resp.status_code, competition_code=competition_code)
+        resp.raise_for_status()
+        data = resp.json()
+
+    now = datetime.now(timezone.utc)
+    total_rows = 0
+
+    for standing in data.get("standings", []):
+        if standing.get("type") != "TOTAL":
+            continue
+
+        stage = standing.get("stage", "")
+        # Skip non-group entries (e.g. "ALL" which the API returns before group stage starts)
+        if not stage.startswith("GROUP_"):
+            continue
+
+        group = stage  # already in "GROUP_A" format
+
+        rows = standing.get("table", [])
+
+        # Delete existing rows for this group, then insert fresh data
+        db.query(GroupStanding).filter(GroupStanding.group == group).delete(synchronize_session=False)
+
+        for row in rows:
+            db.add(GroupStanding(
+                group=group,
+                position=row["position"],
+                team_name=row["team"]["name"],
+                played=row.get("playedGames", 0),
+                won=row.get("won", 0),
+                drawn=row.get("draw", 0),
+                lost=row.get("lost", 0),
+                goals_for=row.get("goalsFor", 0),
+                goals_against=row.get("goalsAgainst", 0),
+                goal_difference=row.get("goalDifference", 0),
+                points=row.get("points", 0),
+                synced_at=now,
+            ))
+            total_rows += 1
+
+    db.commit()
+    logger.info("Standings sync complete", competition_code=competition_code, synced=total_rows)
+    return {"synced": total_rows}

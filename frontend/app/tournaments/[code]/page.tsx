@@ -8,10 +8,24 @@ import Image from 'next/image'
 import { api } from '@/lib/api'
 import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
 import { formatMatchDateTime } from '@/lib/date'
-import type { Match, Prediction } from '@/types/api'
+import type { Match, Prediction, ScoringRules } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { encodeInviteCode } from '@/lib/invite'
 import { useLocale, useTranslations } from 'next-intl'
+
+function computeProvisionalPoints(
+  predictedHome: number, predictedAway: number,
+  actualHome: number, actualAway: number,
+  s: ScoringRules,
+): number {
+  const outcome = (h: number, a: number) => h > a ? 1 : h < a ? -1 : 0
+  if (predictedHome === actualHome && predictedAway === actualAway) return s.correct_result_pts
+  let total = 0
+  if (outcome(predictedHome, predictedAway) === outcome(actualHome, actualAway)) total += s.correct_winner_pts
+  if ((predictedHome - predictedAway) === (actualHome - actualAway)) total += s.correct_goal_diff_pts
+  if (predictedHome === actualHome || predictedAway === actualAway) total += s.correct_goals_one_team_pts
+  return total
+}
 
 function useMinutesUntil(dt: string): number {
   const calc = () => Math.floor((new Date(dt).getTime() - Date.now()) / 60000)
@@ -33,12 +47,12 @@ function TeamFlag({ name }: { name: string }) {
   )
 }
 
-function StatusBadge({ status, kickoff_at, timezone }: { status: string; kickoff_at: string; timezone?: string | null }) {
+function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string; kickoff_at: string; timezone?: string | null; minute?: number | null }) {
   const t = useTranslations('tournament')
   if (status === 'live') return (
     <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-      {t('live')}
+      {minute != null ? `${minute}'` : t('live')}
     </span>
   )
   if (status === 'finished') return (
@@ -54,15 +68,17 @@ function StatusBadge({ status, kickoff_at, timezone }: { status: string; kickoff
   )
 }
 
-function MatchCard({ match, prediction, timezone }: { match: Match; prediction?: Prediction; timezone?: string | null }) {
+function MatchCard({ match, prediction, timezone, scoring }: { match: Match; prediction?: Prediction; timezone?: string | null; scoring?: ScoringRules }) {
   const t = useTranslations('tournament')
   const locale = useLocale()
   const minutesLeft = useMinutesUntil(match.kickoff_at)
   const isScheduled = match.status === 'scheduled'
   const noPredictionYet = isScheduled && !prediction
 
+  const hasScores = (match.status === 'finished' || match.status === 'live') && match.home_score !== null && match.away_score !== null
+
   const scoreColors = (() => {
-    if (match.status !== 'finished' || !prediction || match.home_score === null || match.away_score === null) {
+    if (!hasScores || !prediction || match.home_score === null || match.away_score === null) {
       return { home: '', away: '', winner: false }
     }
     const ph = prediction.predicted_home, pa = prediction.predicted_away
@@ -77,7 +93,7 @@ function MatchCard({ match, prediction, timezone }: { match: Match; prediction?:
   })()
 
   const accentColor = (() => {
-    if (match.status !== 'finished' || !prediction) return 'transparent'
+    if (!hasScores || !prediction) return 'transparent'
     if (scoreColors.home === 'green' && scoreColors.away === 'green') return 'rgba(34,197,94,0.7)'
     if (scoreColors.winner) return 'rgba(240,180,41,0.7)'
     return 'rgba(255,255,255,0.1)'
@@ -93,7 +109,7 @@ function MatchCard({ match, prediction, timezone }: { match: Match; prediction?:
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)' }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
     >
-      {match.status === 'finished' && prediction && (
+      {hasScores && prediction && (
         <div
           className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full"
           style={{ background: accentColor }}
@@ -112,7 +128,7 @@ function MatchCard({ match, prediction, timezone }: { match: Match; prediction?:
             </span>
           )}
         </div>
-        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} />
+        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} minute={match.minute} />
       </div>
 
       {/* Teams + scores */}
@@ -125,7 +141,7 @@ function MatchCard({ match, prediction, timezone }: { match: Match; prediction?:
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {match.status === 'finished' ? (
+          {hasScores ? (
             prediction ? (
               <div className="flex flex-col items-center gap-1 w-20 sm:w-24">
                 <div
@@ -192,6 +208,22 @@ function MatchCard({ match, prediction, timezone }: { match: Match; prediction?:
             <span className="text-xs font-medium" style={{ color: '#5a6a82' }}>{t('pts')}</span>
           </div>
         )}
+        {match.status === 'live' && scoring && prediction &&
+          match.home_score !== null && match.away_score !== null && (() => {
+            const pts = computeProvisionalPoints(
+              prediction.predicted_home, prediction.predicted_away,
+              match.home_score, match.away_score, scoring,
+            )
+            return pts > 0 ? (
+              <div className="ml-auto flex items-baseline gap-1">
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-lg" style={{ color: '#22c55e' }}>
+                  +{pts}
+                </span>
+                <span className="text-xs font-medium" style={{ color: '#5a6a82' }}>{t('pts')}</span>
+              </div>
+            ) : null
+          })()
+        }
       </div>
     </div>
   )
@@ -415,7 +447,7 @@ export default function TournamentPage() {
 
       <div className="space-y-3">
         {sorted.map((match) => (
-          <MatchCard key={match.id} match={match} prediction={predByMatch[match.id]} timezone={me?.timezone} />
+          <MatchCard key={match.id} match={match} prediction={predByMatch[match.id]} timezone={me?.timezone} scoring={tournament?.scoring_rules} />
         ))}
       </div>
     </div>

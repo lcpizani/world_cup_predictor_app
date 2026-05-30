@@ -404,7 +404,9 @@ function MatchRailCard({ match, prediction, timezone }: { match: Match; predicti
   const statusEl = isLive ? (
     <span className="flex items-center gap-1.5" style={{ color: '#3a2200' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-700 animate-pulse-live" />
-      <span className="text-[0.65rem] font-bold uppercase tracking-wider">LIVE</span>
+      <span className="text-[0.65rem] font-bold uppercase tracking-wider">
+        {match.minute != null ? `${match.minute}'` : 'LIVE'}
+      </span>
     </span>
   ) : isFinished ? (
     <span className="text-[0.65rem] font-bold uppercase tracking-wider" style={{ color: '#4a6080' }}>FT</span>
@@ -726,6 +728,28 @@ export default function DashboardPage() {
           currentUserId={me?.id}
           loading={tournamentsLoading}
         />
+      </div>
+
+      {/* Tier 3 — Standings shortcut */}
+      <div className="mt-4">
+        <Link
+          href="/standings"
+          className="flex items-center justify-between px-5 py-4 rounded-2xl transition-all duration-200 group"
+          style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(240,180,41,0.2)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
+        >
+          <div className="flex items-center gap-3">
+            <span className="block w-[3px] h-5 rounded-full bg-[#f0b429]" />
+            <div>
+              <p className="font-[family-name:var(--font-oswald)] text-[1.05rem] font-bold uppercase tracking-[0.2em] text-[#90a0b8] group-hover:text-white transition-colors">
+                {t('standings_title')}
+              </p>
+              <p className="text-[#3a5070] text-xs mt-0.5">{t('standings_desc')}</p>
+            </div>
+          </div>
+          <span className="text-[#3f5068] group-hover:text-[#f0b429] transition-colors text-sm font-medium">→</span>
+        </Link>
       </div>
 
     </div>
