@@ -1,7 +1,9 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getTranslations } from 'next-intl/server'
 import { MARQUEE_NATIONS, getFlagUrl } from '@/lib/flags'
+import { AuthRequiredBanner } from '@/components/AuthRequiredBanner'
 
 const MARQUEE = [...MARQUEE_NATIONS, ...MARQUEE_NATIONS]
 
@@ -43,6 +45,9 @@ export default async function LandingPage() {
 
   return (
     <div className="bg-[#080c14] text-white overflow-x-hidden">
+      <Suspense fallback={null}>
+        <AuthRequiredBanner />
+      </Suspense>
 
       {/* ── HERO ────────────────────────────────────────────────────────── */}
       <section className="relative min-h-[92vh] flex items-center bg-pitch overflow-hidden">

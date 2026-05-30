@@ -21,12 +21,18 @@ FOOTBALL_API_BASE = "https://api.football-data.org/v4"
 
 _LIVE_STATUSES = {"IN_PLAY", "PAUSED"}
 _EDGE_STATUSES = {"CANCELLED", "POSTPONED", "SUSPENDED", "AWARDED"}
+_ALLOWED_COMPETITION_CODES = {"WC", "EC", "PL", "PD", "BL1", "SA", "FL1", "CL", "EL"}
 
 
 def _headers() -> dict:
     if not settings.FOOTBALL_API_KEY:
         raise HTTPException(status_code=503, detail="FOOTBALL_API_KEY not configured")
     return {"X-Auth-Token": settings.FOOTBALL_API_KEY}
+
+
+def _validate_competition_code(code: str) -> None:
+    if code not in _ALLOWED_COMPETITION_CODES:
+        raise HTTPException(status_code=400, detail=f"Unknown competition code '{code}'")
 
 
 def _map_api_status(api_status: str) -> str:
@@ -41,6 +47,7 @@ def _map_api_status(api_status: str) -> str:
 
 def sync_matches(db: Session, competition_code: str = "WC") -> dict:
     """Fetch fixtures from football-data.org and upsert Match rows."""
+    _validate_competition_code(competition_code)
     logger.info("Fetching fixtures from football-data.org", competition_code=competition_code)
     with httpx.Client(timeout=15) as client:
         resp = client.get(
@@ -97,6 +104,7 @@ def sync_matches(db: Session, competition_code: str = "WC") -> dict:
 
 def sync_results(db: Session, competition_code: str = "WC") -> dict:
     """Fetch all in-progress and finished matches and update their status/scores."""
+    _validate_competition_code(competition_code)
     logger.info("Syncing match statuses from football-data.org", competition_code=competition_code)
     with httpx.Client(timeout=15) as client:
         resp = client.get(
@@ -179,6 +187,7 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
 
 def sync_standings(db: Session, competition_code: str = "WC") -> dict:
     """Fetch group standings from football-data.org and upsert into group_standings."""
+    _validate_competition_code(competition_code)
     logger.info("Fetching standings from football-data.org", competition_code=competition_code)
     with httpx.Client(timeout=15) as client:
         resp = client.get(

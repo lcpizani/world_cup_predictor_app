@@ -322,6 +322,10 @@
     "language_en": "English",
     "language_pt": "Português"
   },
+  "auth_required": {
+    "message": "You are not logged in.",
+    "cta": "Log in to access this page."
+  },
   "onboarding": {
     "title": "Welcome!",
     "subtitle": "Let's set up your experience",

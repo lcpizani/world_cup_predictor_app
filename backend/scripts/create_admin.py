@@ -3,10 +3,12 @@
 Create or promote a user to admin.
 
 Usage:
-    python scripts/create_admin.py <email> <username> <password>
+    python scripts/create_admin.py <email> <username>
 
 If the email already exists the user is promoted to admin without changing their password.
+Password is prompted interactively (not passed as an argument) to avoid shell-history exposure.
 """
+import getpass
 import sys
 import os
 import uuid
@@ -45,7 +47,8 @@ def create_or_promote_admin(email: str, username: str, password: str) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    if len(sys.argv) != 3:
         print(__doc__)
         sys.exit(1)
-    create_or_promote_admin(sys.argv[1], sys.argv[2], sys.argv[3])
+    password = getpass.getpass("Admin password: ")
+    create_or_promote_admin(sys.argv[1], sys.argv[2], password)

@@ -23,20 +23,27 @@ function groupColor(g: string)  { return GROUP_COLORS[groupLetter(g)] ?? '#f0b42
 
 // ── TeamFlag ──────────────────────────────────────────────────────────────────
 
-function TeamFlag({ name, size = 22 }: { name: string; size?: number }) {
+const FLAG_W = 26
+const FLAG_H = 18
+
+function TeamFlag({ name }: { name: string }) {
   const locale = useLocale()
   const code = getTeamFlagCode(name)
-  if (!code) return <span style={{ width: size, height: Math.round(size * 0.75), display: 'inline-block' }} />
   return (
-    <Image
-      src={getFlagUrl(code, 40)}
-      alt={translateTeamName(name, locale)}
-      width={size}
-      height={Math.round(size * 0.75)}
-      style={{ height: 'auto', flexShrink: 0 }}
-      className="rounded-sm"
-      unoptimized
-    />
+    <div
+      style={{ width: FLAG_W, height: FLAG_H, flexShrink: 0, borderRadius: 2, overflow: 'hidden', background: 'rgba(255,255,255,0.04)' }}
+    >
+      {code && (
+        <Image
+          src={getFlagUrl(code, 40)}
+          alt={translateTeamName(name, locale)}
+          width={FLAG_W}
+          height={FLAG_H}
+          className="w-full h-full object-contain"
+          unoptimized
+        />
+      )}
+    </div>
   )
 }
 
@@ -52,9 +59,9 @@ function PosBadge({ pos }: { pos: number }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+      width: 18, height: 18, borderRadius: 4, flexShrink: 0,
       background: bg, border: `1px solid ${border}`, color,
-      fontSize: 8.5, fontWeight: 800,
+      fontSize: 10, fontWeight: 800,
     }}>
       {pos}
     </span>
@@ -63,8 +70,8 @@ function PosBadge({ pos }: { pos: number }) {
 
 // ── Shared table head ─────────────────────────────────────────────────────────
 
-function TableHead({ ptsColor, t }: { ptsColor: string; t: (k: string) => string }) {
-  const th: React.CSSProperties = { padding: '5px 4px', textAlign: 'center', fontWeight: 500, fontSize: 10, color: '#4a6080' }
+function TableHead({ t }: { t: (k: string) => string }) {
+  const th: React.CSSProperties = { padding: '6px 4px', textAlign: 'center', fontWeight: 500, fontSize: 11, color: '#4a6080' }
   return (
     <thead>
       <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -77,7 +84,7 @@ function TableHead({ ptsColor, t }: { ptsColor: string; t: (k: string) => string
         <th className="hidden sm:table-cell" style={{ ...th, width: 24 }}>{t('col_gf')}</th>
         <th className="hidden sm:table-cell" style={{ ...th, width: 24 }}>{t('col_ga')}</th>
         <th style={{ ...th, width: 30 }}>{t('col_gd')}</th>
-        <th style={{ ...th, width: 34, paddingRight: 10, color: ptsColor, fontWeight: 700 }}>{t('col_pts')}</th>
+        <th style={{ ...th, width: 34, paddingRight: 10, color: 'rgba(240,180,41,0.7)', fontWeight: 700 }}>{t('col_pts')}</th>
       </tr>
     </thead>
   )
@@ -113,24 +120,24 @@ function EmptyGroupTable({ letter }: { letter: string }) {
   return (
     <div className="rounded-xl overflow-hidden" style={{ background: '#0b1220', border: '1px solid rgba(255,255,255,0.07)' }}>
       <GroupCardHeader letter={letter} />
-      <table className="w-full" style={{ fontSize: 11 }}>
-        <TableHead ptsColor={color + 'aa'} t={t} />
+      <table className="w-full" style={{ fontSize: 13 }}>
+        <TableHead t={t} />
         <tbody>
           {[1, 2, 3, 4].map((pos) => {
             const bl = pos <= 2 ? 'rgba(34,197,94,0.5)' : pos === 3 ? 'rgba(240,180,41,0.4)' : 'transparent'
             return (
               <tr key={pos} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', borderLeft: `3px solid ${bl}` }}>
-                <td style={{ paddingLeft: 10, paddingTop: 8, paddingBottom: 8, textAlign: 'center' }}>
+                <td style={{ paddingLeft: 10, paddingTop: 9, paddingBottom: 9, textAlign: 'center' }}>
                   <PosBadge pos={pos} />
                 </td>
-                <td style={{ padding: '8px' }}>
+                <td style={{ padding: '9px' }}>
                   <div className="h-3 w-20 rounded animate-pulse" style={{ background: 'rgba(255,255,255,0.04)' }} />
                 </td>
-                {[0, 1, 2, 3].map((i) => <td key={i} style={{ padding: '8px 4px', textAlign: 'center', color: '#2a3a50' }}>—</td>)}
-                <td className="hidden sm:table-cell" style={{ padding: '8px 4px', textAlign: 'center', color: '#2a3a50' }}>—</td>
-                <td className="hidden sm:table-cell" style={{ padding: '8px 4px', textAlign: 'center', color: '#2a3a50' }}>—</td>
-                <td style={{ padding: '8px 4px', textAlign: 'center', color: '#2a3a50' }}>—</td>
-                <td style={{ padding: '8px 10px 8px 4px', textAlign: 'center', color: '#2a3a50' }}>—</td>
+                {[0, 1, 2, 3].map((i) => <td key={i} style={{ padding: '9px 4px', textAlign: 'center', color: '#2a3a50' }}>—</td>)}
+                <td className="hidden sm:table-cell" style={{ padding: '9px 4px', textAlign: 'center', color: '#2a3a50' }}>—</td>
+                <td className="hidden sm:table-cell" style={{ padding: '9px 4px', textAlign: 'center', color: '#2a3a50' }}>—</td>
+                <td style={{ padding: '9px 4px', textAlign: 'center', color: '#2a3a50' }}>—</td>
+                <td style={{ padding: '9px 10px 9px 4px', textAlign: 'center', color: '#2a3a50' }}>—</td>
               </tr>
             )
           })}
@@ -151,8 +158,8 @@ function GroupTable({ group }: { group: GroupData }) {
   return (
     <div className="rounded-xl overflow-hidden" style={{ background: '#0b1220', border: '1px solid rgba(255,255,255,0.07)' }}>
       <GroupCardHeader letter={letter} />
-      <table className="w-full" style={{ fontSize: 11 }}>
-        <TableHead ptsColor={color + 'aa'} t={t} />
+      <table className="w-full" style={{ fontSize: 13 }}>
+        <TableHead t={t} />
         <tbody>
           {group.standings.map((row) => {
             const bl =
@@ -160,29 +167,29 @@ function GroupTable({ group }: { group: GroupData }) {
               row.position === 3 ? 'rgba(240,180,41,0.45)' : 'transparent'
             return (
               <tr key={row.position} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', borderLeft: `3px solid ${bl}` }}>
-                <td style={{ paddingLeft: 10, paddingTop: 7, paddingBottom: 7, textAlign: 'center' }}>
+                <td style={{ paddingLeft: 10, paddingTop: 9, paddingBottom: 9, textAlign: 'center' }}>
                   <PosBadge pos={row.position} />
                 </td>
-                <td style={{ padding: '7px 8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                    <TeamFlag name={row.team_name} size={18} />
-                    <span style={{ color: '#cdd6e8', fontWeight: 500, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <td style={{ padding: '9px 8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                    <TeamFlag name={row.team_name} />
+                    <span style={{ color: '#cdd6e8', fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {translateTeamName(row.team_name, locale)}
                     </span>
                   </div>
                 </td>
-                <td style={{ padding: '7px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.played}</td>
-                <td style={{ padding: '7px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.won}</td>
-                <td style={{ padding: '7px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.drawn}</td>
-                <td style={{ padding: '7px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.lost}</td>
-                <td className="hidden sm:table-cell" style={{ padding: '7px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.goals_for}</td>
-                <td className="hidden sm:table-cell" style={{ padding: '7px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.goals_against}</td>
-                <td style={{ padding: '7px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>
+                <td style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.played}</td>
+                <td style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.won}</td>
+                <td style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.drawn}</td>
+                <td style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.lost}</td>
+                <td className="hidden sm:table-cell" style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.goals_for}</td>
+                <td className="hidden sm:table-cell" style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.goals_against}</td>
+                <td style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>
                   {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
                 </td>
                 <td style={{
-                  padding: '7px 10px 7px 4px', textAlign: 'center',
-                  fontFamily: 'var(--font-oswald)', fontSize: 13, fontWeight: 700,
+                  padding: '9px 10px 9px 4px', textAlign: 'center',
+                  fontFamily: 'var(--font-oswald)', fontSize: 15, fontWeight: 700,
                   fontVariantNumeric: 'tabular-nums',
                   color: row.position <= 2 ? '#e2ecff' : '#6a7f9a',
                 }}>
@@ -259,18 +266,18 @@ function BestThirdSection({ groups }: { groups: GroupData[] }) {
         </span>
       </div>
 
-      <table className="w-full" style={{ fontSize: 11 }}>
+      <table className="w-full" style={{ fontSize: 13 }}>
         <thead>
           <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-            <th style={{ width: 28, paddingLeft: 10, paddingTop: 5, paddingBottom: 5, textAlign: 'center', color: '#334155', fontWeight: 500, fontSize: 10 }}>#</th>
-            <th style={{ padding: '5px 8px', textAlign: 'left', color: '#4a6080', fontWeight: 500, fontSize: 10, width: '100%' }}>{t('col_team')}</th>
-            <th style={{ width: 24, padding: '5px 4px', textAlign: 'center', color: '#4a6080', fontWeight: 500, fontSize: 10 }}>{t('col_p')}</th>
-            <th style={{ width: 24, padding: '5px 4px', textAlign: 'center', color: '#4a6080', fontWeight: 500, fontSize: 10 }}>{t('col_w')}</th>
-            <th style={{ width: 24, padding: '5px 4px', textAlign: 'center', color: '#4a6080', fontWeight: 500, fontSize: 10 }}>{t('col_d')}</th>
-            <th style={{ width: 24, padding: '5px 4px', textAlign: 'center', color: '#4a6080', fontWeight: 500, fontSize: 10 }}>{t('col_l')}</th>
-            <th style={{ width: 30, padding: '5px 4px', textAlign: 'center', color: '#4a6080', fontWeight: 500, fontSize: 10 }}>{t('col_gd')}</th>
-            <th style={{ width: 34, padding: '5px 10px 5px 4px', textAlign: 'center', color: 'rgba(240,180,41,0.7)', fontWeight: 700, fontSize: 10 }}>{t('col_pts')}</th>
-            <th className="hidden sm:table-cell" style={{ width: 80, padding: '5px 4px', textAlign: 'center', fontSize: 10 }} />
+            <th style={{ width: 28, paddingLeft: 10, paddingTop: 6, paddingBottom: 6, textAlign: 'center', color: '#334155', fontWeight: 500, fontSize: 11 }}>#</th>
+            <th style={{ padding: '6px 8px', textAlign: 'left', color: '#4a6080', fontWeight: 500, fontSize: 11, width: '100%' }}>{t('col_team')}</th>
+            <th style={{ width: 24, padding: '6px 4px', textAlign: 'center', color: '#4a6080', fontWeight: 500, fontSize: 11 }}>{t('col_p')}</th>
+            <th style={{ width: 24, padding: '6px 4px', textAlign: 'center', color: '#4a6080', fontWeight: 500, fontSize: 11 }}>{t('col_w')}</th>
+            <th style={{ width: 24, padding: '6px 4px', textAlign: 'center', color: '#4a6080', fontWeight: 500, fontSize: 11 }}>{t('col_d')}</th>
+            <th style={{ width: 24, padding: '6px 4px', textAlign: 'center', color: '#4a6080', fontWeight: 500, fontSize: 11 }}>{t('col_l')}</th>
+            <th style={{ width: 30, padding: '6px 4px', textAlign: 'center', color: '#4a6080', fontWeight: 500, fontSize: 11 }}>{t('col_gd')}</th>
+            <th style={{ width: 34, padding: '6px 10px 6px 4px', textAlign: 'center', color: 'rgba(240,180,41,0.7)', fontWeight: 700, fontSize: 11 }}>{t('col_pts')}</th>
+            <th className="hidden sm:table-cell" style={{ width: 80, padding: '6px 4px', textAlign: 'center', fontSize: 11 }} />
           </tr>
         </thead>
         <tbody>
@@ -284,24 +291,24 @@ function BestThirdSection({ groups }: { groups: GroupData[] }) {
                   borderLeft: advances ? '3px solid rgba(34,197,94,0.5)' : '3px solid transparent',
                 }}
               >
-                <td style={{ paddingLeft: 10, paddingTop: 7, paddingBottom: 7, textAlign: 'center' }}>
+                <td style={{ paddingLeft: 10, paddingTop: 9, paddingBottom: 9, textAlign: 'center' }}>
                   <span style={{
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+                    width: 18, height: 18, borderRadius: 4, flexShrink: 0,
                     background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#3d5070',
-                    fontSize: 8.5, fontWeight: 800,
+                    fontSize: 10, fontWeight: 800,
                   }}>
                     {idx + 1}
                   </span>
                 </td>
-                <td style={{ padding: '7px 8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                    <TeamFlag name={row.team_name} size={18} />
-                    <span style={{ color: '#cdd6e8', fontWeight: 500, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <td style={{ padding: '9px 8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                    <TeamFlag name={row.team_name} />
+                    <span style={{ color: '#cdd6e8', fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {translateTeamName(row.team_name, locale)}
                     </span>
                     <span style={{
-                      fontSize: 9.5, fontWeight: 700, flexShrink: 0,
+                      fontSize: 11, fontWeight: 700, flexShrink: 0,
                       padding: '1px 5px', borderRadius: 4,
                       background: 'rgba(255,255,255,0.07)',
                       border: '1px solid rgba(255,255,255,0.16)',
@@ -312,25 +319,25 @@ function BestThirdSection({ groups }: { groups: GroupData[] }) {
                     </span>
                   </div>
                 </td>
-                <td style={{ padding: '7px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.played}</td>
-                <td style={{ padding: '7px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.won}</td>
-                <td style={{ padding: '7px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.drawn}</td>
-                <td style={{ padding: '7px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.lost}</td>
-                <td style={{ padding: '7px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>
+                <td style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.played}</td>
+                <td style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.won}</td>
+                <td style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.drawn}</td>
+                <td style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.lost}</td>
+                <td style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>
                   {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
                 </td>
                 <td style={{
-                  padding: '7px 10px 7px 4px', textAlign: 'center',
-                  fontFamily: 'var(--font-oswald)', fontSize: 13, fontWeight: 700,
+                  padding: '9px 10px 9px 4px', textAlign: 'center',
+                  fontFamily: 'var(--font-oswald)', fontSize: 15, fontWeight: 700,
                   fontVariantNumeric: 'tabular-nums',
                   color: '#cdd6e8',
                 }}>
                   {row.points}
                 </td>
-                <td className="hidden sm:table-cell" style={{ padding: '7px 8px', textAlign: 'center' }}>
+                <td className="hidden sm:table-cell" style={{ padding: '9px 8px', textAlign: 'center' }}>
                   {advances && (
                     <span style={{
-                      fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
+                      fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
                       background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)',
                       color: 'rgba(74,222,128,0.9)', whiteSpace: 'nowrap',
                     }}>
@@ -408,11 +415,13 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
     const code = getTeamFlagCode(name)
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, height: 22, overflow: 'hidden' }}>
-        {hasBoth && code
-          ? <Image src={getFlagUrl(code, 40)} alt={name} width={18} height={14}
-              style={{ borderRadius: 2, flexShrink: 0, height: 'auto' }} unoptimized />
-          : <span style={{ width: 18, height: 14, borderRadius: 2, background: 'rgba(255,255,255,0.06)', flexShrink: 0, display: 'inline-block' }} />
-        }
+        <div style={{ width: 20, height: 14, flexShrink: 0, borderRadius: 2, overflow: 'hidden', background: 'rgba(255,255,255,0.04)' }}>
+          {hasBoth && code && (
+            <Image src={getFlagUrl(code, 40)} alt={name} width={20} height={14}
+              className="w-full h-full object-contain"
+              unoptimized />
+          )}
+        </div>
         <span style={{
           flex: 1, fontSize: 10.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           fontWeight: hasBoth ? (winner ? 700 : 500) : 400,
