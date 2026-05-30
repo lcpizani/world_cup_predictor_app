@@ -8,6 +8,7 @@ from app.models.prediction import Prediction
 from app.models.point_event import PointEvent
 from app.models.match import Match
 from app.models.tournament import Tournament, TournamentScoringRules, TournamentMember
+from app.services.standings import recalculate_standings_from_matches
 
 
 def compute_points_for_prediction(
@@ -143,6 +144,10 @@ def apply_match_result(
 
     db.commit()
     db.refresh(match)
+
+    if match.stage == "group_stage" and match.group:
+        recalculate_standings_from_matches(db, group=match.group)
+
     return match
 
 

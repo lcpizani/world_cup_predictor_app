@@ -124,6 +124,12 @@ export interface LiveLeaderboardResponse {
 
 export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'suspended'
 
+export interface LiveMatchBadge {
+  team_score: number
+  opp_score: number
+  result: 'W' | 'D' | 'L'
+}
+
 export interface GroupStandingRow {
   position: number
   team_name: string
@@ -136,6 +142,7 @@ export interface GroupStandingRow {
   goals_against: number
   goal_difference: number
   points: number
+  live_match?: LiveMatchBadge | null
 }
 
 export interface GroupData {

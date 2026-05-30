@@ -7,7 +7,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import { api } from '@/lib/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
-import type { GroupData, GroupStandingRow, BracketSlot } from '@/types/api'
+import type { GroupData, GroupStandingRow, BracketSlot, LiveMatchBadge } from '@/types/api'
 import { formatMatchDate, formatMatchTime } from '@/lib/date'
 
 // ── Group accent palette ──────────────────────────────────────────────────────
@@ -44,6 +44,28 @@ function TeamFlag({ name }: { name: string }) {
         />
       )}
     </div>
+  )
+}
+
+// ── LiveBadge ─────────────────────────────────────────────────────────────────
+
+function LiveBadge({ live_match }: { live_match: LiveMatchBadge }) {
+  const [bg, border, color] =
+    live_match.result === 'W' ? ['rgba(34,197,94,0.12)',  'rgba(34,197,94,0.35)',  '#4ade80'] :
+    live_match.result === 'L' ? ['rgba(239,68,68,0.12)',  'rgba(239,68,68,0.35)',  '#f87171'] :
+                                ['rgba(240,180,41,0.12)', 'rgba(240,180,41,0.35)', '#f0b429']
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0,
+      padding: '1px 6px', borderRadius: 6,
+      background: bg, border: `1px solid ${border}`,
+      fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-oswald)',
+      fontVariantNumeric: 'tabular-nums', color,
+      letterSpacing: '0.04em',
+    }}>
+      <span className="animate-pulse" style={{ width: 5, height: 5, borderRadius: '50%', background: color, flexShrink: 0, display: 'inline-block' }} />
+      {live_match.team_score}-{live_match.opp_score}
+    </span>
   )
 }
 
@@ -176,6 +198,7 @@ function GroupTable({ group }: { group: GroupData }) {
                     <span style={{ color: '#cdd6e8', fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {translateTeamName(row.team_name, locale)}
                     </span>
+                    {row.live_match && <LiveBadge live_match={row.live_match} />}
                   </div>
                 </td>
                 <td style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.played}</td>
@@ -317,6 +340,7 @@ function BestThirdSection({ groups }: { groups: GroupData[] }) {
                     }}>
                       {groupLetter(row.group)}
                     </span>
+                    {row.live_match && <LiveBadge live_match={row.live_match} />}
                   </div>
                 </td>
                 <td style={{ padding: '9px 4px', textAlign: 'center', color: '#5a7090', fontVariantNumeric: 'tabular-nums' }}>{row.played}</td>
