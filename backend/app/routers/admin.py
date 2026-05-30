@@ -115,3 +115,19 @@ def sync_results(
         raise
     logger.info("Results synced", competition_code=competition_code, scored=result.get("scored"))
     return result
+
+
+@router.post("/sync/standings", status_code=status.HTTP_200_OK)
+def sync_standings(
+    competition_code: str = "WC",
+    db: Session = Depends(get_db),
+    admin=Depends(get_admin_user),
+) -> dict:
+    logger.info("Syncing standings from football-data.org", competition_code=competition_code)
+    try:
+        result = football_api.sync_standings(db, competition_code)
+    except HTTPException as exc:
+        logger.error("Failed to sync standings", competition_code=competition_code, detail=exc.detail)
+        raise
+    logger.info("Standings synced", competition_code=competition_code, synced=result.get("synced"))
+    return result

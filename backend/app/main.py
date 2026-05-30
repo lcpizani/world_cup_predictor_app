@@ -9,7 +9,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.limiter import limiter
 from app.logger import logger
-from app.routers import auth, tournaments, matches, predictions, admin, users
+from app.routers import auth, tournaments, matches, predictions, admin, users, standings
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.config import settings
 
@@ -64,3 +64,4 @@ app.include_router(matches.router, prefix="/matches", tags=["matches"])
 app.include_router(predictions.router, prefix="/predictions", tags=["predictions"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
 app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(standings.router, prefix="/standings", tags=["standings"])

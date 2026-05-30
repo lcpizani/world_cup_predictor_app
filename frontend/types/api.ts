@@ -123,3 +123,30 @@ export interface LiveLeaderboardResponse {
 }
 
 export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'suspended'
+
+export interface GroupStandingRow {
+  position: number
+  team_name: string
+  group: string
+  played: number
+  won: number
+  drawn: number
+  lost: number
+  goals_for: number
+  goals_against: number
+  goal_difference: number
+  points: number
+}
+
+export interface GroupData {
+  group: string
+  standings: GroupStandingRow[]
+}
+
+export interface BracketSlot {
+  slot_id: number
+  round: string
+  home_label: string
+  away_label: string
+  match: Match | null
+}

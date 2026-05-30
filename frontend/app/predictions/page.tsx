@@ -188,7 +188,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
       <input
         type="number" min={0} value={home}
         onChange={(e) => setHome(e.target.value)}
-        placeholder="0"
+        placeholder=""
         inputMode="numeric"
         aria-label={`${match.home_team} score`}
         className="w-12 sm:w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
@@ -200,7 +200,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
       <input
         type="number" min={0} value={away}
         onChange={(e) => setAway(e.target.value)}
-        placeholder="0"
+        placeholder=""
         inputMode="numeric"
         aria-label={`${match.away_team} score`}
         className="w-12 sm:w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
