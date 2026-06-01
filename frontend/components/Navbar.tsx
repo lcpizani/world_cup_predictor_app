@@ -79,6 +79,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
   }, [])
 
   const items = [
+    { title: t('auto_saves'), desc: t('auto_saves_desc') },
     { title: t('lock_window'), desc: t('lock_window_desc') },
     { title: t('change_prediction'), desc: t('change_prediction_desc') },
     { title: t('knockout_stages'), desc: t('knockout_stages_desc') },
@@ -99,11 +100,11 @@ function HelpModal({ onClose }: { onClose: () => void }) {
 
       {/* Panel */}
       <div
-        className="relative w-full max-w-md rounded-2xl border border-white/[0.09] shadow-2xl"
-        style={{ background: 'rgba(10,16,28,0.97)' }}
+        className="relative w-full max-w-md rounded-2xl border border-white/[0.09] shadow-2xl flex flex-col"
+        style={{ background: 'rgba(10,16,28,0.97)', maxHeight: 'calc(100dvh - 3rem)' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/[0.07]">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/[0.07] shrink-0">
           <h2 className="text-white font-bold text-base tracking-wide">
             {t('title')}
           </h2>
@@ -116,8 +117,8 @@ function HelpModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {/* Body */}
-        <div className="px-6 py-5 space-y-5">
+        {/* Body — scrollable */}
+        <div className="px-6 py-5 space-y-5 overflow-y-auto">
           {items.map((item) => (
             <div key={item.title}>
               <p className="text-[#f0b429] text-sm font-semibold mb-1">{item.title}</p>
@@ -127,7 +128,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 pb-5">
+        <div className="px-6 pb-5 pt-2 shrink-0 border-t border-white/[0.07]">
           <button
             onClick={onClose}
             className="w-full py-2.5 rounded-xl text-sm font-semibold text-[#6b7f96] border border-white/[0.08] hover:bg-white/[0.05] hover:text-white transition-colors"

@@ -8,6 +8,16 @@ function dfLocale(locale?: string | null): Locale {
   return locale === 'pt' ? ptBR : enUS
 }
 
+// date-fns ptBR outputs "seg.", "sáb." etc. — replace with the short uppercase forms
+const PT_DAY_MAP: Record<string, string> = {
+  'seg.': 'SEG', 'ter.': 'TER', 'qua.': 'QUA',
+  'qui.': 'QUI', 'sex.': 'SEX', 'sáb.': 'SAB', 'dom.': 'DOM',
+}
+
+function applyPtDayAbbr(s: string): string {
+  return s.replace(/seg\.|ter\.|qua\.|qui\.|sex\.|sáb\.|dom\./gi, m => PT_DAY_MAP[m.toLowerCase()] ?? m)
+}
+
 export function formatInUserTz(
   date: string | Date,
   formatStr: string,
@@ -28,9 +38,11 @@ export function formatMatchTime(date: string | Date, timezone?: string | null, l
 }
 
 export function formatMatchDateTime(date: string | Date, timezone?: string | null, locale?: string | null): string {
-  return formatInUserTz(date, 'EEE, MMM d · h:mm a', timezone, locale)
+  const s = formatInUserTz(date, 'EEE, MMM d · h:mm a', timezone, locale)
+  return locale === 'pt' ? applyPtDayAbbr(s) : s
 }
 
 export function formatShortDateTime(date: string | Date, timezone?: string | null, locale?: string | null): string {
-  return formatInUserTz(date, 'EEE MMM d, h:mm aa', timezone, locale)
+  const s = formatInUserTz(date, 'EEE MMM d, h:mm aa', timezone, locale)
+  return locale === 'pt' ? applyPtDayAbbr(s) : s
 }

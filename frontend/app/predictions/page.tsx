@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -68,13 +68,19 @@ function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string;
   )
 }
 
+function isValidScore(v: string): boolean {
+  if (v === '') return false
+  const n = Number(v)
+  return Number.isInteger(n) && n >= 0
+}
+
 function PredictionRow({ match, prediction, timezone }: { match: Match; prediction?: Prediction; timezone?: string | null }) {
   const t = useTranslations('predictions')
   const locale = useLocale()
   const qc = useQueryClient()
   const [home, setHome] = useState(prediction?.predicted_home?.toString() ?? '')
   const [away, setAway] = useState(prediction?.predicted_away?.toString() ?? '')
-  const [err, setErr] = useState('')
+  const [showSaved, setShowSaved] = useState(false)
 
   const isLocked = !!prediction?.is_locked || match.status !== 'scheduled'
 
@@ -85,9 +91,28 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
       if (prediction) return api.updatePrediction(prediction.id, { predicted_home: h, predicted_away: a })
       return api.submitPrediction({ match_id: match.id, predicted_home: h, predicted_away: a })
     },
-    onSuccess: () => { setErr(''); qc.invalidateQueries({ queryKey: ['predictions-global'] }) },
-    onError: (e: Error) => setErr(e.message),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['predictions-global'] }) },
   })
+
+  // Debounced auto-save: fires 700 ms after last change if both scores are valid
+  useEffect(() => {
+    if (isLocked) return
+    const timer = setTimeout(() => {
+      if (isValidScore(home) && isValidScore(away)) {
+        save.mutate()
+      }
+    }, 700)
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [home, away])
+
+  // Show "✓ Saved" flash for 2 s after a successful save
+  useEffect(() => {
+    if (!save.isSuccess) return
+    setShowSaved(true)
+    const timer = setTimeout(() => setShowSaved(false), 2000)
+    return () => clearTimeout(timer)
+  }, [save.isSuccess])
 
   // ── Finished or live-with-scores match ───────────────────────────────────
   if (match.status === 'finished' || (match.status === 'live' && match.home_score !== null)) {
@@ -184,34 +209,6 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
   }
 
   // ── Upcoming / live ───────────────────────────────────────────────────────
-  const scoreInputs = (
-    <>
-      <input
-        type="number" min={0} value={home}
-        onChange={(e) => setHome(e.target.value)}
-        placeholder=""
-        inputMode="numeric"
-        aria-label={`${match.home_team} score`}
-        className="w-12 sm:w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
-        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
-        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
-        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
-      />
-      <span className="text-[#4a6080] font-bold text-sm">–</span>
-      <input
-        type="number" min={0} value={away}
-        onChange={(e) => setAway(e.target.value)}
-        placeholder=""
-        inputMode="numeric"
-        aria-label={`${match.away_team} score`}
-        className="w-12 sm:w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
-        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
-        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
-        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
-      />
-    </>
-  )
-
   return (
     <div className="rounded-2xl p-3 sm:p-4 transition-all duration-200" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
@@ -234,37 +231,40 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
           </span>
           <TeamFlag name={match.home_team} />
         </div>
-        <div className="hidden sm:flex items-center gap-1.5 shrink-0 w-28 justify-center">
+        <div className="flex items-center gap-1.5 shrink-0 justify-center w-24 sm:w-28">
           {isLocked ? (
             prediction ? (
-              <span className="font-[family-name:var(--font-oswald)] font-bold text-lg text-white">
+              <span className="font-[family-name:var(--font-oswald)] font-bold text-lg text-white tabular-nums">
                 {prediction.predicted_home} – {prediction.predicted_away}
               </span>
             ) : (
               <span className="text-xs text-[#1e2d40]">{t('locked')}</span>
             )
-          ) : scoreInputs}
-        </div>
-        <div className="sm:hidden shrink-0 flex items-center gap-1">
-          {isLocked ? (
-            prediction ? (
-              <span className="font-[family-name:var(--font-oswald)] font-bold text-base text-white tabular-nums">
-                {prediction.predicted_home}–{prediction.predicted_away}
-              </span>
-            ) : (
-              <span className="text-[10px] text-[#1e2d40] font-bold tracking-widest uppercase">{t('locked')}</span>
-            )
           ) : (
             <>
-              <div className="flex items-center gap-1">{scoreInputs}</div>
-              <button
-                onClick={() => save.mutate()}
-                disabled={save.isPending}
-                className="ml-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-200 disabled:opacity-40"
-                style={{ background: '#f0b429', color: '#080c14' }}
-              >
-                {save.isPending ? '…' : '✓'}
-              </button>
+              <input
+                type="number" min={0} value={home}
+                onChange={(e) => setHome(e.target.value)}
+                placeholder=""
+                inputMode="numeric"
+                aria-label={`${match.home_team} score`}
+                className="w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
+              />
+              <span className="text-[#4a6080] font-bold text-sm">–</span>
+              <input
+                type="number" min={0} value={away}
+                onChange={(e) => setAway(e.target.value)}
+                placeholder=""
+                inputMode="numeric"
+                aria-label={`${match.away_team} score`}
+                className="w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
+              />
             </>
           )}
         </div>
@@ -274,23 +274,25 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
             <span className="sm:hidden">{getTeamAbbr(match.away_team)}</span><span className="hidden sm:inline">{translateTeamName(match.away_team, locale)}</span>
           </span>
         </div>
-        {!isLocked && (
-          <div className="shrink-0 hidden sm:block">
-            <button
-              onClick={() => save.mutate()}
-              disabled={save.isPending}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 disabled:opacity-40"
-              style={{ background: '#f0b429', color: '#080c14' }}
-              onMouseEnter={e => !save.isPending && ((e.currentTarget as HTMLElement).style.background = '#fcd86e')}
-              onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#f0b429')}
-            >
-              {save.isPending ? '…' : prediction ? t('update') : t('save')}
-            </button>
-          </div>
-        )}
+        {/* Save-status indicator — fixed-width slot on the far right */}
+        <div className="w-5 shrink-0 flex items-center justify-center">
+          {!isLocked && save.isPending && (
+            <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color: '#5a6a82' }}>
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+          )}
+          {!isLocked && !save.isPending && showSaved && (
+            <span className="text-green-400 text-xs font-bold">✓</span>
+          )}
+          {!isLocked && !save.isPending && save.isError && !showSaved && (
+            <span className="text-red-400 text-xs font-bold">!</span>
+          )}
+        </div>
       </div>
-      {err && <p className="text-xs text-red-400 mt-2">{err}</p>}
-      {save.isSuccess && <p className="text-xs text-green-400 mt-2 font-medium">{t('saved')}</p>}
+      {save.isError && (
+        <p className="text-xs text-red-400 mt-2">{(save.error as Error)?.message ?? 'Error saving'}</p>
+      )}
     </div>
   )
 }
@@ -631,6 +633,7 @@ export default function PredictionsPage() {
               {t('title')}
             </h1>
             <p className="text-[#3f5068] text-sm mt-1.5 font-medium">{t('subtitle')}</p>
+            <p className="text-[#3f5068] text-xs mt-1">{t('auto_save_notice')}</p>
           </div>
           <button
             onClick={handleRefresh}
