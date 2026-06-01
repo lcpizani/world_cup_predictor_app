@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import { setLocaleCookie, type SupportedLocale } from '@/lib/locale'
 
@@ -46,6 +47,7 @@ function AuthInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 function LoginForm() {
+  const t = useTranslations('auth')
   const router = useRouter()
   const searchParams = useSearchParams()
   const next = safeNext(searchParams.get('next'))
@@ -73,7 +75,7 @@ function LoginForm() {
     setLoading(false)
 
     if (!res.ok) {
-      setError((data as { error?: string }).error ?? 'Login failed')
+      setError((data as { error?: string }).error ?? t('login_failed'))
       return
     }
     const me = await api.getMe().catch(() => null)
@@ -102,9 +104,9 @@ function LoginForm() {
             </span>
           </div>
           <h1 className="font-[family-name:var(--font-oswald)] text-[2rem] font-bold uppercase tracking-wider text-white leading-none">
-            Welcome Back
+            {t('login_title')}
           </h1>
-          <p className="text-[#3f5068] text-sm mt-2 font-medium">Log in to your league</p>
+          <p className="text-[#3f5068] text-sm mt-2 font-medium">{t('login_subtitle')}</p>
         </div>
 
         {/* Card */}
@@ -121,23 +123,23 @@ function LoginForm() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <FieldLabel>Email</FieldLabel>
+              <FieldLabel>{t('email')}</FieldLabel>
               <AuthInput
                 name="email"
                 type="email"
                 required
                 autoComplete="email"
-                placeholder="you@example.com"
+                placeholder={t('email_placeholder')}
               />
             </div>
             <div>
-              <FieldLabel>Password</FieldLabel>
+              <FieldLabel>{t('password')}</FieldLabel>
               <AuthInput
                 name="password"
                 type="password"
                 required
                 autoComplete="current-password"
-                placeholder="••••••••"
+                placeholder={t('password_placeholder')}
               />
             </div>
 
@@ -155,18 +157,18 @@ function LoginForm() {
               onMouseEnter={e => !loading && ((e.currentTarget as HTMLElement).style.background = '#fcd86e')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#f0b429')}
             >
-              {loading ? 'Logging in…' : 'Log In'}
+              {loading ? t('login_button_loading') : t('login_button')}
             </button>
           </form>
         </div>
 
         <p className="text-sm text-center mt-6" style={{ color: '#3f5068' }}>
-          No account?{' '}
+          {t('no_account')}{' '}
           <Link
             href={registerHref}
             className="text-[#f0b429] hover:text-white transition-colors font-medium"
           >
-            Register free
+            {t('register_free')}
           </Link>
         </p>
       </div>

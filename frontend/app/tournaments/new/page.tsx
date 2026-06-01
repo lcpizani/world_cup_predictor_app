@@ -6,13 +6,14 @@ import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 import { useOnboardingGuard } from '@/lib/hooks'
 
-const RULE_LABELS: Record<string, { label: string; icon: string }> = {
-  correct_result_pts:          { label: 'Exact score',             icon: '🎯' },
-  correct_winner_pts:          { label: 'Correct winner / draw',   icon: '🏆' },
-  correct_goal_diff_pts:       { label: 'Correct goal difference', icon: '⚖️' },
-  correct_goals_one_team_pts:  { label: "One team's score right",  icon: '⚽' },
+const RULE_META: Record<string, { key: string; icon: string }> = {
+  correct_result_pts:          { key: 'exact_score',       icon: '🎯' },
+  correct_winner_pts:          { key: 'correct_winner',    icon: '🏆' },
+  correct_goal_diff_pts:       { key: 'correct_goal_diff', icon: '⚖️' },
+  correct_goals_one_team_pts:  { key: 'one_team_score',    icon: '⚽' },
 }
 
 const DEFAULT_RULES = {
@@ -23,6 +24,7 @@ const DEFAULT_RULES = {
 }
 
 export default function NewTournamentPage() {
+  const t = useTranslations('newLeague')
   const router = useRouter()
   const qc = useQueryClient()
   const { data: me, isLoading: meLoading } = useQuery({ queryKey: ['me'], queryFn: api.getMe })
@@ -45,7 +47,7 @@ export default function NewTournamentPage() {
       await qc.invalidateQueries({ queryKey: ['tournaments'] })
       router.push('/leagues')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create tournament')
+      setError(err instanceof Error ? err.message : t('failed'))
       setLoading(false)
     }
   }
@@ -58,15 +60,15 @@ export default function NewTournamentPage() {
         href="/leagues"
         className="inline-flex items-center gap-2 text-[#64748b] hover:text-white text-sm mb-8 transition-colors"
       >
-        ← Back to leagues
+        {t('back')}
       </Link>
 
       {/* Title */}
       <div className="mb-8">
         <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white">
-          New League
+          {t('title')}
         </h1>
-        <p className="text-[#64748b] text-sm mt-1">Set your name and scoring rules</p>
+        <p className="text-[#64748b] text-sm mt-1">{t('subtitle')}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -74,12 +76,12 @@ export default function NewTournamentPage() {
         {/* League name */}
         <div className="bg-[#0f1620] border border-white/10 rounded-2xl p-5">
           <label className="block text-xs font-bold uppercase tracking-widest text-[#64748b] mb-3">
-            League Name
+            {t('league_name')}
           </label>
           <input
             name="name"
             required
-            placeholder="e.g. Office World Cup 2026"
+            placeholder={t('name_placeholder')}
             className="w-full bg-[#080c14] border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-[#334155] focus:outline-none focus:border-[#f0b429]/50 focus:ring-1 focus:ring-[#f0b429]/30 transition"
           />
         </div>
@@ -87,14 +89,14 @@ export default function NewTournamentPage() {
         {/* Scoring rules */}
         <div className="bg-[#0f1620] border border-white/10 rounded-2xl p-5">
           <p className="text-xs font-bold uppercase tracking-widest text-[#64748b] mb-4">
-            Scoring Rules (pts)
+            {t('scoring_rules')}
           </p>
           <div className="space-y-3">
-            {(Object.keys(RULE_LABELS) as Array<keyof typeof rules>).map((key) => (
+            {(Object.keys(RULE_META) as Array<keyof typeof rules>).map((key) => (
               <div key={key} className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2.5 flex-1">
-                  <span className="text-base">{RULE_LABELS[key].icon}</span>
-                  <span className="text-sm text-[#94a3b8]">{RULE_LABELS[key].label}</span>
+                  <span className="text-base">{RULE_META[key].icon}</span>
+                  <span className="text-sm text-[#94a3b8]">{t(RULE_META[key].key)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -131,7 +133,7 @@ export default function NewTournamentPage() {
           disabled={loading}
           className="w-full bg-[#f0b429] text-[#080c14] py-3 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-white disabled:opacity-50 transition-all"
         >
-          {loading ? 'Creating league…' : '🏆 Create League'}
+          {loading ? t('creating') : t('create')}
         </button>
       </form>
     </div>

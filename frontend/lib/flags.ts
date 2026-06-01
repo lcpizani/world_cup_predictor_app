@@ -240,6 +240,44 @@ export function translateTeamName(name: string, locale: string): string {
   return TEAM_NAMES_PT[name] ?? name
 }
 
+/**
+ * Translates a stored group name (backend format "Group A") to the active locale.
+ * Falls back to the original string if it doesn't match the expected pattern.
+ */
+export function translateGroupName(group: string, locale: string): string {
+  if (locale !== 'pt' || !group) return group
+  const m = group.match(/^Group (.+)$/)
+  return m ? `Grupo ${m[1]}` : group
+}
+
+/**
+ * Translates backend-supplied bracket placeholder labels (e.g. "1st Group A",
+ * "Winner M73", "Best 3rd (C/D/E/F)") to the active locale. Falls back to the
+ * original string for any label that doesn't match a known pattern.
+ */
+export function translateBracketLabel(label: string, locale: string): string {
+  if (locale !== 'pt' || !label) return label
+
+  let m: RegExpMatchArray | null
+
+  m = label.match(/^1st Group (.+)$/)
+  if (m) return `1º Grupo ${m[1]}`
+
+  m = label.match(/^2nd Group (.+)$/)
+  if (m) return `2º Grupo ${m[1]}`
+
+  m = label.match(/^Best 3rd \((.+)\)$/)
+  if (m) return `Melhor 3º (${m[1]})`
+
+  m = label.match(/^Winner (M\d+)$/)
+  if (m) return `Vencedor ${m[1]}`
+
+  m = label.match(/^Loser (M\d+)$/)
+  if (m) return `Perdedor ${m[1]}`
+
+  return label
+}
+
 export function getTeamAbbr(teamName: string): string {
   if (!teamName) return '???'
   if (TEAM_ABBR[teamName]) return TEAM_ABBR[teamName]

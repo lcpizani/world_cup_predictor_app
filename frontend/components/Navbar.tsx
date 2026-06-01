@@ -145,6 +145,7 @@ export function Navbar() {
   const pathname = usePathname()
   const qc = useQueryClient()
   const t = useTranslations('nav')
+  const tHelp = useTranslations('help')
 
   const hasToken = useSyncExternalStore(subscribeNoop, getAuthSnapshot, getAuthServerSnapshot)
   const [open, setOpen] = useState(false)
@@ -353,7 +354,7 @@ export function Navbar() {
                   className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-[15px] font-semibold text-[#7a8fa8] hover:text-white hover:bg-white/[0.04] border border-transparent transition-colors"
                 >
                   <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold border border-white/[0.15] text-[#4a5c70] shrink-0">?</span>
-                  <span>How It Works</span>
+                  <span>{tHelp('title')}</span>
                 </button>
 
                 <div className="h-px bg-white/[0.06] my-3" />

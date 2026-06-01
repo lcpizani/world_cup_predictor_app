@@ -90,6 +90,7 @@ function AccuracyRing({ pct, exactPct }: { pct: number; exactPct: number }) {
 // ── Form Strip ────────────────────────────────────────────────────────────────
 
 function FormStrip({ predictions, matches }: { predictions: Prediction[]; matches: Match[] }) {
+  const t = useTranslations('dashboard')
   const finishedById = new Map(
     matches.filter(m => m.status === 'finished').map(m => [m.id, m])
   )
@@ -112,7 +113,7 @@ function FormStrip({ predictions, matches }: { predictions: Prediction[]; matche
 
   return (
     <div className="flex items-center gap-1.5 mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-      <span className="text-[10px] text-[#5a7090] font-medium uppercase tracking-widest mr-1">Form</span>
+      <span className="text-[10px] text-[#5a7090] font-medium uppercase tracking-widest mr-1">{t('form_label')}</span>
       {displayed.map((p, i) => {
         const m = finishedById.get(p.match_id)!
         const exact = p.predicted_home === m.home_score && p.predicted_away === m.away_score
@@ -409,11 +410,11 @@ function MatchRailCard({ match, prediction, timezone }: { match: Match; predicti
       </span>
     </span>
   ) : isFinished ? (
-    <span className="text-[0.65rem] font-bold uppercase tracking-wider" style={{ color: '#4a6080' }}>FT</span>
+    <span className="text-[0.65rem] font-bold uppercase tracking-wider" style={{ color: '#4a6080' }}>{t('ft')}</span>
   ) : (
     // upcoming — time only; countdown moves to bottom zone
     <span className="text-[0.65rem] font-bold" style={{ color: '#5a8fbe' }}>
-      {formatMatchTime(match.kickoff_at, timezone)}
+      {formatMatchTime(match.kickoff_at, timezone, locale)}
     </span>
   )
 
@@ -449,7 +450,7 @@ function MatchRailCard({ match, prediction, timezone }: { match: Match; predicti
       {/* Header strip */}
       <div className="px-3.5 py-2.5 flex items-center justify-between" style={headerStyle}>
         <span className="text-[0.65rem] font-bold uppercase tracking-[0.15em]" style={{ color: headerDateColor }}>
-          {formatMatchDate(match.kickoff_at, timezone)}
+          {formatMatchDate(match.kickoff_at, timezone, locale)}
         </span>
         {statusEl}
       </div>

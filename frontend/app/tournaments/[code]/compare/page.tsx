@@ -37,6 +37,7 @@ function TeamFlag({ name }: { name: string }) {
 
 function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string; kickoff_at: string; timezone?: string | null; minute?: number | null }) {
   const t = useTranslations('compare')
+  const locale = useLocale()
   if (status === 'live') return (
     <span className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
@@ -48,7 +49,7 @@ function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string;
       {t('ft')}
     </span>
   )
-  const label = formatMatchDateTime(kickoff_at, timezone)
+  const label = formatMatchDateTime(kickoff_at, timezone, locale)
   return (
     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full tracking-wider text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)' }}>
       {label}

@@ -164,11 +164,11 @@ export default async function LandingPage() {
                 }}
               >
                 <span className="text-[#3a2200] text-[0.7rem] font-bold uppercase tracking-[0.2em]">
-                  {HERO_MATCH.stage}
+                  {t('hero_card_stage')}
                 </span>
                 <span className="flex items-center gap-1.5 text-[#3a2200] text-[0.7rem] font-bold uppercase tracking-wider">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-700 animate-pulse-live" />
-                  Live {HERO_MATCH.minute}
+                  {t('hero_card_live')} {HERO_MATCH.minute}
                 </span>
               </div>
 

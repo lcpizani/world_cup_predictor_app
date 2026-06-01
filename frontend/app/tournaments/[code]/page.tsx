@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import Image from 'next/image'
 import { api } from '@/lib/api'
-import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
+import { getTeamFlagCode, getFlagUrl, translateTeamName, getTeamAbbr } from '@/lib/flags'
 import { formatMatchDateTime } from '@/lib/date'
 import type { Match, Prediction, ScoringRules } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
@@ -49,6 +49,7 @@ function TeamFlag({ name }: { name: string }) {
 
 function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string; kickoff_at: string; timezone?: string | null; minute?: number | null }) {
   const t = useTranslations('tournament')
+  const locale = useLocale()
   if (status === 'live') return (
     <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
@@ -60,7 +61,7 @@ function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string;
       {t('ft')}
     </span>
   )
-  const label = formatMatchDateTime(kickoff_at, timezone)
+  const label = formatMatchDateTime(kickoff_at, timezone, locale)
   return (
     <span className="text-[10px] font-bold px-2.5 py-1 rounded-full tracking-wider text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)' }}>
       {label}
@@ -134,8 +135,9 @@ function MatchCard({ match, prediction, timezone, scoring }: { match: Match; pre
       {/* Teams + scores */}
       <div className="flex items-center gap-1.5 sm:gap-2">
         <div className="flex-1 flex items-center justify-end gap-2 sm:gap-2.5 min-w-0">
-          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-sm sm:text-base">
-            {homeTeam}
+          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right text-sm sm:text-base">
+            <span className="sm:hidden">{getTeamAbbr(match.home_team)}</span>
+            <span className="hidden sm:inline">{homeTeam}</span>
           </span>
           <TeamFlag name={match.home_team} />
         </div>
@@ -185,8 +187,9 @@ function MatchCard({ match, prediction, timezone, scoring }: { match: Match; pre
 
         <div className="flex-1 flex items-center gap-2 sm:gap-2.5 min-w-0">
           <TeamFlag name={match.away_team} />
-          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-sm sm:text-base">
-            {awayTeam}
+          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-sm sm:text-base">
+            <span className="sm:hidden">{getTeamAbbr(match.away_team)}</span>
+            <span className="hidden sm:inline">{awayTeam}</span>
           </span>
         </div>
       </div>

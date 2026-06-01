@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations, useLocale } from 'next-intl'
 import { api } from '@/lib/api'
 import { useOnboardingGuard } from '@/lib/hooks'
-import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
+import { getTeamFlagCode, getFlagUrl, translateTeamName, translateBracketLabel } from '@/lib/flags'
 import type { GroupData, GroupStandingRow, BracketSlot, LiveMatchBadge } from '@/types/api'
 import { formatMatchDate, formatMatchTime } from '@/lib/date'
 
@@ -115,6 +115,7 @@ function TableHead({ t }: { t: (k: string) => string }) {
 // ── GroupCardHeader ───────────────────────────────────────────────────────────
 
 function GroupCardHeader({ letter }: { letter: string }) {
+  const t = useTranslations('standings')
   return (
     <div
       className="px-4 py-3 flex items-center"
@@ -128,7 +129,7 @@ function GroupCardHeader({ letter }: { letter: string }) {
         fontFamily: 'var(--font-oswald)', fontSize: 15, fontWeight: 700,
         textTransform: 'uppercase', letterSpacing: '0.18em', color: '#ffffff',
       }}>
-        Group {letter}
+        {t('group_label', { letter })}
       </span>
     </div>
   )
@@ -230,10 +231,11 @@ function GroupTable({ group }: { group: GroupData }) {
 // ── QualificationLegend ───────────────────────────────────────────────────────
 
 function QualificationLegend() {
+  const t = useTranslations('standings')
   const items = [
-    { color: 'rgba(34,197,94,0.65)',   label: 'Top 2 — advances' },
-    { color: 'rgba(240,180,41,0.65)',  label: 'Best 8 third-place — advances' },
-    { color: 'rgba(255,255,255,0.12)', label: 'Eliminated' },
+    { color: 'rgba(34,197,94,0.65)',   label: t('legend_advances') },
+    { color: 'rgba(240,180,41,0.65)',  label: t('legend_best_third') },
+    { color: 'rgba(255,255,255,0.12)', label: t('legend_eliminated') },
   ]
   return (
     <div
@@ -397,15 +399,6 @@ const R32_GAP = 4    // px — gap between adjacent cards in the R32 column
 
 const MAIN_ROUNDS = ['round_of_32', 'round_of_16', 'quarter_finals', 'semi_finals', 'final'] as const
 
-const ROUND_LABELS: Record<string, string> = {
-  round_of_32:    'Round of 32',
-  round_of_16:    'Round of 16',
-  quarter_finals: 'Quarter-Finals',
-  semi_finals:    'Semi-Finals',
-  third_place:    '3rd Place',
-  final:          'Final',
-}
-
 const BRACKET_LAYOUTS: Record<string, { gap: number; paddingTop: number }> = (() => {
   const out: Record<string, { gap: number; paddingTop: number }> = {}
   let gap = R32_GAP
@@ -428,6 +421,7 @@ const TOTAL_W   = MAIN_ROUNDS.length * COL_W + (MAIN_ROUNDS.length - 1) * COL_GA
 
 function BracketSlotCard({ slot }: { slot: BracketSlot }) {
   const locale     = useLocale()
+  const t          = useTranslations('standings')
   const match      = slot.match
   const isLive     = match?.status === 'live'
   const isFinished = match?.status === 'finished'
@@ -452,7 +446,7 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
           color: hasBoth ? (winner ? '#e2ecff' : '#6a7f9a') : '#3d5070',
           opacity: hasBoth ? 1 : 0.55,
         }}>
-          {hasBoth ? translateTeamName(name, locale) : name}
+          {hasBoth ? translateTeamName(name, locale) : translateBracketLabel(name, locale)}
         </span>
         {(isFinished || isLive) && score != null && (
           <span style={{
@@ -487,7 +481,7 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
         borderBottom: '1px solid rgba(255,255,255,.05)',
       }}>
         <span style={{ fontSize: 9, color: '#3a5070', textTransform: 'uppercase', letterSpacing: '.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {match ? formatMatchDate(match.kickoff_at, null) : ''}
+          {match ? formatMatchDate(match.kickoff_at, null, locale) : ''}
         </span>
         <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
           {isLive && (
@@ -498,8 +492,8 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
               </span>
             </>
           )}
-          {isFinished && <span style={{ fontSize: 9, fontWeight: 700, color: '#3a5070' }}>FT</span>}
-          {match && !isLive && !isFinished && <span style={{ fontSize: 9, color: '#2a4060' }}>{formatMatchTime(match.kickoff_at, null)}</span>}
+          {isFinished && <span style={{ fontSize: 9, fontWeight: 700, color: '#3a5070' }}>{t('ft')}</span>}
+          {match && !isLive && !isFinished && <span style={{ fontSize: 9, color: '#2a4060' }}>{formatMatchTime(match.kickoff_at, null, locale)}</span>}
         </span>
       </div>
 
@@ -608,7 +602,7 @@ function BracketView({ slots }: { slots: BracketSlot[] }) {
                 fontFamily: 'var(--font-oswald)', fontSize: 10.5, fontWeight: 700,
                 textTransform: 'uppercase', letterSpacing: '0.12em', color: '#4a6080',
               }}>
-                {ROUND_LABELS[round] ?? round}
+                {t(`rounds.${round}`)}
               </span>
             </div>
           ))}
@@ -645,7 +639,7 @@ function BracketView({ slots }: { slots: BracketSlot[] }) {
             fontFamily: 'var(--font-oswald)', fontSize: 10.5, fontWeight: 700,
             textTransform: 'uppercase', letterSpacing: '0.12em', color: '#4a6080',
           }}>
-            {ROUND_LABELS['third_place']}
+            {t('rounds.third_place')}
           </span>
           <div style={{ width: COL_W }}>
             {thirdPlace.map(slot => <BracketSlotCard key={slot.slot_id} slot={slot} />)}
