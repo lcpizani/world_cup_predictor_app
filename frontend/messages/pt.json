@@ -341,5 +341,17 @@
     "language_pt": "Português",
     "brazil_timezones": "Brasil",
     "other_timezones": "Outros Fusos Horários"
+  },
+  "help": {
+    "title": "Como Funciona",
+    "lock_window": "Os palpites travam 30 minutos antes do início",
+    "lock_window_desc": "Depois de travado, seu palpite é definitivo para aquela partida. Não esqueça de enviar antes do prazo.",
+    "change_prediction": "Você pode alterar seu palpite a qualquer momento antes do travamento",
+    "change_prediction_desc": "Acesse Meus Palpites e edite o placar previsto até 30 minutos antes do início da partida.",
+    "knockout_stages": "As partidas eliminatórias são definidas conforme o torneio avança",
+    "knockout_stages_desc": "Os times das oitavas, quartas, semis e final são determinados após a fase de grupos — você poderá palpitar quando as equipes forem confirmadas.",
+    "live_results": "Os placares ao vivo atualizam em tempo quase real",
+    "live_results_desc": "O placar geral atualiza a cada 20 segundos e a comparação de palpites atualiza a cada 30 segundos durante as partidas.",
+    "close": "Fechar"
   }
 }

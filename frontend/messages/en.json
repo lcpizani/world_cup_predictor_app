@@ -341,5 +341,17 @@
     "language_pt": "Português",
     "brazil_timezones": "Brazil",
     "other_timezones": "Other Timezones"
+  },
+  "help": {
+    "title": "How It Works",
+    "lock_window": "Predictions lock 30 minutes before kickoff",
+    "lock_window_desc": "Once locked, your pick is final for that match. Make sure you've submitted before the deadline.",
+    "change_prediction": "You can update your pick anytime before the lock",
+    "change_prediction_desc": "Head to My Picks and edit your predicted score up until 30 minutes before kickoff.",
+    "knockout_stages": "Knockout matches fill in as the tournament progresses",
+    "knockout_stages_desc": "Round of 16, Quarterfinals, Semis, and Final teams are determined after the group stage concludes — you'll be able to predict them then.",
+    "live_results": "Live scores update in near real-time",
+    "live_results_desc": "The leaderboard refreshes every 20 seconds, and the compare view refreshes every 30 seconds during live matches.",
+    "close": "Close"
   }
 }

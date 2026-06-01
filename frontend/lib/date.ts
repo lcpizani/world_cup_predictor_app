@@ -17,13 +17,13 @@ export function formatMatchDate(date: string | Date, timezone?: string | null): 
 }
 
 export function formatMatchTime(date: string | Date, timezone?: string | null): string {
-  return formatInUserTz(date, 'h:mm a zzz', timezone)
+  return formatInUserTz(date, 'h:mm a', timezone)
 }
 
 export function formatMatchDateTime(date: string | Date, timezone?: string | null): string {
-  return formatInUserTz(date, 'EEE, MMM d · h:mm a zzz', timezone)
+  return formatInUserTz(date, 'EEE, MMM d · h:mm a', timezone)
 }
 
 export function formatShortDateTime(date: string | Date, timezone?: string | null): string {
-  return formatInUserTz(date, 'EEE MMM d, h:mm aa zzz', timezone)
+  return formatInUserTz(date, 'EEE MMM d, h:mm aa', timezone)
 }
