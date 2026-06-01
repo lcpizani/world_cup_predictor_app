@@ -217,7 +217,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-[10px] font-mono tracking-widest uppercase truncate" style={{ color: '#3f5068' }}>
-            {match.stage.replace(/_/g, ' ')}
+            {STAGE_ORDER.includes(match.stage) ? t(`stage_${match.stage}`) : match.stage.replace(/_/g, ' ')}
           </span>
           {match.group && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0" style={{ color: '#5a6a82', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
