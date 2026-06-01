@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Cookies from 'js-cookie'
+import { useTranslations } from 'next-intl'
 import { decodeInviteCode } from '@/lib/invite'
 
 function safeNext(next: string | null): string {
@@ -46,6 +47,7 @@ function AuthInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 function InviteWall() {
+  const t = useTranslations('auth')
   return (
     <div className="relative flex items-center justify-center min-h-[88vh] px-4 overflow-hidden">
       <div
@@ -72,17 +74,17 @@ function InviteWall() {
           <div className="h-px w-full mb-6 rounded-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(240,180,41,0.6), transparent)' }} />
           <div className="text-4xl mb-4">🔒</div>
           <h1 className="font-[family-name:var(--font-oswald)] text-2xl font-bold uppercase tracking-wider text-white mb-2">
-            Invite Only
+            {t('invite_only_title')}
           </h1>
           <p className="text-sm mb-6" style={{ color: '#5a6a82' }}>
-            This app is invite-only. Ask a friend to share their league invite link to join.
+            {t('invite_only_desc')}
           </p>
           <Link
             href="/auth/login"
             className="inline-block py-3 px-6 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-200"
             style={{ background: '#f0b429', color: '#080c14' }}
           >
-            Log in instead
+            {t('log_in_instead')}
           </Link>
         </div>
       </div>
@@ -96,6 +98,7 @@ interface PlatformInviteLandingProps {
 }
 
 function PlatformInviteLanding({ loginHref, onCreateAccount }: PlatformInviteLandingProps) {
+  const t = useTranslations('auth')
   return (
     <div className="relative flex items-center justify-center min-h-[88vh] px-4 overflow-hidden">
       <div
@@ -114,14 +117,14 @@ function PlatformInviteLanding({ loginHref, onCreateAccount }: PlatformInviteLan
           </div>
           <div className="text-5xl mb-4">⚽</div>
           <h1 className="font-[family-name:var(--font-oswald)] text-[2rem] font-bold uppercase tracking-wider text-white leading-none">
-            You&apos;re Invited
+            {t('invite_landing_title')}
           </h1>
           <p className="text-[#64748b] text-sm mt-3 leading-relaxed">
-            You&apos;ve been invited to join the
+            {t('invite_landing_intro')}
             <br />
-            <span className="text-[#f0b429] font-bold">WC Football Predictions</span>
+            <span className="text-[#f0b429] font-bold">{t('invite_landing_brand')}</span>
             <br />
-            <span className="text-[#94a3b8]">predict matches with friends, climb the leaderboard.</span>
+            <span className="text-[#94a3b8]">{t('invite_landing_tagline')}</span>
           </p>
         </div>
 
@@ -143,7 +146,7 @@ function PlatformInviteLanding({ loginHref, onCreateAccount }: PlatformInviteLan
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = '#fcd86e')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#f0b429')}
             >
-              Create Account
+              {t('register_button')}
             </button>
             <Link
               href={loginHref}
@@ -156,7 +159,7 @@ function PlatformInviteLanding({ loginHref, onCreateAccount }: PlatformInviteLan
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = '#ffffff')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = '#94a3b8')}
             >
-              Sign In
+              {t('sign_in')}
             </Link>
           </div>
         </div>
@@ -166,6 +169,7 @@ function PlatformInviteLanding({ loginHref, onCreateAccount }: PlatformInviteLan
 }
 
 function RegisterForm() {
+  const t = useTranslations('auth')
   const router = useRouter()
   const searchParams = useSearchParams()
   const next = safeNext(searchParams.get('next'))
@@ -188,7 +192,7 @@ function RegisterForm() {
   if (redirecting) {
     return (
       <div className="flex items-center justify-center min-h-[88vh]">
-        <p className="text-[#64748b] text-sm animate-pulse">Signing you in…</p>
+        <p className="text-[#64748b] text-sm animate-pulse">{t('signing_in')}</p>
       </div>
     )
   }
@@ -226,7 +230,7 @@ function RegisterForm() {
     const regData = await regRes.json()
 
     if (!regRes.ok) {
-      setError((regData as { error?: string }).error ?? 'Registration failed')
+      setError((regData as { error?: string }).error ?? t('register_failed'))
       setLoading(false)
       return
     }
@@ -266,9 +270,9 @@ function RegisterForm() {
             </span>
           </div>
           <h1 className="font-[family-name:var(--font-oswald)] text-[2rem] font-bold uppercase tracking-wider text-white leading-none">
-            Join the League
+            {t('join_the_league')}
           </h1>
-          <p className="text-[#3f5068] text-sm mt-2 font-medium">Create your free account</p>
+          <p className="text-[#3f5068] text-sm mt-2 font-medium">{t('create_free_account')}</p>
         </div>
 
         {/* Card */}
@@ -285,34 +289,34 @@ function RegisterForm() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <FieldLabel>Email</FieldLabel>
+              <FieldLabel>{t('email')}</FieldLabel>
               <AuthInput
                 name="email"
                 type="email"
                 required
                 autoComplete="email"
-                placeholder="you@example.com"
+                placeholder={t('email_placeholder')}
               />
             </div>
             <div>
-              <FieldLabel>Username</FieldLabel>
+              <FieldLabel>{t('username')}</FieldLabel>
               <AuthInput
                 name="username"
                 type="text"
                 required
                 autoComplete="username"
-                placeholder="ronaldo10"
+                placeholder={t('username_placeholder')}
               />
             </div>
             <div>
-              <FieldLabel>Password</FieldLabel>
+              <FieldLabel>{t('password')}</FieldLabel>
               <AuthInput
                 name="password"
                 type="password"
                 required
                 minLength={8}
                 autoComplete="new-password"
-                placeholder="••••••••"
+                placeholder={t('password_placeholder')}
               />
             </div>
 
@@ -330,18 +334,18 @@ function RegisterForm() {
               onMouseEnter={e => !loading && ((e.currentTarget as HTMLElement).style.background = '#fcd86e')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#f0b429')}
             >
-              {loading ? 'Creating account…' : 'Create Account'}
+              {loading ? t('register_button_loading') : t('register_button')}
             </button>
           </form>
         </div>
 
         <p className="text-sm text-center mt-6" style={{ color: '#3f5068' }}>
-          Already have an account?{' '}
+          {t('already_have_account')}{' '}
           <Link
             href={next !== '/dashboard' ? `/auth/login?next=${encodeURIComponent(next)}` : '/auth/login'}
             className="text-[#f0b429] hover:text-white transition-colors font-medium"
           >
-            Log in
+            {t('log_in_link')}
           </Link>
         </p>
       </div>

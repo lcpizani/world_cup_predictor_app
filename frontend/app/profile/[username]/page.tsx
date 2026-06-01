@@ -43,7 +43,7 @@ function PredictionRow({ item, timezone }: { item: PredictionHistoryItem; timezo
     statusColor = pts > 0 ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.1)'
   }
 
-  const kickoff = formatMatchDate(item.kickoff_at, timezone)
+  const kickoff = formatMatchDate(item.kickoff_at, timezone, locale)
   const homeTeam = translateTeamName(item.home_team, locale)
   const awayTeam = translateTeamName(item.away_team, locale)
 

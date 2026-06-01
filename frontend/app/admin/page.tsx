@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import type { Match, Tournament } from '@/types/api'
 import { encodeInviteCode } from '@/lib/invite'
@@ -18,6 +19,7 @@ const STAGES = [
 // ── Reset all matches ────────────────────────────────────────────────────────
 
 function ResetMatchesButton() {
+  const t = useTranslations('admin')
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState(false)
   const [msg, setMsg] = useState('')
@@ -26,7 +28,7 @@ function ResetMatchesButton() {
     mutationFn: () => api.resetAllMatches(),
     onSuccess: () => {
       setConfirm(false)
-      setMsg('All matches, predictions and points have been reset.')
+      setMsg(t('reset_success'))
       qc.invalidateQueries({ queryKey: ['matches'] })
       qc.invalidateQueries({ queryKey: ['tournaments'] })
     },
@@ -36,30 +38,30 @@ function ResetMatchesButton() {
   return (
     <div>
       <p className="text-sm text-[#64748b] mb-4">
-        Deletes all matches, predictions and point events. Resets all leaderboard scores to zero.
+        {t('reset_desc')}
       </p>
       {!confirm ? (
         <button
           onClick={() => setConfirm(true)}
           className="bg-red-500/10 border border-red-500/20 text-red-400 px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-red-500/20 transition"
         >
-          Reset All Matches
+          {t('reset_button')}
         </button>
       ) : (
         <div className="flex items-center gap-3">
-          <span className="text-sm text-red-400 font-semibold">Are you sure? This cannot be undone.</span>
+          <span className="text-sm text-red-400 font-semibold">{t('reset_confirm')}</span>
           <button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending}
             className="bg-red-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-red-600 disabled:opacity-50 transition"
           >
-            {mutation.isPending ? 'Resetting…' : 'Yes, Reset'}
+            {mutation.isPending ? t('resetting') : t('yes_reset')}
           </button>
           <button
             onClick={() => setConfirm(false)}
             className="text-[#64748b] hover:text-white text-xs font-bold uppercase tracking-wide transition"
           >
-            Cancel
+            {t('cancel')}
           </button>
         </div>
       )}
@@ -71,6 +73,7 @@ function ResetMatchesButton() {
 // ── Create match form ────────────────────────────────────────────────────────
 
 function CreateMatchForm() {
+  const t = useTranslations('admin')
   const qc = useQueryClient()
   const [home, setHome] = useState('')
   const [away, setAway] = useState('')
@@ -101,7 +104,7 @@ function CreateMatchForm() {
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#64748b] mb-1.5">Home Team</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[#64748b] mb-1.5">{t('home_team')}</label>
           <input
             value={home}
             onChange={(e) => setHome(e.target.value)}
@@ -110,7 +113,7 @@ function CreateMatchForm() {
           />
         </div>
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#64748b] mb-1.5">Away Team</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[#64748b] mb-1.5">{t('away_team')}</label>
           <input
             value={away}
             onChange={(e) => setAway(e.target.value)}
@@ -121,7 +124,7 @@ function CreateMatchForm() {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#64748b] mb-1.5">Kickoff</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[#64748b] mb-1.5">{t('kickoff')}</label>
           <input
             type="datetime-local"
             value={kickoff}
@@ -130,7 +133,7 @@ function CreateMatchForm() {
           />
         </div>
         <div>
-          <label className="block text-xs font-bold uppercase tracking-widest text-[#64748b] mb-1.5">Stage</label>
+          <label className="block text-xs font-bold uppercase tracking-widest text-[#64748b] mb-1.5">{t('stage')}</label>
           <select
             value={stage}
             onChange={(e) => setStage(e.target.value)}
@@ -148,9 +151,9 @@ function CreateMatchForm() {
           disabled={mutation.isPending || !home || !away || !kickoff}
           className="bg-[#f0b429] text-[#080c14] px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-white disabled:opacity-40 transition"
         >
-          {mutation.isPending ? 'Creating…' : '+ Add Match'}
+          {mutation.isPending ? t('creating') : t('add_match')}
         </button>
-        {mutation.isSuccess && <span className="text-xs text-green-400">✓ Match created</span>}
+        {mutation.isSuccess && <span className="text-xs text-green-400">{t('match_created')}</span>}
         {err && <span className="text-xs text-red-400">{err}</span>}
       </div>
     </div>
@@ -176,6 +179,7 @@ function AdminCard({ title, icon, children }: { title: string; icon: string; chi
 // ── Apply result form ────────────────────────────────────────────────────────
 
 function ApplyResultForm({ match }: { match: Match }) {
+  const t = useTranslations('admin')
   const qc = useQueryClient()
   const [home, setHome] = useState('')
   const [away, setAway] = useState('')
@@ -186,7 +190,7 @@ function ApplyResultForm({ match }: { match: Match }) {
       const h = parseInt(home, 10)
       const a = parseInt(away, 10)
       if (Number.isNaN(h) || Number.isNaN(a) || h < 0 || a < 0) {
-        throw new Error('Scores must be non-negative integers')
+        throw new Error(t('scores_non_negative'))
       }
       return api.applyResult(match.id, h, a)
     },
@@ -198,7 +202,7 @@ function ApplyResultForm({ match }: { match: Match }) {
   })
 
   if (mutation.isSuccess) {
-    return <span className="text-sm text-green-400">✓ Result applied</span>
+    return <span className="text-sm text-green-400">{t('result_applied')}</span>
   }
 
   return (
@@ -221,7 +225,7 @@ function ApplyResultForm({ match }: { match: Match }) {
         disabled={mutation.isPending || home === '' || away === ''}
         className="bg-[#f0b429] text-[#080c14] px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-white disabled:opacity-40 transition"
       >
-        {mutation.isPending ? '…' : 'Apply'}
+        {mutation.isPending ? '…' : t('apply')}
       </button>
       {err && <span className="text-xs text-red-400">{err}</span>}
     </div>
@@ -231,6 +235,7 @@ function ApplyResultForm({ match }: { match: Match }) {
 // ── Recompute button ─────────────────────────────────────────────────────────
 
 function RecomputeButton({ tournamentId }: { tournamentId: string }) {
+  const t = useTranslations('admin')
   const [msg, setMsg] = useState('')
 
   const mutation = useMutation({
@@ -248,7 +253,7 @@ function RecomputeButton({ tournamentId }: { tournamentId: string }) {
         disabled={mutation.isPending}
         className="bg-white/5 border border-white/10 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-white/10 disabled:opacity-40 transition"
       >
-        {mutation.isPending ? 'Recomputing…' : 'Recompute'}
+        {mutation.isPending ? t('recomputing') : t('recompute')}
       </button>
     </div>
   )
@@ -257,6 +262,7 @@ function RecomputeButton({ tournamentId }: { tournamentId: string }) {
 // ── Registration invite card ─────────────────────────────────────────────────
 
 function RegistrationInviteCard() {
+  const t = useTranslations('admin')
   const [copied, setCopied] = useState(false)
   const { data } = useQuery({
     queryKey: ['registration-invite'],
@@ -278,7 +284,7 @@ function RegistrationInviteCard() {
   if (!inviteCode) {
     return (
       <p className="text-sm text-[#475569]">
-        No <code className="font-mono text-xs bg-white/5 px-1.5 py-0.5 rounded">INVITE_CODE</code> env var set — registration is currently open.
+        {t('no_invite_env_pre')} <code className="font-mono text-xs bg-white/5 px-1.5 py-0.5 rounded">INVITE_CODE</code> {t('no_invite_env_post')}
       </p>
     )
   }
@@ -286,7 +292,7 @@ function RegistrationInviteCard() {
   return (
     <div>
       <p className="text-sm text-[#64748b] mb-3">
-        Share this link with anyone you want to give access to register on the platform.
+        {t('registration_share_desc')}
       </p>
       <div className="flex items-center gap-2">
         <span
@@ -304,7 +310,7 @@ function RegistrationInviteCard() {
             color: copied ? '#34d399' : '#f0b429',
           }}
         >
-          {copied ? '✓ Copied' : 'Copy Link'}
+          {copied ? t('copied') : t('copy_link')}
         </button>
       </div>
     </div>
@@ -314,6 +320,7 @@ function RegistrationInviteCard() {
 // ── Tournament invite link row ───────────────────────────────────────────────
 
 function TournamentInviteRow({ tournament }: { tournament: Tournament }) {
+  const t = useTranslations('admin')
   const [copied, setCopied] = useState(false)
 
   function copyLink() {
@@ -348,7 +355,7 @@ function TournamentInviteRow({ tournament }: { tournament: Tournament }) {
             color: copied ? '#34d399' : '#f0b429',
           }}
         >
-          {copied ? '✓ Copied' : 'Copy Link'}
+          {copied ? t('copied') : t('copy_link')}
         </button>
       </div>
     </div>
@@ -360,6 +367,7 @@ function TournamentInviteRow({ tournament }: { tournament: Tournament }) {
 const RESULTS_PAGE_SIZE = 5
 
 export default function AdminPage() {
+  const t = useTranslations('admin')
   const qc = useQueryClient()
   const [competitionCode, setCompetitionCode] = useState('WC')
   const [syncMsg, setSyncMsg] = useState('')
@@ -383,7 +391,7 @@ export default function AdminPage() {
   )
 
   async function sync(type: 'matches' | 'results' | 'standings') {
-    setSyncMsg('Syncing…')
+    setSyncMsg(t('syncing'))
     try {
       const result =
         type === 'matches'
@@ -395,7 +403,7 @@ export default function AdminPage() {
       qc.invalidateQueries({ queryKey: ['matches'] })
       if (type === 'standings') qc.invalidateQueries({ queryKey: ['standings'] })
     } catch (e: unknown) {
-      setSyncMsg(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`)
+      setSyncMsg(`${t('error_label')}: ${e instanceof Error ? e.message : t('unknown_error')}`)
     }
   }
 
@@ -405,31 +413,31 @@ export default function AdminPage() {
       {/* Title */}
       <div className="mb-8">
         <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white">
-          Admin Panel
+          {t('panel_title')}
         </h1>
-        <p className="text-[#64748b] text-sm mt-1">Sync, apply results, recompute scores</p>
+        <p className="text-[#64748b] text-sm mt-1">{t('panel_subtitle')}</p>
       </div>
 
       {/* Registration invite */}
-      <AdminCard title="Platform Registration Link" icon="🔑">
+      <AdminCard title={t('card_registration')} icon="🔑">
         <RegistrationInviteCard />
       </AdminCard>
 
       {/* Danger zone */}
-      <AdminCard title="Danger Zone" icon="⚠️">
+      <AdminCard title={t('card_danger')} icon="⚠️">
         <ResetMatchesButton />
       </AdminCard>
 
       {/* Create match */}
-      <AdminCard title="Create Match" icon="➕">
+      <AdminCard title={t('card_create_match')} icon="➕">
         <CreateMatchForm />
       </AdminCard>
 
       {/* Sync */}
-      <AdminCard title="Sync from football-data.org" icon="🔄">
+      <AdminCard title={t('card_sync')} icon="🔄">
         <div className="flex items-center gap-3 mb-4">
           <label className="text-xs font-bold uppercase tracking-widest text-[#64748b]">
-            Competition code
+            {t('competition_code')}
           </label>
           <input
             value={competitionCode}
@@ -442,19 +450,19 @@ export default function AdminPage() {
             onClick={() => sync('matches')}
             className="bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-white/10 transition"
           >
-            Sync Fixtures
+            {t('sync_fixtures')}
           </button>
           <button
             onClick={() => sync('results')}
             className="bg-[#f0b429] text-[#080c14] px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-white transition"
           >
-            Sync Results
+            {t('sync_results')}
           </button>
           <button
             onClick={() => sync('standings')}
             className="bg-white/5 border border-white/10 text-white px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-white/10 transition"
           >
-            Sync Standings
+            {t('sync_standings')}
           </button>
         </div>
         {syncMsg && (
@@ -465,16 +473,16 @@ export default function AdminPage() {
       </AdminCard>
 
       {/* Apply results manually */}
-      <AdminCard title="Apply Match Result" icon="⚽">
+      <AdminCard title={t('card_apply_result')} icon="⚽">
         {unfinished.length === 0 ? (
-          <p className="text-sm text-[#475569]">All matches are finished.</p>
+          <p className="text-sm text-[#475569]">{t('all_finished')}</p>
         ) : (
           <>
             <div className="divide-y divide-white/5">
               {pagedMatches.map((m) => (
                 <div key={m.id} className="py-4 first:pt-0 last:pb-0">
                   <p className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide">
-                    {m.home_team} <span className="text-[#475569]">vs</span> {m.away_team}
+                    {m.home_team} <span className="text-[#475569]">{t('vs')}</span> {m.away_team}
                   </p>
                   <p className="text-xs text-[#475569] font-mono mt-0.5 mb-2">
                     {new Date(m.kickoff_at).toLocaleString()} · {m.status}
@@ -490,18 +498,18 @@ export default function AdminPage() {
                   disabled={resultsPage === 0}
                   className="px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide border border-white/10 text-[#64748b] hover:text-white hover:border-white/20 disabled:opacity-30 transition"
                 >
-                  ← Prev
+                  {t('prev')}
                 </button>
                 <span className="text-xs text-[#475569] font-mono">
                   {resultsPage + 1} / {totalResultPages}
-                  <span className="ml-2 text-[#334155]">({unfinished.length} matches)</span>
+                  <span className="ml-2 text-[#334155]">{t('matches_count', { count: unfinished.length })}</span>
                 </span>
                 <button
                   onClick={() => setResultsPage((p) => Math.min(totalResultPages - 1, p + 1))}
                   disabled={resultsPage === totalResultPages - 1}
                   className="px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide border border-white/10 text-[#64748b] hover:text-white hover:border-white/20 disabled:opacity-30 transition"
                 >
-                  Next →
+                  {t('next')}
                 </button>
               </div>
             )}
@@ -510,30 +518,30 @@ export default function AdminPage() {
       </AdminCard>
 
       {/* Invite links */}
-      <AdminCard title="League Invite Links" icon="🔗">
+      <AdminCard title={t('card_invite_links')} icon="🔗">
         {tournaments.length === 0 ? (
-          <p className="text-sm text-[#475569]">No tournaments found.</p>
+          <p className="text-sm text-[#475569]">{t('no_tournaments')}</p>
         ) : (
           <div className="divide-y divide-white/5">
-            {tournaments.map((t) => (
-              <TournamentInviteRow key={t.id} tournament={t} />
+            {tournaments.map((tournament) => (
+              <TournamentInviteRow key={tournament.id} tournament={tournament} />
             ))}
           </div>
         )}
       </AdminCard>
 
       {/* Recompute */}
-      <AdminCard title="Recompute Scores" icon="🧮">
+      <AdminCard title={t('card_recompute')} icon="🧮">
         {tournaments.length === 0 ? (
-          <p className="text-sm text-[#475569]">No tournaments found.</p>
+          <p className="text-sm text-[#475569]">{t('no_tournaments')}</p>
         ) : (
           <div className="divide-y divide-white/5">
-            {tournaments.map((t) => (
-              <div key={t.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
+            {tournaments.map((tournament) => (
+              <div key={tournament.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
                 <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-sm">
-                  {t.name}
+                  {tournament.name}
                 </span>
-                <RecomputeButton tournamentId={t.id} />
+                <RecomputeButton tournamentId={tournament.id} />
               </div>
             ))}
           </div>

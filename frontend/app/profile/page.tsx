@@ -4,9 +4,11 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import Cookies from 'js-cookie'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 
 export default function ProfileRedirect() {
+  const t = useTranslations('profile')
   const router = useRouter()
   const hasToken = typeof window !== 'undefined' && !!Cookies.get('is_authenticated')
 
@@ -32,7 +34,7 @@ export default function ProfileRedirect() {
 
   return (
     <div className="flex items-center justify-center min-h-[88vh]">
-      <p className="text-[#64748b] text-sm animate-pulse">Loading profile…</p>
+      <p className="text-[#64748b] text-sm animate-pulse">{t('loading')}</p>
     </div>
   )
 }

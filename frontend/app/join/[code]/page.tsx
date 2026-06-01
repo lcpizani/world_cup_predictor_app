@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import Cookies from 'js-cookie'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { decodeInviteCode } from '@/lib/invite'
@@ -51,6 +52,7 @@ interface InviteLandingProps {
 }
 
 function InviteLanding({ leagueName, code, onSignUp }: InviteLandingProps) {
+  const t = useTranslations('join')
   return (
     <div className="relative flex items-center justify-center min-h-[88vh] px-4 overflow-hidden">
       <div
@@ -69,10 +71,10 @@ function InviteLanding({ leagueName, code, onSignUp }: InviteLandingProps) {
           </div>
           <div className="text-5xl mb-4">🏆</div>
           <h1 className="font-[family-name:var(--font-oswald)] text-[2rem] font-bold uppercase tracking-wider text-white leading-none">
-            You&apos;re Invited
+            {t('you_are_invited')}
           </h1>
           <p className="text-[#64748b] text-sm mt-2">
-            You&apos;ve been invited to join
+            {t('invited_to_join')}
           </p>
           <p className="text-[#f0b429] font-bold text-lg mt-1">{leagueName}</p>
         </div>
@@ -95,7 +97,7 @@ function InviteLanding({ leagueName, code, onSignUp }: InviteLandingProps) {
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = '#fcd86e')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#f0b429')}
             >
-              Create Account &amp; Join
+              {t('create_account_join')}
             </button>
             <Link
               href={`/auth/login?next=${encodeURIComponent(`/join/${code}`)}`}
@@ -108,14 +110,13 @@ function InviteLanding({ leagueName, code, onSignUp }: InviteLandingProps) {
               onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = '#ffffff')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = '#94a3b8')}
             >
-              Sign In
+              {t('sign_in')}
             </Link>
           </div>
         </div>
 
         <p className="text-center text-xs mt-5 px-4 leading-relaxed" style={{ color: '#5a6a82' }}>
-          You&apos;ll be scored on matches kicking off after you join.
-          Past matches in this league won&apos;t count toward your total here.
+          {t('invite_landing_note')}
         </p>
       </div>
     </div>
@@ -130,6 +131,8 @@ interface InlineRegisterProps {
 }
 
 function InlineRegisterForm({ code, leagueName, onBack, onSuccess }: InlineRegisterProps) {
+  const t = useTranslations('join')
+  const tAuth = useTranslations('auth')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -151,7 +154,7 @@ function InlineRegisterForm({ code, leagueName, onBack, onSuccess }: InlineRegis
     const regData = await regRes.json()
 
     if (!regRes.ok) {
-      setError((regData as { error?: string }).error ?? 'Registration failed')
+      setError((regData as { error?: string }).error ?? tAuth('register_failed'))
       setLoading(false)
       return
     }
@@ -166,7 +169,7 @@ function InlineRegisterForm({ code, leagueName, onBack, onSuccess }: InlineRegis
     if (loginRes.ok) {
       onSuccess()
     } else {
-      setError('Registered but login failed — try signing in.')
+      setError(t('register_login_failed'))
     }
   }
 
@@ -187,7 +190,7 @@ function InlineRegisterForm({ code, leagueName, onBack, onSuccess }: InlineRegis
             </span>
           </div>
           <h1 className="font-[family-name:var(--font-oswald)] text-[2rem] font-bold uppercase tracking-wider text-white leading-none">
-            Join the League
+            {tAuth('join_the_league')}
           </h1>
           <p className="text-[#f0b429] text-sm mt-2 font-medium">{leagueName}</p>
         </div>
@@ -204,16 +207,16 @@ function InlineRegisterForm({ code, leagueName, onBack, onSuccess }: InlineRegis
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <FieldLabel>Email</FieldLabel>
-              <AuthInput name="email" type="email" required autoComplete="email" placeholder="you@example.com" />
+              <FieldLabel>{tAuth('email')}</FieldLabel>
+              <AuthInput name="email" type="email" required autoComplete="email" placeholder={tAuth('email_placeholder')} />
             </div>
             <div>
-              <FieldLabel>Username</FieldLabel>
-              <AuthInput name="username" type="text" required autoComplete="username" placeholder="ronaldo10" />
+              <FieldLabel>{tAuth('username')}</FieldLabel>
+              <AuthInput name="username" type="text" required autoComplete="username" placeholder={tAuth('username_placeholder')} />
             </div>
             <div>
-              <FieldLabel>Password</FieldLabel>
-              <AuthInput name="password" type="password" required minLength={8} autoComplete="new-password" placeholder="••••••••" />
+              <FieldLabel>{tAuth('password')}</FieldLabel>
+              <AuthInput name="password" type="password" required minLength={8} autoComplete="new-password" placeholder={tAuth('password_placeholder')} />
             </div>
 
             {error && (
@@ -230,19 +233,19 @@ function InlineRegisterForm({ code, leagueName, onBack, onSuccess }: InlineRegis
               onMouseEnter={e => !loading && ((e.currentTarget as HTMLElement).style.background = '#fcd86e')}
               onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#f0b429')}
             >
-              {loading ? 'Creating account…' : 'Create Account & Join'}
+              {loading ? tAuth('register_button_loading') : t('create_account_join')}
             </button>
           </form>
         </div>
 
         <div className="text-center mt-6 space-y-2">
           <p className="text-sm" style={{ color: '#3f5068' }}>
-            Already have an account?{' '}
+            {tAuth('already_have_account')}{' '}
             <Link
               href={`/auth/login?next=${encodeURIComponent(`/join/${code}`)}`}
               className="text-[#f0b429] hover:text-white transition-colors font-medium"
             >
-              Sign in
+              {tAuth('sign_in')}
             </Link>
           </p>
           <button
@@ -252,7 +255,7 @@ function InlineRegisterForm({ code, leagueName, onBack, onSuccess }: InlineRegis
             onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = '#64748b')}
             onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = '#3f5068')}
           >
-            ← Back
+            {t('back')}
           </button>
         </div>
       </div>
@@ -265,6 +268,7 @@ function ConfirmLateJoin({ leagueName, onConfirm, onCancel }: {
   onConfirm: () => void
   onCancel: () => void
 }) {
+  const t = useTranslations('join')
   return (
     <div className="relative flex items-center justify-center min-h-[88vh] px-4 overflow-hidden">
       <div
@@ -293,18 +297,17 @@ function ConfirmLateJoin({ leagueName, onConfirm, onCancel }: {
           </div>
 
           <h2 className="font-[family-name:var(--font-oswald)] text-xl font-bold uppercase tracking-wider text-white text-center leading-snug mb-2">
-            League already underway
+            {t('confirm_underway_title')}
           </h2>
           {leagueName && (
             <p className="text-[#f0b429] text-sm font-semibold text-center mb-4">{leagueName}</p>
           )}
 
           <p className="text-[#7a8fa8] text-sm text-center leading-relaxed mb-2">
-            Some matches have already been played. Predictions for past games
-            won&apos;t count toward your score — your tally starts the moment you join.
+            {t('confirm_underway_desc')}
           </p>
           <p className="text-[#3f5068] text-xs text-center leading-relaxed mb-7">
-            Points are only awarded for matches that kick off after you join.
+            {t('confirm_underway_note')}
           </p>
 
           <div className="space-y-2.5">
@@ -315,7 +318,7 @@ function ConfirmLateJoin({ leagueName, onConfirm, onCancel }: {
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#fcd86e' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#f0b429' }}
             >
-              Join anyway
+              {t('join_anyway')}
             </button>
             <button
               onClick={onCancel}
@@ -324,7 +327,7 @@ function ConfirmLateJoin({ leagueName, onConfirm, onCancel }: {
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'white' }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#94a3b8' }}
             >
-              Cancel
+              {t('cancel')}
             </button>
           </div>
         </div>
@@ -334,6 +337,7 @@ function ConfirmLateJoin({ leagueName, onConfirm, onCancel }: {
 }
 
 export default function JoinPage() {
+  const t = useTranslations('join')
   const { code: encodedCode } = useParams<{ code: string }>()
   const code = decodeInviteCode(encodedCode)
   const router = useRouter()
@@ -355,7 +359,7 @@ export default function JoinPage() {
       return
     }
     const err = await res.json().catch(() => ({}))
-    setErrorMsg((err as { detail?: string }).detail ?? 'Something went wrong.')
+    setErrorMsg((err as { detail?: string }).detail ?? t('error_generic'))
     setPhase('error')
   }
 
@@ -379,7 +383,7 @@ export default function JoinPage() {
           const data = await res.json() as { name: string }
           setLeagueName(data.name)
         } else {
-          setLeagueName('this league')
+          setLeagueName(t('this_league'))
         }
         setPhase('invite-landing')
         return
@@ -431,7 +435,7 @@ export default function JoinPage() {
     return (
       <div className="flex items-center justify-center min-h-[88vh]">
         <p className="text-[#64748b] text-sm animate-pulse">
-          {phase === 'joining' ? 'Joining competition…' : 'Loading…'}
+          {phase === 'joining' ? t('joining_competition') : t('loading')}
         </p>
       </div>
     )
@@ -464,16 +468,16 @@ export default function JoinPage() {
         <div className="text-center max-w-sm">
           <span className="text-5xl">🏆</span>
           <h1 className="font-[family-name:var(--font-oswald)] text-2xl font-bold uppercase tracking-wider text-white mt-4">
-            You&apos;re already in!
+            {t('already_in_title')}
           </h1>
           <p className="text-[#64748b] text-sm mt-2 mb-6">
-            You&apos;re already a member of this competition.
+            {t('already_in_desc')}
           </p>
           <Link
             href={`/tournaments/${code}`}
             className="inline-block bg-[#f0b429] text-[#080c14] px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-white transition-all"
           >
-            Go to Competition
+            {t('go_to_competition')}
           </Link>
         </div>
       </div>
@@ -485,16 +489,16 @@ export default function JoinPage() {
       <div className="text-center max-w-sm">
         <span className="text-5xl">❌</span>
         <h1 className="font-[family-name:var(--font-oswald)] text-2xl font-bold uppercase tracking-wider text-white mt-4">
-          Invalid Link
+          {t('invalid_link_title')}
         </h1>
         <p className="text-[#64748b] text-sm mt-2 mb-6">
-          {errorMsg || 'This invite link is not valid. Ask for a new one.'}
+          {errorMsg || t('invalid_link_desc')}
         </p>
         <Link
           href="/dashboard"
           className="inline-block bg-[#f0b429] text-[#080c14] px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-white transition-all"
         >
-          Go to Dashboard
+          {t('go_to_dashboard')}
         </Link>
       </div>
     </div>

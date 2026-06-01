@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
+import { getTeamFlagCode, getFlagUrl, translateTeamName, translateGroupName, getTeamAbbr } from '@/lib/flags'
 import type { Match, Prediction } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { useLocale, useTranslations } from 'next-intl'
@@ -48,6 +48,7 @@ function ResultBadge({ exact, winner, hasPred }: { exact: boolean; winner: boole
 
 function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string; kickoff_at: string; timezone?: string | null; minute?: number | null }) {
   const t = useTranslations('predictions')
+  const locale = useLocale()
   if (status === 'live') return (
     <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
@@ -59,7 +60,7 @@ function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string;
       {t('ft')}
     </span>
   )
-  const label = formatMatchDateTime(kickoff_at, timezone)
+  const label = formatMatchDateTime(kickoff_at, timezone, locale)
   return (
     <span className="text-[10px] font-bold px-2.5 py-1 rounded-full tracking-wider text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)' }}>
       {label}
@@ -127,11 +128,11 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-[10px] font-mono tracking-widest uppercase truncate" style={{ color: '#3f5068' }}>
-              {match.stage.replace(/_/g, ' ')}
+              {STAGE_ORDER.includes(match.stage) ? t(`stage_${match.stage}`) : match.stage.replace(/_/g, ' ')}
             </span>
             {match.group && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0" style={{ color: '#5a6a82', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                {match.group}
+                {translateGroupName(match.group, locale)}
               </span>
             )}
           </div>
@@ -143,7 +144,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
         <div className="flex items-center gap-1.5 sm:gap-2">
           <div className="flex-1 flex items-center justify-end gap-2 sm:gap-2.5 min-w-0">
             <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-sm sm:text-base">
-              {translateTeamName(match.home_team, locale)}
+              <span className="sm:hidden">{getTeamAbbr(match.home_team)}</span><span className="hidden sm:inline">{translateTeamName(match.home_team, locale)}</span>
             </span>
             <TeamFlag name={match.home_team} />
           </div>
@@ -174,7 +175,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
           <div className="flex-1 flex items-center gap-2 sm:gap-2.5 min-w-0">
             <TeamFlag name={match.away_team} />
             <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-sm sm:text-base">
-              {translateTeamName(match.away_team, locale)}
+              <span className="sm:hidden">{getTeamAbbr(match.away_team)}</span><span className="hidden sm:inline">{translateTeamName(match.away_team, locale)}</span>
             </span>
           </div>
         </div>
@@ -220,7 +221,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
           </span>
           {match.group && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0" style={{ color: '#5a6a82', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              {match.group}
+              {translateGroupName(match.group, locale)}
             </span>
           )}
         </div>
@@ -229,7 +230,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
           <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-xs sm:text-sm">
-            {translateTeamName(match.home_team, locale)}
+            <span className="sm:hidden">{getTeamAbbr(match.home_team)}</span><span className="hidden sm:inline">{translateTeamName(match.home_team, locale)}</span>
           </span>
           <TeamFlag name={match.home_team} />
         </div>
@@ -270,7 +271,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
         <div className="flex-1 flex items-center gap-2 min-w-0">
           <TeamFlag name={match.away_team} />
           <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-xs sm:text-sm">
-            {translateTeamName(match.away_team, locale)}
+            <span className="sm:hidden">{getTeamAbbr(match.away_team)}</span><span className="hidden sm:inline">{translateTeamName(match.away_team, locale)}</span>
           </span>
         </div>
         {!isLocked && (
@@ -355,6 +356,7 @@ function GroupStageView({
   timezone?: string | null
 }) {
   const t = useTranslations('predictions')
+  const locale = useLocale()
 
   const groups = useMemo(() => {
     const groupSet = new Set<string>()
@@ -396,7 +398,7 @@ function GroupStageView({
         const header = (
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <span className="font-[family-name:var(--font-oswald)] font-bold text-sm sm:text-base uppercase tracking-wider text-white truncate">
-              {group}
+              {translateGroupName(group, locale)}
             </span>
             {missingCount > 0 && (
               <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-red-500 text-white shrink-0">
@@ -709,7 +711,7 @@ export default function PredictionsPage() {
             >
               <option value="">{t('filter_group_all')}</option>
               {availableGroups.map(g => (
-                <option key={g} value={g}>{g}</option>
+                <option key={g} value={g}>{translateGroupName(g, locale)}</option>
               ))}
             </select>
           </div>

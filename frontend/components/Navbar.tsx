@@ -69,14 +69,87 @@ function MobileNavLink({
   )
 }
 
+function HelpModal({ onClose }: { onClose: () => void }) {
+  const t = useTranslations('help')
+
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
+  const items = [
+    { title: t('lock_window'), desc: t('lock_window_desc') },
+    { title: t('change_prediction'), desc: t('change_prediction_desc') },
+    { title: t('knockout_stages'), desc: t('knockout_stages_desc') },
+    { title: t('live_results'), desc: t('live_results_desc') },
+  ]
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+      aria-modal="true"
+      role="dialog"
+    >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-[3px]"
+        onClick={onClose}
+      />
+
+      {/* Panel */}
+      <div
+        className="relative w-full max-w-md rounded-2xl border border-white/[0.09] shadow-2xl"
+        style={{ background: 'rgba(10,16,28,0.97)' }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/[0.07]">
+          <h2 className="text-white font-bold text-base tracking-wide">
+            {t('title')}
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label={t('close')}
+            className="text-[#4a5c70] hover:text-white transition-colors text-xl leading-none w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/[0.06]"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-5">
+          {items.map((item) => (
+            <div key={item.title}>
+              <p className="text-[#f0b429] text-sm font-semibold mb-1">{item.title}</p>
+              <p className="text-[#8496b0] text-sm leading-relaxed">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-5">
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold text-[#6b7f96] border border-white/[0.08] hover:bg-white/[0.05] hover:text-white transition-colors"
+          >
+            {t('close')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
   const qc = useQueryClient()
   const t = useTranslations('nav')
+  const tHelp = useTranslations('help')
 
   const hasToken = useSyncExternalStore(subscribeNoop, getAuthSnapshot, getAuthServerSnapshot)
   const [open, setOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [locale, setLocale] = useState<SupportedLocale>('en')
 
   useEffect(() => {
@@ -149,6 +222,14 @@ export function Navbar() {
                 {user.is_admin && (
                   <NavLink href="/admin" active={isActive('/admin')}>{t('admin')}</NavLink>
                 )}
+                {/* Help button */}
+                <button
+                  onClick={() => setHelpOpen(true)}
+                  aria-label="Help"
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-[#4a5c70] border border-white/[0.12] hover:text-white hover:border-white/25 hover:bg-white/[0.06] transition-all duration-200 ml-1"
+                >
+                  ?
+                </button>
                 <span className="h-4 w-px bg-white/[0.08] mx-1.5" />
                 <Link
                   href="/profile"
@@ -267,6 +348,15 @@ export function Navbar() {
                   <MobileNavLink href="/admin" active={isActive('/admin')} onClick={() => setOpen(false)}>{t('admin')}</MobileNavLink>
                 )}
 
+                {/* Help row */}
+                <button
+                  onClick={() => { setOpen(false); setHelpOpen(true) }}
+                  className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-[15px] font-semibold text-[#7a8fa8] hover:text-white hover:bg-white/[0.04] border border-transparent transition-colors"
+                >
+                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold border border-white/[0.15] text-[#4a5c70] shrink-0">?</span>
+                  <span>{tHelp('title')}</span>
+                </button>
+
                 <div className="h-px bg-white/[0.06] my-3" />
 
                 <Link
@@ -328,6 +418,9 @@ export function Navbar() {
           </div>
         </div>
       </div>
+
+      {/* Help modal */}
+      {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
     </>
   )
 }
