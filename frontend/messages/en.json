@@ -192,7 +192,10 @@
     "stage_final": "Final",
     "missing_picks": "{count} missing",
     "stage_not_yet_seeded": "Matches not yet determined",
-    "stage_seeded_later": "Teams will be confirmed after the group stage."
+    "stage_seeded_later": "Teams will be confirmed after the group stage.",
+    "auto_save_notice": "Your picks are saved automatically as you type.",
+    "saving": "Saving…",
+    "error_saving": "Error saving"
   },
   "leagues": {
     "title": "My Leagues",
@@ -395,6 +398,8 @@
   },
   "help": {
     "title": "How It Works",
+    "auto_saves": "Picks are saved automatically",
+    "auto_saves_desc": "No need to tap a save button — just type your predicted score and it's saved automatically after a moment.",
     "lock_window": "Predictions lock 30 minutes before kickoff",
     "lock_window_desc": "Once locked, your pick is final for that match. Make sure you've submitted before the deadline.",
     "change_prediction": "You can update your pick anytime before the lock",

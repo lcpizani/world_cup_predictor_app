@@ -192,7 +192,10 @@
     "stage_final": "Final",
     "missing_picks": "{count} faltando",
     "stage_not_yet_seeded": "Jogos ainda não definidos",
-    "stage_seeded_later": "Os times serão confirmados após a fase de grupos."
+    "stage_seeded_later": "Os times serão confirmados após a fase de grupos.",
+    "auto_save_notice": "Seus palpites são salvos automaticamente enquanto você digita.",
+    "saving": "Salvando…",
+    "error_saving": "Erro ao salvar"
   },
   "leagues": {
     "title": "Minhas Ligas",
@@ -395,6 +398,8 @@
   },
   "help": {
     "title": "Como Funciona",
+    "auto_saves": "Os palpites são salvos automaticamente",
+    "auto_saves_desc": "Não precisa tocar em nenhum botão — basta digitar o placar previsto e ele é salvo automaticamente em instantes.",
     "lock_window": "Os palpites travam 30 minutos antes do início",
     "lock_window_desc": "Depois de travado, seu palpite é definitivo para aquela partida. Não esqueça de enviar antes do prazo.",
     "change_prediction": "Você pode alterar seu palpite a qualquer momento antes do travamento",
