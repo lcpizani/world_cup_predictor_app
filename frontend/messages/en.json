@@ -232,6 +232,12 @@
   },
   "tournament": {
     "back_leagues": "← Leagues",
+    "stage_group_stage": "Group Stage",
+    "stage_round_of_16": "Round of 16",
+    "stage_quarter_finals": "Quarterfinals",
+    "stage_semi_finals": "Semifinals",
+    "stage_third_place": "Third Place",
+    "stage_final": "Final",
     "leaderboard": "Leaderboard →",
     "compare": "Compare →",
     "invite_code": "Invite code",

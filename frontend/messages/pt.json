@@ -232,6 +232,12 @@
   },
   "tournament": {
     "back_leagues": "← Ligas",
+    "stage_group_stage": "Fase de Grupos",
+    "stage_round_of_16": "Oitavas de Final",
+    "stage_quarter_finals": "Quartas de Final",
+    "stage_semi_finals": "Semifinais",
+    "stage_third_place": "Terceiro Lugar",
+    "stage_final": "Final",
     "leaderboard": "Classificação →",
     "compare": "Comparar →",
     "invite_code": "Código de convite",
