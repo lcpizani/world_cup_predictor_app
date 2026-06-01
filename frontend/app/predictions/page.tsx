@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -81,6 +81,8 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
   const [home, setHome] = useState(prediction?.predicted_home?.toString() ?? '')
   const [away, setAway] = useState(prediction?.predicted_away?.toString() ?? '')
   const [showSaved, setShowSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const showSavedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isLocked = !!prediction?.is_locked || match.status !== 'scheduled'
 
@@ -91,28 +93,32 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
       if (prediction) return api.updatePrediction(prediction.id, { predicted_home: h, predicted_away: a })
       return api.submitPrediction({ match_id: match.id, predicted_home: h, predicted_away: a })
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['predictions-global'] }) },
+    onSuccess: () => {
+      setSaveError(null)
+      qc.invalidateQueries({ queryKey: ['predictions-global'] })
+      if (showSavedTimer.current) clearTimeout(showSavedTimer.current)
+      setShowSaved(true)
+      showSavedTimer.current = setTimeout(() => setShowSaved(false), 2000)
+    },
+    onError: (e: Error) => setSaveError(e.message || t('error_saving')),
   })
 
   // Debounced auto-save: fires 700 ms after last change if both scores are valid
   useEffect(() => {
-    if (isLocked) return
     const timer = setTimeout(() => {
-      if (isValidScore(home) && isValidScore(away)) {
-        save.mutate()
-      }
+      // Re-check isLocked at fire time so a match transitioning to live during the
+      // 700 ms window doesn't submit a prediction on a now-locked match
+      if (isLocked) return
+      if (!isValidScore(home) || !isValidScore(away)) return
+      // Skip if nothing has changed from what's already persisted
+      const savedHome = prediction?.predicted_home?.toString() ?? ''
+      const savedAway = prediction?.predicted_away?.toString() ?? ''
+      if (home === savedHome && away === savedAway) return
+      save.mutate()
     }, 700)
     return () => clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [home, away])
-
-  // Show "✓ Saved" flash for 2 s after a successful save
-  useEffect(() => {
-    if (!save.isSuccess) return
-    setShowSaved(true)
-    const timer = setTimeout(() => setShowSaved(false), 2000)
-    return () => clearTimeout(timer)
-  }, [save.isSuccess])
 
   // ── Finished or live-with-scores match ───────────────────────────────────
   if (match.status === 'finished' || (match.status === 'live' && match.home_score !== null)) {
@@ -285,13 +291,13 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
           {!isLocked && !save.isPending && showSaved && (
             <span className="text-green-400 text-xs font-bold">✓</span>
           )}
-          {!isLocked && !save.isPending && save.isError && !showSaved && (
+          {!isLocked && !save.isPending && !!saveError && (
             <span className="text-red-400 text-xs font-bold">!</span>
           )}
         </div>
       </div>
-      {save.isError && (
-        <p className="text-xs text-red-400 mt-2">{(save.error as Error)?.message ?? 'Error saving'}</p>
+      {saveError && (
+        <p className="text-xs text-red-400 mt-2">{saveError}</p>
       )}
     </div>
   )

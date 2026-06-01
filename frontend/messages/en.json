@@ -194,7 +194,8 @@
     "stage_not_yet_seeded": "Matches not yet determined",
     "stage_seeded_later": "Teams will be confirmed after the group stage.",
     "auto_save_notice": "Your picks are saved automatically as you type.",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "error_saving": "Error saving"
   },
   "leagues": {
     "title": "My Leagues",
