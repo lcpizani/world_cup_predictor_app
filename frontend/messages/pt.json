@@ -121,7 +121,9 @@
     "you": "você",
     "standings_title": "Classificação e Chaveamento",
     "standings_desc": "Tabelas ao vivo e chaveamento da fase mata-mata",
-    "ft": "FT"
+    "ft": "FT",
+    "reload": "Atualizar",
+    "reloading": "Atualizando…"
   },
   "standings": {
     "title": "Copa do Mundo 2026",
@@ -351,7 +353,9 @@
     "invalid_link_title": "Link Inválido",
     "invalid_link_desc": "Este link de convite não é válido. Peça um novo.",
     "go_to_dashboard": "Ir para o Painel",
-    "this_league": "esta liga"
+    "this_league": "esta liga",
+    "success_title": "Entrou com sucesso!",
+    "success_desc": "Você entrou com sucesso em {name}"
   },
   "profile": {
     "edit_profile": "Editar Perfil",

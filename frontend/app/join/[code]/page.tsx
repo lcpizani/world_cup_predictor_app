@@ -10,7 +10,7 @@ import { api } from '@/lib/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { decodeInviteCode } from '@/lib/invite'
 
-type Phase = 'loading' | 'invite-landing' | 'register' | 'confirm-late-join' | 'joining' | 'already_member' | 'error'
+type Phase = 'loading' | 'invite-landing' | 'register' | 'confirm-late-join' | 'joining' | 'success' | 'already_member' | 'error'
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -355,7 +355,8 @@ export default function JoinPage() {
       body: JSON.stringify({ invite_code: code }),
     })
     if (res.ok || res.status === 409) {
-      router.replace(`/tournaments/${code}`)
+      setPhase('success')
+      setTimeout(() => router.replace(`/tournaments/${code}`), 2500)
       return
     }
     const err = await res.json().catch(() => ({}))
@@ -472,6 +473,28 @@ export default function JoinPage() {
           </h1>
           <p className="text-[#64748b] text-sm mt-2 mb-6">
             {t('already_in_desc')}
+          </p>
+          <Link
+            href={`/tournaments/${code}`}
+            className="inline-block bg-[#f0b429] text-[#080c14] px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-white transition-all"
+          >
+            {t('go_to_competition')}
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  if (phase === 'success') {
+    return (
+      <div className="flex items-center justify-center min-h-[88vh] px-4">
+        <div className="text-center max-w-sm">
+          <span className="text-5xl">✅</span>
+          <h1 className="font-[family-name:var(--font-oswald)] text-2xl font-bold uppercase tracking-wider text-white mt-4">
+            {t('success_title')}
+          </h1>
+          <p className="text-[#64748b] text-sm mt-2 mb-6">
+            {t('success_desc', { name: leagueName })}
           </p>
           <Link
             href={`/tournaments/${code}`}

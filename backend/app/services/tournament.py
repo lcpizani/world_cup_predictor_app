@@ -15,6 +15,7 @@ from app.models.user import User
 from app.schemas.match import MatchResponse
 from app.schemas.tournament import TournamentCreate, TournamentComparePrediction, TournamentCompareMatch
 from app.schemas.leaderboard import LeaderboardResponse, LeaderboardEntry
+from app.models.match import Match as MatchModel
 
 
 def _apply_spoiler(is_finished: bool, is_own: bool, predicted_home: int, predicted_away: int, is_live: bool = False):
@@ -141,6 +142,8 @@ def get_leaderboard(db: Session, tournament_id: UUID, user: User) -> Leaderboard
     if membership is None:
         raise HTTPException(status_code=403, detail="Not a member of tournament")
 
+    has_live = db.query(MatchModel).filter(MatchModel.status == "live").first() is not None
+
     members = (
         db.query(TournamentMember)
         .filter(TournamentMember.tournament_id == tournament.id)
@@ -148,22 +151,33 @@ def get_leaderboard(db: Session, tournament_id: UUID, user: User) -> Leaderboard
         .all()
     )
 
-    # sort by total_points desc
-    members_sorted = sorted(members, key=lambda m: m.total_points, reverse=True)
+    # sort by live_total desc
+    members_sorted = sorted(
+        members,
+        key=lambda m: m.total_points + m.provisional_points,
+        reverse=True,
+    )
 
     entries = []
-    last_points = None
+    last_total = None
     last_rank = 0
     for idx, m in enumerate(members_sorted, start=1):
-        if last_points is None or m.total_points != last_points:
+        live_total = m.total_points + m.provisional_points
+        if last_total is None or live_total != last_total:
             rank = idx
             last_rank = rank
         else:
             rank = last_rank
-        last_points = m.total_points
-        entries.append(LeaderboardEntry(rank=rank, user=m.user, total_points=m.total_points))
+        last_total = live_total
+        entries.append(LeaderboardEntry(
+            rank=rank,
+            user=m.user,
+            total_points=m.total_points,
+            provisional_points=m.provisional_points,
+            live_total=live_total,
+        ))
 
-    return LeaderboardResponse(tournament_id=tournament.id, entries=entries)
+    return LeaderboardResponse(tournament_id=tournament.id, has_live_matches=has_live, entries=entries)
 
 
 def get_compare(db: Session, invite_code: str, current_user: User) -> List[TournamentCompareMatch]:

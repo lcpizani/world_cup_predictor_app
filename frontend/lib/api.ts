@@ -137,9 +137,9 @@ export const api = {
       `/admin/sync/results?competition_code=${competition_code}`,
       { method: 'POST' }
     ),
-  syncStandings: (competition_code = 'WC') =>
-    request<{ synced: number }>(
-      `/admin/sync/standings?competition_code=${competition_code}`,
+  syncStandings: () =>
+    request<{ recalculated: number }>(
+      `/admin/standings/recalculate`,
       { method: 'POST' }
     ),
 }

@@ -46,9 +46,11 @@ def start_scheduler() -> None:
     if os.getenv("DATABASE_URL", "").startswith("sqlite"):
         return
     scheduler.add_job(_lock_predictions_pre_kickoff, "interval", minutes=1, id="lock_predictions", max_instances=1)
-    scheduler.add_job(_sync_fixtures_job, "interval", hours=6, id="sync_fixtures", max_instances=1)
+    scheduler.add_job(
+        _sync_fixtures_job, "interval", hours=6, id="sync_fixtures", max_instances=1,
+        next_run_time=datetime.now(timezone.utc),
+    )
     scheduler.add_job(_sync_results_job, "interval", seconds=60, id="sync_results", max_instances=1)
-    scheduler.add_job(_sync_standings_job, "interval", minutes=5, id="sync_standings", max_instances=1)
     scheduler.start()
     logger.info("Scheduler started")
 
@@ -83,10 +85,14 @@ def _sync_fixtures_job() -> None:
 
 def _sync_results_job() -> None:
     from app.services import football_api  # local import avoids circular deps at module load
+    from app.services.standings import recalculate_standings_from_matches
+    from app.services.scoring import update_provisional_points
 
     db: Session = SessionLocal()
     try:
         football_api.sync_results(db)
+        recalculate_standings_from_matches(db)
+        update_provisional_points(db)
         next_interval = _compute_next_results_interval(db)
     except Exception as exc:
         logger.error("Auto results sync failed", error=str(exc))
@@ -96,51 +102,6 @@ def _sync_results_job() -> None:
 
     if scheduler.running:
         job = scheduler.get_job("sync_results")
-        if job:
-            job.reschedule("interval", seconds=next_interval)
-
-
-def _compute_next_standings_interval(db: Session) -> int:
-    """Return seconds until next standings sync based on current match state."""
-    now = datetime.now(timezone.utc)
-    has_live_group = (
-        db.query(Match)
-        .filter(Match.status == "live", Match.stage == "group_stage")
-        .first()
-    ) is not None
-    if has_live_group:
-        return 300  # 5 min
-
-    recently_finished = (
-        db.query(Match)
-        .filter(
-            Match.status == "finished",
-            Match.stage == "group_stage",
-            Match.kickoff_at >= now - timedelta(hours=2),
-        )
-        .first()
-    ) is not None
-    if recently_finished:
-        return 300  # 5 min
-
-    return 1800  # 30 min
-
-
-def _sync_standings_job() -> None:
-    from app.services import football_api  # local import avoids circular deps at module load
-
-    db: Session = SessionLocal()
-    try:
-        football_api.sync_standings(db)
-        next_interval = _compute_next_standings_interval(db)
-    except Exception as exc:
-        logger.error("Auto standings sync failed", error=str(exc))
-        next_interval = 300  # back off to 5 min on error
-    finally:
-        db.close()
-
-    if scheduler.running:
-        job = scheduler.get_job("sync_standings")
         if job:
             job.reschedule("interval", seconds=next_interval)
 

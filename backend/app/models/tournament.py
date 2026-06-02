@@ -54,6 +54,7 @@ class TournamentMember(Base):
     )
     user_id = Column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     total_points = Column(Integer, nullable=False, default=0)
+    provisional_points = Column(Integer, nullable=False, default=0)
     joined_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     tournament = relationship("Tournament", back_populates="members")

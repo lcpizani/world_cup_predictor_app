@@ -7,7 +7,7 @@ from uuid import uuid4
 import pytest
 
 from app.services.football_api import _map_api_status
-from app.services.scoring import compute_provisional_points
+from app.services.scoring import update_provisional_points
 from app.models.match import Match
 from app.models.prediction import Prediction
 from app.models.tournament import Tournament, TournamentScoringRules, TournamentMember
@@ -50,21 +50,17 @@ class TestMapApiStatus:
         assert _map_api_status("SOMETHING_NEW") == "suspended"
 
 
-# ── 7.2 Unit tests: compute_provisional_points ───────────────────────────────
+# ── 7.2 Unit tests: update_provisional_points ────────────────────────────────
 
-def test_compute_provisional_points_no_live_matches(db):
-    tournament_id = uuid4()
-    user_id = uuid4()
-    # No live matches → 0 provisional points, no DB writes
-    result = compute_provisional_points(db, tournament_id, user_id)
-    assert result == 0
+def test_update_provisional_points_no_live_matches(db):
+    # No live matches → provisional_points stays 0, no PointEvent rows written
+    update_provisional_points(db)
     assert db.query(PointEvent).count() == 0
 
 
-def test_compute_provisional_points_with_live_match(db):
+def test_update_provisional_points_with_live_match(db):
     from app.models.user import User
 
-    # Set up user
     user = User(
         id=uuid4(),
         email="live@test.com",
@@ -74,7 +70,6 @@ def test_compute_provisional_points_with_live_match(db):
     )
     db.add(user)
 
-    # Set up tournament with scoring rules
     tournament = Tournament(
         id=uuid4(),
         name="Live Test Tournament",
@@ -94,20 +89,23 @@ def test_compute_provisional_points_with_live_match(db):
     )
     db.add(scoring)
 
+    kickoff = datetime(2026, 6, 15, 15, 0, tzinfo=timezone.utc)
+
     membership = TournamentMember(
         tournament_id=tournament.id,
         user_id=user.id,
         total_points=0,
+        provisional_points=0,
+        joined_at=datetime(2026, 6, 1, 0, 0, tzinfo=timezone.utc),
     )
     db.add(membership)
 
-    # Set up a live match with score 2-1
     match = Match(
         id=uuid4(),
         external_match_id="ext-live-1",
         home_team="Brazil",
         away_team="Argentina",
-        kickoff_at=datetime(2026, 6, 1, 15, 0, tzinfo=timezone.utc),
+        kickoff_at=kickoff,
         stage="group",
         status="live",
         home_score=2,
@@ -129,16 +127,22 @@ def test_compute_provisional_points_with_live_match(db):
     db.commit()
 
     point_events_before = db.query(PointEvent).count()
-    result = compute_provisional_points(db, tournament.id, user.id)
+    update_provisional_points(db)
     point_events_after = db.query(PointEvent).count()
 
-    # Exact score → 5 pts
-    assert result == 5
-    # No PointEvent rows written
+    # No PointEvent rows written — provisional only
     assert point_events_after == point_events_before
 
+    db.expire_all()
+    updated = db.query(TournamentMember).filter(
+        TournamentMember.tournament_id == tournament.id,
+        TournamentMember.user_id == user.id,
+    ).first()
+    # Exact score → 5 pts stored in DB column
+    assert updated.provisional_points == 5
 
-def test_compute_provisional_points_non_member_returns_zero(db):
+
+def test_update_provisional_points_non_member_stays_zero(db):
     from app.models.user import User
 
     user = User(
@@ -149,15 +153,6 @@ def test_compute_provisional_points_non_member_returns_zero(db):
         is_admin=False,
     )
     db.add(user)
-
-    tournament = Tournament(
-        id=uuid4(),
-        name="Other Tournament",
-        created_by=user.id,
-        invite_code="OTHERT001",
-        is_active=True,
-    )
-    db.add(tournament)
 
     match = Match(
         id=uuid4(),
@@ -173,8 +168,9 @@ def test_compute_provisional_points_non_member_returns_zero(db):
     db.add(match)
     db.commit()
 
-    result = compute_provisional_points(db, tournament.id, user.id)
-    assert result == 0
+    # No membership exists for this user — update should run without error
+    update_provisional_points(db)
+    assert db.query(TournamentMember).count() == 0
 
 
 # ── 7.3 Integration tests: GET /admin/sync/health ────────────────────────────

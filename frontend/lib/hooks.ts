@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import type { User } from '@/types/api'
+import type { Match, User } from '@/types/api'
 
 export function useOnboardingGuard(user: User | undefined, isLoading: boolean) {
   const router = useRouter()
@@ -13,4 +13,9 @@ export function useOnboardingGuard(user: User | undefined, isLoading: boolean) {
       router.push('/onboarding')
     }
   }, [user, isLoading, router])
+}
+
+/** Returns 30 s when any match is live, 5 min otherwise. */
+export function useLiveInterval(matches: Match[]): number {
+  return matches.some(m => m.status === 'live') ? 30_000 : 300_000
 }

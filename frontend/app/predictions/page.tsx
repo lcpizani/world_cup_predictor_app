@@ -536,11 +536,13 @@ export default function PredictionsPage() {
   const { data: matches = [], isLoading: matchesLoading } = useQuery({
     queryKey: ['matches'],
     queryFn: () => api.listMatches(),
+    refetchInterval: 60_000,
   })
 
   const { data: predictions = [], isLoading: predsLoading } = useQuery({
     queryKey: ['predictions-global'],
     queryFn: () => api.listPredictions(),
+    refetchInterval: 60_000,
   })
 
   const predByMatch = Object.fromEntries(predictions.map(p => [p.match_id, p]))

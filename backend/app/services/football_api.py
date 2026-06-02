@@ -14,8 +14,8 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.logger import logger
 from app.models.match import Match
-from app.models.group_standing import GroupStanding
 from app.services.scoring import apply_match_result
+from app.services.standings import recalculate_standings_from_matches
 
 FOOTBALL_API_BASE = "https://api.football-data.org/v4"
 
@@ -98,6 +98,7 @@ def sync_matches(db: Session, competition_code: str = "WC") -> dict:
         upserted += 1
 
     db.commit()
+    recalculate_standings_from_matches(db)
     logger.info("Fixtures sync complete", competition_code=competition_code, upserted=upserted)
     return {"upserted": upserted}
 
@@ -187,56 +188,3 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
     return {"scored": scored, "live_updated": live_updated, "suspended": suspended}
 
 
-def sync_standings(db: Session, competition_code: str = "WC") -> dict:
-    """Fetch group standings from football-data.org and upsert into group_standings."""
-    _validate_competition_code(competition_code)
-    logger.info("Fetching standings from football-data.org", competition_code=competition_code)
-    with httpx.Client(timeout=15) as client:
-        resp = client.get(
-            f"{FOOTBALL_API_BASE}/competitions/{competition_code}/standings",
-            headers=_headers(),
-        )
-        if not resp.is_success:
-            logger.error("football-data.org standings request failed", status_code=resp.status_code, competition_code=competition_code)
-        resp.raise_for_status()
-        data = resp.json()
-
-    now = datetime.now(timezone.utc)
-    total_rows = 0
-
-    for standing in data.get("standings", []):
-        if standing.get("type") != "TOTAL":
-            continue
-
-        stage = standing.get("stage", "")
-        # Skip non-group entries (e.g. "ALL" which the API returns before group stage starts)
-        if not stage.startswith("GROUP_"):
-            continue
-
-        group = stage  # already in "GROUP_A" format
-
-        rows = standing.get("table", [])
-
-        # Delete existing rows for this group, then insert fresh data
-        db.query(GroupStanding).filter(GroupStanding.group == group).delete(synchronize_session=False)
-
-        for row in rows:
-            db.add(GroupStanding(
-                group=group,
-                position=row["position"],
-                team_name=row["team"]["name"],
-                played=row.get("playedGames", 0),
-                won=row.get("won", 0),
-                drawn=row.get("draw", 0),
-                lost=row.get("lost", 0),
-                goals_for=row.get("goalsFor", 0),
-                goals_against=row.get("goalsAgainst", 0),
-                goal_difference=row.get("goalDifference", 0),
-                points=row.get("points", 0),
-                synced_at=now,
-            ))
-            total_rows += 1
-
-    db.commit()
-    logger.info("Standings sync complete", competition_code=competition_code, synced=total_rows)
-    return {"synced": total_rows}
