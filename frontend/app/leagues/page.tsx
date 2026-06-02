@@ -146,7 +146,7 @@ function JoinPanel({ onJoined }: { onJoined: () => void }) {
             onChange={e => setCode(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && code && handleJoinClick()}
             placeholder={t('code_placeholder')}
-            className="flex-1 rounded-xl px-4 py-2.5 text-white text-sm font-mono tracking-wider transition-all"
+            className="flex-1 min-w-0 rounded-xl px-4 py-2.5 text-white text-sm font-mono tracking-wider transition-all"
             style={{
               background: 'rgba(255,255,255,0.03)',
               border: '1px solid rgba(255,255,255,0.09)',
@@ -158,7 +158,7 @@ function JoinPanel({ onJoined }: { onJoined: () => void }) {
           <button
             onClick={handleJoinClick}
             disabled={!code || mutation.isPending || checking}
-            className="px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-200 disabled:opacity-40"
+            className="shrink-0 px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-200 disabled:opacity-40"
             style={{
               background: 'rgba(255,255,255,0.07)',
               border: '1px solid rgba(255,255,255,0.1)',
