@@ -11,6 +11,7 @@ import type { Match, Prediction } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { useLocale, useTranslations } from 'next-intl'
 import { formatMatchDateTime } from '@/lib/date'
+import ScoringExplanationModal from '@/components/ScoringExplanationModal'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -506,9 +507,11 @@ function KnockoutStageView({
 
 export default function PredictionsPage() {
   const t = useTranslations('predictions')
+  const tScoring = useTranslations('scoringHelp')
   const locale = useLocale()
   const [tab, setTab] = useState<'upcoming' | 'finished'>('upcoming')
   const [refreshing, setRefreshing] = useState(false)
+  const [showScoringHelp, setShowScoringHelp] = useState(false)
 
   // view mode state (tasks 1.1–1.4)
   const [viewMode, setViewMode] = useState<'chronological' | 'stage-group'>('chronological')
@@ -633,23 +636,52 @@ export default function PredictionsPage() {
         >
           {t('back_dashboard')}
         </Link>
-        <div className="flex items-end justify-between gap-4">
+        <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-[family-name:var(--font-oswald)] text-2xl sm:text-3xl font-bold uppercase tracking-wider text-white leading-none">
               {t('title')}
             </h1>
             <p className="text-[#3f5068] text-sm mt-1.5 font-medium">{t('subtitle')}</p>
-            <p className="text-[#3f5068] text-xs mt-1">{t('auto_save_notice')}</p>
+
+            {/* Info chips */}
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              {/* Auto-save chip */}
+              <span
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                style={{ background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.15)', color: '#4a8a5a' }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+                {t('auto_save_short')}
+              </span>
+
+              {/* How scored chip */}
+              <button
+                onClick={() => setShowScoringHelp(true)}
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full transition-all duration-200"
+                style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)', color: '#9a7030' }}
+                onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.15)', borderColor: 'rgba(240,180,41,0.4)', color: '#f0b429' })}
+                onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.08)', borderColor: 'rgba(240,180,41,0.2)', color: '#9a7030' })}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4" />
+                  <path d="M12 8h.01" />
+                </svg>
+                {tScoring('how_scored')}
+              </button>
+            </div>
           </div>
+
+          {/* Reload button */}
           <button
             onClick={handleRefresh}
             disabled={refreshing}
             className="shrink-0 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl transition-all duration-200 disabled:opacity-40"
-            style={{ background: 'rgba(20,184,166,0.12)', border: '1px solid rgba(20,184,166,0.3)', color: '#2dd4bf' }}
-            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.2)', borderColor: 'rgba(20,184,166,0.5)' })}
-            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.12)', borderColor: 'rgba(20,184,166,0.3)' })}
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#8496af' }}
+            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.18)', color: 'white' })}
+            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#8496af' })}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={refreshing ? 'animate-spin' : ''}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={refreshing ? 'animate-spin' : ''}>
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
               <path d="M3 3v5h5" />
             </svg>
@@ -855,6 +887,7 @@ export default function PredictionsPage() {
         </>
       )}
 
+      <ScoringExplanationModal open={showScoringHelp} onClose={() => setShowScoringHelp(false)} />
     </div>
   )
 }
