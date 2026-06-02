@@ -11,6 +11,7 @@ import type { Match, Prediction } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { useLocale, useTranslations } from 'next-intl'
 import { formatMatchDateTime } from '@/lib/date'
+import ScoringExplanationModal from '@/components/ScoringExplanationModal'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -506,9 +507,11 @@ function KnockoutStageView({
 
 export default function PredictionsPage() {
   const t = useTranslations('predictions')
+  const tScoring = useTranslations('scoringHelp')
   const locale = useLocale()
   const [tab, setTab] = useState<'upcoming' | 'finished'>('upcoming')
   const [refreshing, setRefreshing] = useState(false)
+  const [showScoringHelp, setShowScoringHelp] = useState(false)
 
   // view mode state (tasks 1.1–1.4)
   const [viewMode, setViewMode] = useState<'chronological' | 'stage-group'>('chronological')
@@ -640,6 +643,20 @@ export default function PredictionsPage() {
             </h1>
             <p className="text-[#3f5068] text-sm mt-1.5 font-medium">{t('subtitle')}</p>
             <p className="text-[#3f5068] text-xs mt-1">{t('auto_save_notice')}</p>
+            <button
+              onClick={() => setShowScoringHelp(true)}
+              className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold transition-colors"
+              style={{ color: '#5a6a82' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#f0b429' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#5a6a82' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+              </svg>
+              {tScoring('how_scored')}
+            </button>
           </div>
           <button
             onClick={handleRefresh}
@@ -855,6 +872,7 @@ export default function PredictionsPage() {
         </>
       )}
 
+      <ScoringExplanationModal open={showScoringHelp} onClose={() => setShowScoringHelp(false)} />
     </div>
   )
 }

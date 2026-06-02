@@ -12,6 +12,7 @@ import type { Match, Prediction, ScoringRules } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { encodeInviteCode } from '@/lib/invite'
 import { useLocale, useTranslations } from 'next-intl'
+import ScoringExplanationModal from '@/components/ScoringExplanationModal'
 
 const STAGE_ORDER = ['group_stage', 'round_of_16', 'quarter_finals', 'semi_finals', 'third_place', 'final']
 
@@ -243,6 +244,7 @@ export default function TournamentPage() {
   const [copied, setCopied] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [showScoringHelp, setShowScoringHelp] = useState(false)
   const qc = useQueryClient()
 
   const { data: tournament } = useQuery({
@@ -359,34 +361,69 @@ export default function TournamentPage() {
         </div>
 
         {/* Action buttons */}
-        <div className="mt-4 grid grid-cols-3 sm:flex sm:items-center gap-2 sm:flex-wrap">
+        <div className="mt-4 flex items-center gap-2 flex-wrap">
+          {/* Invite — ghost neutral with copy icon */}
           <button
             onClick={copyInviteLink}
             disabled={!tournament}
-            className="text-[10px] sm:text-xs font-bold uppercase tracking-wide px-3 sm:px-4 py-2.5 rounded-xl transition-all duration-200 disabled:opacity-40 truncate"
-            style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.25)', color: '#c084fc' }}
-            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(168,85,247,0.18)', borderColor: 'rgba(168,85,247,0.45)' })}
-            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(168,85,247,0.1)', borderColor: 'rgba(168,85,247,0.25)' })}
+            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200 disabled:opacity-40"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#8496af' }}
+            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.18)', color: 'white' })}
+            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#8496af' })}
           >
+            {copied ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+            )}
             {copied ? t('copied') : t('invite')}
           </button>
+
+          {/* Compare — ghost neutral with compare icon + chevron */}
           <Link
             href={`/tournaments/${code}/compare`}
-            className="text-[10px] sm:text-xs font-bold uppercase tracking-wide px-3 sm:px-4 py-2.5 rounded-xl transition-all duration-200 text-center"
-            style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', color: '#60a5fa' }}
-            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(59,130,246,0.18)', borderColor: 'rgba(59,130,246,0.45)' })}
-            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.25)' })}
+            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#8496af' }}
+            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.18)', color: 'white' })}
+            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#8496af' })}
           >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
             {t('compare')}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
           </Link>
+
+          {/* Leaderboard — gold accent as primary action + chevron */}
           <Link
             href={`/tournaments/${code}/leaderboard`}
-            className="text-[10px] sm:text-xs font-bold uppercase tracking-wide px-3 sm:px-4 py-2.5 rounded-xl transition-all duration-200 text-center"
-            style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.25)', color: '#f0b429' }}
-            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.18)', borderColor: 'rgba(240,180,41,0.45)' })}
-            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.1)', borderColor: 'rgba(240,180,41,0.25)' })}
+            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
+            style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.3)', color: '#f0b429' }}
+            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.18)', borderColor: 'rgba(240,180,41,0.5)', color: '#fcd86e' })}
+            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.1)', borderColor: 'rgba(240,180,41,0.3)', color: '#f0b429' })}
           >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+              <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+              <path d="M4 22h16" />
+              <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+              <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+              <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+            </svg>
             {t('leaderboard')}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
           </Link>
         </div>
       </div>
@@ -432,6 +469,50 @@ export default function TournamentPage() {
         </div>
       )}
 
+      {/* Scoring bar */}
+      {tournament?.scoring_rules && (
+        <div
+          className="rounded-2xl px-4 py-3 mb-6 flex items-center gap-3"
+          style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
+        >
+          <span className="text-[0.6rem] font-bold uppercase tracking-[0.2em] shrink-0" style={{ color: '#3f5068' }}>
+            {t('scoring_rules_label')}
+          </span>
+          <div className="flex items-center gap-1 flex-wrap flex-1">
+            {[
+              { icon: '🎯', pts: tournament.scoring_rules.correct_result_pts, label: t('score_exact') },
+              { icon: '🏆', pts: tournament.scoring_rules.correct_winner_pts, label: t('score_winner') },
+              { icon: '⚖️', pts: tournament.scoring_rules.correct_goal_diff_pts, label: t('score_diff') },
+              { icon: '⚽', pts: tournament.scoring_rules.correct_goals_one_team_pts, label: t('score_one_team') },
+            ].map(({ icon, pts, label }, i, arr) => (
+              <div key={label} className="flex items-center gap-1">
+                <span
+                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+                  title={label}
+                >
+                  <span className="text-xs leading-none">{icon}</span>
+                  <span className="font-[family-name:var(--font-oswald)] font-bold text-sm tabular-nums leading-none" style={{ color: '#f0b429' }}>+{pts}</span>
+                </span>
+                {i < arr.length - 1 && (
+                  <span className="text-[#1e2d40] text-xs select-none">·</span>
+                )}
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowScoringHelp(true)}
+            className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold transition-all duration-200"
+            style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.25)', color: '#f0b429' }}
+            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.2)', borderColor: 'rgba(240,180,41,0.5)' })}
+            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.1)', borderColor: 'rgba(240,180,41,0.25)' })}
+            title={t('how_it_works_link')}
+          >
+            ?
+          </button>
+        </div>
+      )}
+
       {/* Matches */}
       {matchesLoading && (
         <div className="space-y-3">
@@ -455,6 +536,8 @@ export default function TournamentPage() {
           <MatchCard key={match.id} match={match} prediction={predByMatch[match.id]} timezone={me?.timezone} scoring={tournament?.scoring_rules} />
         ))}
       </div>
+
+      <ScoringExplanationModal open={showScoringHelp} onClose={() => setShowScoringHelp(false)} />
     </div>
   )
 }
