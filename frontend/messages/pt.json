@@ -194,6 +194,7 @@
     "stage_not_yet_seeded": "Jogos ainda não definidos",
     "stage_seeded_later": "Os times serão confirmados após a fase de grupos.",
     "auto_save_notice": "Seus palpites são salvos automaticamente enquanto você digita.",
+    "auto_save_short": "Salva automaticamente",
     "saving": "Salvando…",
     "error_saving": "Erro ao salvar"
   },
