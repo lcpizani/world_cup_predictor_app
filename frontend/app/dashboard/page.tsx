@@ -405,15 +405,15 @@ function MatchRailCard({ match, prediction, timezone }: { match: Match; predicti
   const statusEl = isLive ? (
     <span className="flex items-center gap-1.5" style={{ color: '#3a2200' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-700 animate-pulse-live" />
-      <span className="text-[0.65rem] font-bold uppercase tracking-wider">
+      <span className="text-[0.65rem] sm:text-xs font-bold uppercase tracking-wider">
         {match.minute != null ? `${match.minute}'` : 'LIVE'}
       </span>
     </span>
   ) : isFinished ? (
-    <span className="text-[0.65rem] font-bold uppercase tracking-wider" style={{ color: '#4a6080' }}>{t('ft')}</span>
+    <span className="text-[0.65rem] sm:text-xs font-bold uppercase tracking-wider" style={{ color: '#4a6080' }}>{t('ft')}</span>
   ) : (
     // upcoming — time only; countdown moves to bottom zone
-    <span className="text-[0.65rem] font-bold" style={{ color: '#5a8fbe' }}>
+    <span className="text-[0.65rem] sm:text-xs font-bold" style={{ color: '#5a8fbe' }}>
       {formatMatchTime(match.kickoff_at, timezone, locale)}
     </span>
   )
@@ -422,21 +422,21 @@ function MatchRailCard({ match, prediction, timezone }: { match: Match; predicti
   // Row 1: pick / action link  |  Row 2: countdown (upcoming) or invisible spacer
   const mainRow: React.ReactNode = (isFinished || isLive) ? (
     prediction ? (
-      <Link href="/predictions" className="text-[0.68rem] font-semibold text-[#f0b429] hover:text-white transition-colors">
+      <Link href="/predictions" className="text-[0.68rem] sm:text-xs font-semibold text-[#f0b429] hover:text-white transition-colors">
         {t('see_your_pick')}
       </Link>
     ) : (
-      <Link href="/predictions" className="text-[0.68rem] font-medium text-[#3a4d64] hover:text-[#5a7090] transition-colors">
+      <Link href="/predictions" className="text-[0.68rem] sm:text-xs font-medium text-[#3a4d64] hover:text-[#5a7090] transition-colors">
         {t('no_pick')}
       </Link>
     )
   ) : (
     prediction ? (
-      <span className="text-[0.65rem] font-semibold" style={{ color: '#4ade80' }}>
+      <span className="text-[0.65rem] sm:text-xs font-semibold" style={{ color: '#4ade80' }}>
         ✓ <span className="font-[family-name:var(--font-oswald)] font-bold">{prediction.predicted_home}–{prediction.predicted_away}</span> {t('picked')}
       </span>
     ) : (
-      <Link href="/predictions" className="text-[0.7rem] font-bold text-[#f0b429] hover:text-white transition-colors">
+      <Link href="/predictions" className="text-[0.7rem] sm:text-xs font-bold text-[#f0b429] hover:text-white transition-colors">
         {t('pick')}
       </Link>
     )
@@ -449,7 +449,7 @@ function MatchRailCard({ match, prediction, timezone }: { match: Match; predicti
     >
       {/* Header strip */}
       <div className="px-3.5 py-2.5 flex items-center justify-between" style={headerStyle}>
-        <span className="text-[0.65rem] font-bold uppercase tracking-[0.15em]" style={{ color: headerDateColor }}>
+        <span className="text-[0.65rem] sm:text-xs font-bold uppercase tracking-[0.15em]" style={{ color: headerDateColor }}>
           {formatMatchDate(match.kickoff_at, timezone, locale)}
         </span>
         {statusEl}
@@ -484,10 +484,10 @@ function MatchRailCard({ match, prediction, timezone }: { match: Match; predicti
                 )}
               </div>
               {/* Name: full on mobile, abbreviation on desktop (lg+) */}
-              <span className="flex-1 lg:hidden font-[family-name:var(--font-oswald)] font-semibold text-[0.8rem] uppercase tracking-wider text-white truncate">
+              <span className="flex-1 lg:hidden font-[family-name:var(--font-oswald)] font-semibold text-[0.8rem] sm:text-[0.9rem] uppercase tracking-wider text-white truncate">
                 {displayName}
               </span>
-              <span className="flex-1 hidden lg:block font-[family-name:var(--font-oswald)] font-bold text-[0.9rem] uppercase tracking-widest text-white text-center">
+              <span className="flex-1 hidden lg:block font-[family-name:var(--font-oswald)] font-bold text-[0.9rem] sm:text-[1rem] uppercase tracking-widest text-white text-center">
                 {getTeamAbbr(team.name)}
               </span>
               {/* Score — always rendered; invisible for upcoming to lock card height */}
@@ -510,7 +510,7 @@ function MatchRailCard({ match, prediction, timezone }: { match: Match; predicti
         {mainRow}
         {/* Countdown for upcoming; invisible spacer for past/live keeps height identical */}
         <span
-          className="text-[0.58rem] font-medium text-[#2e4a66]"
+          className="text-[0.58rem] sm:text-[0.65rem] font-medium text-[#2e4a66]"
           style={{ visibility: isUpcoming ? 'visible' : 'hidden' }}
         >
           {formatCountdown(match.kickoff_at)}

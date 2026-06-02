@@ -19,7 +19,7 @@ function TeamFlag({ name }: { name: string }) {
   const code = getTeamFlagCode(name)
   if (!code) return null
   return (
-    <div className="w-9 h-6 rounded overflow-hidden shrink-0" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+    <div className="w-9 h-6 sm:w-11 sm:h-7 rounded overflow-hidden shrink-0" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
       <Image src={getFlagUrl(code, 40)} alt={name} width={36} height={24} className="w-full h-full object-cover" unoptimized />
     </div>
   )
@@ -33,17 +33,17 @@ function ResultBadge({ exact, winner, hasPred }: { exact: boolean; winner: boole
   const t = useTranslations('predictions')
   if (!hasPred) return null
   if (exact) return (
-    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
+    <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       {t('exact')}
     </span>
   )
   if (winner) return (
-    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.2)' }}>
+    <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.2)' }}>
       {t('winner')}
     </span>
   )
   return (
-    <span className="text-[10px] font-medium text-[#2d3e52]">{t('miss')}</span>
+    <span className="text-[10px] sm:text-xs font-medium text-[#2d3e52]">{t('miss')}</span>
   )
 }
 
@@ -51,19 +51,19 @@ function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string;
   const t = useTranslations('predictions')
   const locale = useLocale()
   if (status === 'live') return (
-    <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
+    <span className="flex items-center gap-1.5 text-[9px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
       {minute != null ? `${minute}'` : t('live')}
     </span>
   )
   if (status === 'finished') return (
-    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider" style={{ color: '#3f5068', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+    <span className="text-[9px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider" style={{ color: '#3f5068', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
       {t('ft')}
     </span>
   )
   const label = formatMatchDateTime(kickoff_at, timezone, locale)
   return (
-    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full tracking-wider text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)' }}>
+    <span className="text-[9px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full tracking-wider text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)' }}>
       {label}
     </span>
   )
@@ -159,11 +159,11 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
         )}
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-[10px] font-mono tracking-widest uppercase truncate" style={{ color: '#3f5068' }}>
+            <span className="text-[9px] sm:text-[11px] font-mono tracking-wide uppercase truncate" style={{ color: '#3f5068' }}>
               {STAGE_ORDER.includes(match.stage) ? t(`stage_${match.stage}`) : match.stage.replace(/_/g, ' ')}
             </span>
             {match.group && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0" style={{ color: '#5a6a82', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <span className="text-[9px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0" style={{ color: '#5a6a82', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
                 {translateGroupName(match.group, locale)}
               </span>
             )}
@@ -175,38 +175,38 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
         </div>
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex-1 flex items-center justify-end gap-2 sm:gap-2.5 min-w-0">
-            <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-sm sm:text-base">
+            <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-sm sm:text-lg">
               <span className="sm:hidden">{getTeamAbbr(match.home_team)}</span><span className="hidden sm:inline">{translateTeamName(match.home_team, locale)}</span>
             </span>
             <TeamFlag name={match.home_team} />
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {hasPred ? (
-              <div className="flex flex-col items-center gap-1 w-20 sm:w-24">
+              <div className="flex flex-col items-center gap-1 w-20 sm:w-28">
                 <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg" style={pillStyle}>
-                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-xl w-5 text-center ${scoreColors.home === 'green' ? 'text-green-400' : scoreColors.home === 'yellow' ? 'text-[#f0b429]' : 'text-white'}`}>
+                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-xl sm:text-2xl w-5 sm:w-7 text-center ${scoreColors.home === 'green' ? 'text-green-400' : scoreColors.home === 'yellow' ? 'text-[#f0b429]' : 'text-white'}`}>
                     {ph}
                   </span>
-                  <span className="font-bold text-sm" style={{ color: '#2d3e52' }}>–</span>
-                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-xl w-5 text-center ${scoreColors.away === 'green' ? 'text-green-400' : scoreColors.away === 'yellow' ? 'text-[#f0b429]' : 'text-white'}`}>
+                  <span className="font-bold text-sm sm:text-base" style={{ color: '#2d3e52' }}>–</span>
+                  <span className={`font-[family-name:var(--font-oswald)] font-bold text-xl sm:text-2xl w-5 sm:w-7 text-center ${scoreColors.away === 'green' ? 'text-green-400' : scoreColors.away === 'yellow' ? 'text-[#f0b429]' : 'text-white'}`}>
                     {pa}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="font-[family-name:var(--font-oswald)] text-sm w-4 text-center" style={{ color: '#3f5068' }}>{ah}</span>
-                  <span className="text-xs" style={{ color: '#1e2d40' }}>–</span>
-                  <span className="font-[family-name:var(--font-oswald)] text-sm w-4 text-center" style={{ color: '#3f5068' }}>{aa}</span>
+                  <span className="font-[family-name:var(--font-oswald)] text-sm sm:text-base w-4 sm:w-5 text-center" style={{ color: '#3f5068' }}>{ah}</span>
+                  <span className="text-xs sm:text-sm" style={{ color: '#1e2d40' }}>–</span>
+                  <span className="font-[family-name:var(--font-oswald)] text-sm sm:text-base w-4 sm:w-5 text-center" style={{ color: '#3f5068' }}>{aa}</span>
                 </div>
               </div>
             ) : (
-              <span className="font-[family-name:var(--font-oswald)] font-bold text-xl sm:text-2xl w-20 sm:w-24 text-center" style={{ color: '#3f5068' }}>
+              <span className="font-[family-name:var(--font-oswald)] font-bold text-xl sm:text-3xl w-20 sm:w-28 text-center" style={{ color: '#3f5068' }}>
                 {ah} – {aa}
               </span>
             )}
           </div>
           <div className="flex-1 flex items-center gap-2 sm:gap-2.5 min-w-0">
             <TeamFlag name={match.away_team} />
-            <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-sm sm:text-base">
+            <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-sm sm:text-lg">
               <span className="sm:hidden">{getTeamAbbr(match.away_team)}</span><span className="hidden sm:inline">{translateTeamName(match.away_team, locale)}</span>
             </span>
           </div>
@@ -220,11 +220,11 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
     <div className="rounded-2xl p-3 sm:p-4 transition-all duration-200" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-[10px] font-mono tracking-widest uppercase truncate" style={{ color: '#3f5068' }}>
+          <span className="text-[9px] sm:text-[11px] font-mono tracking-wide uppercase truncate" style={{ color: '#3f5068' }}>
             {STAGE_ORDER.includes(match.stage) ? t(`stage_${match.stage}`) : match.stage.replace(/_/g, ' ')}
           </span>
           {match.group && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0" style={{ color: '#5a6a82', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <span className="text-[9px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0" style={{ color: '#5a6a82', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
               {translateGroupName(match.group, locale)}
             </span>
           )}
@@ -233,19 +233,19 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
       </div>
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-xs sm:text-sm">
+          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide text-right truncate text-xs sm:text-base">
             <span className="sm:hidden">{getTeamAbbr(match.home_team)}</span><span className="hidden sm:inline">{translateTeamName(match.home_team, locale)}</span>
           </span>
           <TeamFlag name={match.home_team} />
         </div>
-        <div className="flex items-center gap-1.5 shrink-0 justify-center w-24 sm:w-28">
+        <div className="flex items-center gap-1.5 shrink-0 justify-center w-24 sm:w-32">
           {isLocked ? (
             prediction ? (
-              <span className="font-[family-name:var(--font-oswald)] font-bold text-lg text-white tabular-nums">
+              <span className="font-[family-name:var(--font-oswald)] font-bold text-lg sm:text-xl text-white tabular-nums">
                 {prediction.predicted_home} – {prediction.predicted_away}
               </span>
             ) : (
-              <span className="text-xs text-[#1e2d40]">{t('locked')}</span>
+              <span className="text-xs sm:text-sm text-[#1e2d40]">{t('locked')}</span>
             )
           ) : (
             <>
@@ -255,19 +255,19 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
                 placeholder=""
                 inputMode="numeric"
                 aria-label={`${match.home_team} score`}
-                className="w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
+                className="w-11 sm:w-14 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base sm:text-lg rounded-lg px-1 py-1.5 transition-all"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
                 onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
               />
-              <span className="text-[#4a6080] font-bold text-sm">–</span>
+              <span className="text-[#4a6080] font-bold text-sm sm:text-base">–</span>
               <input
                 type="number" min={0} value={away}
                 onChange={(e) => setAway(e.target.value)}
                 placeholder=""
                 inputMode="numeric"
                 aria-label={`${match.away_team} score`}
-                className="w-11 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base rounded-lg px-1 py-1.5 transition-all"
+                className="w-11 sm:w-14 text-white text-center font-[family-name:var(--font-oswald)] font-bold text-base sm:text-lg rounded-lg px-1 py-1.5 transition-all"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }}
                 onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.boxShadow = 'none' }}
@@ -277,7 +277,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
         </div>
         <div className="flex-1 flex items-center gap-2 min-w-0">
           <TeamFlag name={match.away_team} />
-          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-xs sm:text-sm">
+          <span className="font-[family-name:var(--font-oswald)] font-semibold text-white uppercase tracking-wide truncate text-xs sm:text-base">
             <span className="sm:hidden">{getTeamAbbr(match.away_team)}</span><span className="hidden sm:inline">{translateTeamName(match.away_team, locale)}</span>
           </span>
         </div>
