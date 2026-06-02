@@ -37,7 +37,7 @@ export function formatMatchDate(date: string | Date, timezone?: string | null, l
 }
 
 export function formatMatchTime(date: string | Date, timezone?: string | null, locale?: string | null): string {
-  return formatInUserTz(date, 'h:mm a', timezone, locale)
+  return formatInUserTz(date, locale === 'pt' ? 'HH:mm' : 'h:mm a', timezone, locale)
 }
 
 function capitalizePtMonth(s: string): string {
