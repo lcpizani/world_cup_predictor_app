@@ -7,7 +7,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.group_standing import GroupStanding
 from app.models.match import Match
-from app.schemas.standings import BracketSlot, GroupData, GroupStandingRow
+from app.schemas.standings import BracketSlot, GroupData, GroupStandingRow, LiveMatchBadge
 from app.schemas.match import MatchResponse
 
 router = APIRouter()
@@ -158,6 +158,40 @@ def _standings_from_matches(db: Session) -> list[GroupData]:
     return result
 
 
+def _attach_live_badges(groups: dict[str, list[GroupStandingRow]], db: Session) -> None:
+    """Stamp live_match badges onto standing rows for teams currently playing."""
+    live_matches = (
+        db.query(Match)
+        .filter(
+            Match.status == "live",
+            Match.stage == "group_stage",
+            Match.home_score.isnot(None),
+            Match.away_score.isnot(None),
+            Match.group.isnot(None),
+        )
+        .all()
+    )
+    if not live_matches:
+        return
+
+    badges: dict[str, LiveMatchBadge] = {}
+    for match in live_matches:
+        hs, as_ = match.home_score, match.away_score
+        if hs > as_:
+            home_result, away_result = "W", "L"
+        elif hs < as_:
+            home_result, away_result = "L", "W"
+        else:
+            home_result = away_result = "D"
+        badges[match.home_team] = LiveMatchBadge(team_score=hs, opp_score=as_, result=home_result)
+        badges[match.away_team] = LiveMatchBadge(team_score=as_, opp_score=hs, result=away_result)
+
+    for rows in groups.values():
+        for i, row in enumerate(rows):
+            if row.team_name in badges:
+                rows[i] = row.model_copy(update={"live_match": badges[row.team_name]})
+
+
 @router.get("", response_model=List[GroupData])
 def get_standings(
     db: Session = Depends(get_db),
@@ -181,6 +215,8 @@ def get_standings(
         for fallback in _standings_from_matches(db):
             if fallback.group not in groups:
                 groups[fallback.group] = fallback.standings
+
+        _attach_live_badges(groups, db)
 
         return [
             GroupData(group=group, standings=standings)

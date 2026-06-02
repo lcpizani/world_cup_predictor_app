@@ -83,7 +83,7 @@ def reset_all_matches(
     db.query(PointEvent).delete(synchronize_session=False)
     db.query(Prediction).delete(synchronize_session=False)
     db.query(Match).delete(synchronize_session=False)
-    db.query(TournamentMember).update({"total_points": 0}, synchronize_session=False)
+    db.query(TournamentMember).update({"total_points": 0, "provisional_points": 0}, synchronize_session=False)
     db.commit()
     logger.info("All matches reset successfully")
     return {"ok": True}
@@ -211,7 +211,7 @@ def seed_finish_match(
         raise HTTPException(status_code=400, detail="Match already finished")
 
     scoring_service.apply_match_result(db, match.id, home_score, away_score, status="finished")
-    recalculate_standings_from_matches(db)
+    update_provisional_points(db)
 
     logger.info("Finished seeded match", home=home_team, away=away_team,
                 score=f"{home_score}-{away_score}")

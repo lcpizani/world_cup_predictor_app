@@ -142,13 +142,6 @@ def apply_match_result(
         pred.points_awarded = total_across_tournaments
         db.add(pred)
 
-    # Clear provisional_points for members who had predictions on this match
-    # but belong to tournaments the predicting users are NOT members of
-    # (edge case: cover any member whose provisional may have included this match)
-    if affected_member_ids:
-        # Already cleared above inline — no extra query needed
-        pass
-
     db.commit()
     db.refresh(match)
 
@@ -306,4 +299,5 @@ def recompute_tournament_scores(db: Session, tournament_id: UUID) -> dict:
             recomputed_predictions += 1
 
     db.commit()
+    update_provisional_points(db)
     return {"recomputed_matches": recomputed_matches, "recomputed_predictions": recomputed_predictions}

@@ -683,10 +683,10 @@ export default function DashboardPage() {
   async function handleReload() {
     setReloading(true)
     await Promise.all([
-      qc.invalidateQueries({ queryKey: ['matches'] }),
-      qc.invalidateQueries({ queryKey: ['predictions'] }),
-      qc.invalidateQueries({ queryKey: ['leaderboard'] }),
-      qc.invalidateQueries({ queryKey: ['tournaments'] }),
+      qc.refetchQueries({ queryKey: ['matches'] }),
+      qc.refetchQueries({ queryKey: ['predictions'] }),
+      qc.refetchQueries({ queryKey: ['leaderboard'] }),
+      qc.refetchQueries({ queryKey: ['tournaments'] }),
     ])
     setReloading(false)
   }

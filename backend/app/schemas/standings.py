@@ -1,8 +1,14 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel
 
 from app.schemas.match import MatchResponse
+
+
+class LiveMatchBadge(BaseModel):
+    team_score: int
+    opp_score: int
+    result: Literal["W", "D", "L"]
 
 
 class GroupStandingRow(BaseModel):
@@ -17,6 +23,7 @@ class GroupStandingRow(BaseModel):
     goals_against: int
     goal_difference: int
     points: int
+    live_match: Optional[LiveMatchBadge] = None
 
     model_config = {"from_attributes": True}
 
