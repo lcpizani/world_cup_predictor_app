@@ -1,7 +1,9 @@
+import uuid
+from datetime import datetime, timezone
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -12,6 +14,7 @@ from app.services import scoring as scoring_service
 from app.services import football_api
 from app.services.football_api import FOOTBALL_API_BASE
 from app.services.standings import recalculate_standings_from_matches
+from app.services.scoring import update_provisional_points
 from app.models.match import Match
 from app.models.prediction import Prediction
 from app.models.point_event import PointEvent
@@ -80,7 +83,7 @@ def reset_all_matches(
     db.query(PointEvent).delete(synchronize_session=False)
     db.query(Prediction).delete(synchronize_session=False)
     db.query(Match).delete(synchronize_session=False)
-    db.query(TournamentMember).update({"total_points": 0}, synchronize_session=False)
+    db.query(TournamentMember).update({"total_points": 0, "provisional_points": 0}, synchronize_session=False)
     db.commit()
     logger.info("All matches reset successfully")
     return {"ok": True}
@@ -130,17 +133,88 @@ def recalculate_standings(
     return result
 
 
-@router.post("/sync/standings", status_code=status.HTTP_200_OK)
-def sync_standings(
-    competition_code: str = "WC",
+@router.post("/seed/live-match", status_code=status.HTTP_200_OK)
+def seed_live_match(
+    home_team: str = Body(...),
+    away_team: str = Body(...),
+    home_score: int = Body(...),
+    away_score: int = Body(...),
+    group: str = Body("Group A"),
+    minute: int = Body(45),
     db: Session = Depends(get_db),
     admin=Depends(get_admin_user),
 ) -> dict:
-    logger.info("Syncing standings from football-data.org", competition_code=competition_code)
-    try:
-        result = football_api.sync_standings(db, competition_code)
-    except HTTPException as exc:
-        logger.error("Failed to sync standings", competition_code=competition_code, detail=exc.detail)
-        raise
-    logger.info("Standings synced", competition_code=competition_code, synced=result.get("synced"))
-    return result
+    """Seed a fake live match for testing the standings/points pipeline.
+
+    Creates or updates a match row with status=live so the scheduler pipeline
+    can be verified without a real football API key. After calling this, the
+    next scheduler tick will update provisional points and standings — or you
+    can call POST /admin/standings/recalculate and GET /standings immediately.
+    """
+    ext_id = f"seed-{home_team[:3].lower()}-{away_team[:3].lower()}"
+    existing = db.query(Match).filter(Match.external_match_id == ext_id).first()
+    if existing:
+        existing.home_score = home_score
+        existing.away_score = away_score
+        existing.status = "live"
+        existing.minute = minute
+        db.add(existing)
+        match = existing
+    else:
+        match = Match(
+            id=uuid.uuid4(),
+            external_match_id=ext_id,
+            home_team=home_team,
+            away_team=away_team,
+            kickoff_at=datetime.now(timezone.utc),
+            stage="group_stage",
+            group=group,
+            status="live",
+            home_score=home_score,
+            away_score=away_score,
+            minute=minute,
+        )
+        db.add(match)
+
+    db.commit()
+
+    recalculate_standings_from_matches(db)
+    update_provisional_points(db)
+
+    logger.info("Seeded live match", home=home_team, away=away_team,
+                score=f"{home_score}-{away_score}", group=group)
+    return {
+        "match_id": str(match.id),
+        "home_team": home_team,
+        "away_team": away_team,
+        "score": f"{home_score}-{away_score}",
+        "group": group,
+        "status": "live",
+    }
+
+
+@router.post("/seed/finish-match", status_code=status.HTTP_200_OK)
+def seed_finish_match(
+    home_team: str = Body(...),
+    away_team: str = Body(...),
+    home_score: int = Body(...),
+    away_score: int = Body(...),
+    db: Session = Depends(get_db),
+    admin=Depends(get_admin_user),
+) -> dict:
+    """Mark the seeded live match as finished and run scoring."""
+    ext_id = f"seed-{home_team[:3].lower()}-{away_team[:3].lower()}"
+    match = db.query(Match).filter(Match.external_match_id == ext_id).first()
+    if match is None:
+        raise HTTPException(status_code=404, detail="Seeded match not found — call /seed/live-match first")
+    if match.status == "finished":
+        raise HTTPException(status_code=400, detail="Match already finished")
+
+    scoring_service.apply_match_result(db, match.id, home_score, away_score, status="finished")
+    update_provisional_points(db)
+
+    logger.info("Finished seeded match", home=home_team, away=away_team,
+                score=f"{home_score}-{away_score}")
+    return {"match_id": str(match.id), "final_score": f"{home_score}-{away_score}", "status": "finished"}
+
+

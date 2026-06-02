@@ -14,29 +14,43 @@ from app.models.match import Match
 
 
 def recalculate_standings_from_matches(db: Session, group: Optional[str] = None) -> dict:
-    """Recompute group_standings rows from finished group-stage matches in the DB.
+    """Recompute group_standings rows from all known group-stage teams.
+
+    Builds a full team roster from ALL group-stage matches (any status), so
+    every team appears in standings with zeros even before any game is played.
+    Stats are then overlaid from finished/live matches only.
 
     If `group` is given (e.g. "Group A"), only that group is recalculated.
     Returns {"recalculated": <number of rows written>}.
     """
-    query = db.query(Match).filter(
-        Match.status == "finished",
+    # Step 1: Build zeroed roster from ALL group-stage matches (any status).
+    roster_query = db.query(Match).filter(
+        Match.stage == "group_stage",
+        Match.group.isnot(None),
+    )
+    if group:
+        roster_query = roster_query.filter(Match.group == group)
+
+    zero_stats = lambda: {"played": 0, "won": 0, "drawn": 0, "lost": 0, "gf": 0, "ga": 0}
+    group_data: dict = defaultdict(lambda: defaultdict(zero_stats))
+
+    for match in roster_query.all():
+        # Ensure both teams exist in the roster with zeroed stats.
+        _ = group_data[match.group][match.home_team]
+        _ = group_data[match.group][match.away_team]
+
+    # Step 2: Overlay real stats from finished/live matches.
+    results_query = db.query(Match).filter(
+        Match.status.in_(["finished", "live"]),
         Match.stage == "group_stage",
         Match.home_score.isnot(None),
         Match.away_score.isnot(None),
         Match.group.isnot(None),
     )
     if group:
-        query = query.filter(Match.group == group)
+        results_query = results_query.filter(Match.group == group)
 
-    matches = query.all()
-
-    # Accumulate stats per group → team
-    group_data: dict = defaultdict(lambda: defaultdict(lambda: {
-        "played": 0, "won": 0, "drawn": 0, "lost": 0, "gf": 0, "ga": 0,
-    }))
-
-    for match in matches:
+    for match in results_query.all():
         grp = match.group
         hs, as_ = match.home_score, match.away_score
 

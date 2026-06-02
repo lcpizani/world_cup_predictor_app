@@ -121,7 +121,9 @@
     "you": "you",
     "standings_title": "Standings & Bracket",
     "standings_desc": "Live group tables and knockout bracket",
-    "ft": "FT"
+    "ft": "FT",
+    "reload": "Reload",
+    "reloading": "Reloading…"
   },
   "standings": {
     "title": "World Cup 2026",
@@ -351,7 +353,9 @@
     "invalid_link_title": "Invalid Link",
     "invalid_link_desc": "This invite link is not valid. Ask for a new one.",
     "go_to_dashboard": "Go to Dashboard",
-    "this_league": "this league"
+    "this_league": "this league",
+    "success_title": "Joined successfully!",
+    "success_desc": "You've successfully joined {name}"
   },
   "profile": {
     "edit_profile": "Edit Profile",

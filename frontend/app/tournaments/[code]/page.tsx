@@ -206,23 +206,19 @@ function MatchCard({ match, prediction, timezone, scoring }: { match: Match; pre
         ) : (
           <span />
         )}
-        {prediction?.points_awarded !== null && prediction?.points_awarded !== undefined && (
-          <div className="ml-auto flex items-baseline gap-1">
-            <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-lg">
-              +{prediction.points_awarded}
-            </span>
-            <span className="text-xs font-medium" style={{ color: '#5a6a82' }}>{t('pts')}</span>
-          </div>
-        )}
-        {match.status === 'live' && scoring && prediction &&
+        {(match.status === 'finished' || match.status === 'live') && scoring && prediction &&
           match.home_score !== null && match.away_score !== null && (() => {
             const pts = computeProvisionalPoints(
               prediction.predicted_home, prediction.predicted_away,
               match.home_score, match.away_score, scoring,
             )
+            const isLive = match.status === 'live'
             return pts > 0 ? (
               <div className="ml-auto flex items-baseline gap-1">
-                <span className="font-[family-name:var(--font-oswald)] font-bold text-lg" style={{ color: '#22c55e' }}>
+                <span
+                  className="font-[family-name:var(--font-oswald)] font-bold text-lg"
+                  style={{ color: isLive ? '#22c55e' : '#f0b429' }}
+                >
                   +{pts}
                 </span>
                 <span className="text-xs font-medium" style={{ color: '#5a6a82' }}>{t('pts')}</span>
@@ -290,10 +286,19 @@ export default function TournamentPage() {
   const tournamentId = tournament?.id ?? ''
 
   async function handleRefresh() {
+    if (!tournamentId) return
     setRefreshing(true)
+    try {
+      await api.recompute(tournamentId)
+    } catch {
+      // recompute is best-effort; still refresh the UI
+    }
     await Promise.all([
       qc.invalidateQueries({ queryKey: ['matches'] }),
       qc.invalidateQueries({ queryKey: ['predictions', tournamentId] }),
+      qc.invalidateQueries({ queryKey: ['leaderboard', code] }),
+      qc.invalidateQueries({ queryKey: ['leaderboard-live', code] }),
+      qc.invalidateQueries({ queryKey: ['tournament', code] }),
     ])
     setRefreshing(false)
   }

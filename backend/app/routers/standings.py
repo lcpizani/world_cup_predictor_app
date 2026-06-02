@@ -57,7 +57,6 @@ _BRACKET_TOPOLOGY = [
 ]
 
 # Maps each slot to the (feeder_slot_id, "winner"|"loser") pair for home and away.
-# Used to resolve team names dynamically when the next-round DB match doesn't exist yet.
 _ADVANCEMENT: dict[int, dict[str, tuple[int, str]]] = {
     # R16
     89:  {"home": (73,  "winner"), "away": (74,  "winner")},
@@ -82,7 +81,6 @@ _ADVANCEMENT: dict[int, dict[str, tuple[int, str]]] = {
     104: {"home": (101, "winner"), "away": (102, "winner")},
 }
 
-# Map stage string values from the DB to the round labels in the topology
 _STAGE_TO_ROUND = {
     "round_of_32": "round_of_32",
     "round_of_16": "round_of_16",
@@ -94,18 +92,16 @@ _STAGE_TO_ROUND = {
 
 
 def _winner_of(match: Match) -> str | None:
-    """Return the winning team name, or None if not yet finished or a draw."""
     if match.status != "finished" or match.home_score is None or match.away_score is None:
         return None
     if match.home_score > match.away_score:
         return match.home_team
     if match.away_score > match.home_score:
         return match.away_team
-    return None  # draw (shouldn't happen in knockout, but be safe)
+    return None
 
 
 def _loser_of(match: Match) -> str | None:
-    """Return the losing team name, or None if not yet finished or a draw."""
     if match.status != "finished" or match.home_score is None or match.away_score is None:
         return None
     if match.home_score > match.away_score:
@@ -116,7 +112,6 @@ def _loser_of(match: Match) -> str | None:
 
 
 def _resolve_label(slot_id: int, side: str, knockout_by_slot: dict[int, Match]) -> str | None:
-    """Resolve a bracket label from the advancement map. Returns team name or None."""
     advancement = _ADVANCEMENT.get(slot_id)
     if not advancement:
         return None
@@ -127,88 +122,6 @@ def _resolve_label(slot_id: int, side: str, knockout_by_slot: dict[int, Match]) 
     if role == "winner":
         return _winner_of(feeder_match)
     return _loser_of(feeder_match)
-
-
-def _build_live_delta(live_matches: list[Match]) -> tuple[
-    dict[str, dict],  # team_name -> delta stats
-    dict[str, "LiveMatchBadge"],  # team_name -> badge
-]:
-    """Compute provisional stats delta and live badges from live matches."""
-    delta: dict[str, dict] = {}
-    badges: dict[str, LiveMatchBadge] = {}
-
-    for match in live_matches:
-        hs = match.home_score or 0
-        as_ = match.away_score or 0
-
-        if hs > as_:
-            home_result, away_result = "W", "L"
-            home_pts, away_pts = 3, 0
-            home_w, home_d, home_l = 1, 0, 0
-            away_w, away_d, away_l = 0, 0, 1
-        elif hs < as_:
-            home_result, away_result = "L", "W"
-            home_pts, away_pts = 0, 3
-            home_w, home_d, home_l = 0, 0, 1
-            away_w, away_d, away_l = 1, 0, 0
-        else:
-            home_result, away_result = "D", "D"
-            home_pts = away_pts = 1
-            home_w = home_l = away_w = away_l = 0
-            home_d = away_d = 1
-
-        for team, gf, ga, result, pts, w, d, l in [
-            (match.home_team, hs, as_, home_result, home_pts, home_w, home_d, home_l),
-            (match.away_team, as_, hs, away_result, away_pts, away_w, away_d, away_l),
-        ]:
-            delta[team] = {
-                "played": 1, "won": w, "drawn": d, "lost": l,
-                "goals_for": gf, "goals_against": ga,
-                "goal_difference": gf - ga, "points": pts,
-            }
-            opp_score = ga  # from team's POV, opponent scored 'ga'
-            badges[team] = LiveMatchBadge(team_score=gf, opp_score=opp_score, result=result)
-
-    return delta, badges
-
-
-def _apply_live_delta(
-    groups: dict[str, list[GroupStandingRow]],
-    delta: dict[str, dict],
-    badges: dict[str, "LiveMatchBadge"],
-) -> dict[str, list[GroupStandingRow]]:
-    """Merge live delta into standing rows and attach live_match badges. Re-sorts each group."""
-    result: dict[str, list[GroupStandingRow]] = {}
-    for group, rows in groups.items():
-        merged = []
-        for row in rows:
-            d = delta.get(row.team_name)
-            if d:
-                row = GroupStandingRow(
-                    position=row.position,
-                    team_name=row.team_name,
-                    group=row.group,
-                    played=row.played + d["played"],
-                    won=row.won + d["won"],
-                    drawn=row.drawn + d["drawn"],
-                    lost=row.lost + d["lost"],
-                    goals_for=row.goals_for + d["goals_for"],
-                    goals_against=row.goals_against + d["goals_against"],
-                    goal_difference=row.goal_difference + d["goal_difference"],
-                    points=row.points + d["points"],
-                    live_match=badges.get(row.team_name),
-                )
-            merged.append(row)
-
-        # Re-sort: pts desc → GD desc → GF desc
-        merged.sort(key=lambda r: (-r.points, -r.goal_difference, -r.goals_for))
-        for i, r in enumerate(merged, start=1):
-            object.__setattr__(r, "position", i) if hasattr(r, "__slots__") else None
-            # Pydantic v2: rebuild with updated position
-            merged[i - 1] = r.model_copy(update={"position": i})
-
-        result[group] = merged
-    return result
 
 
 def _standings_from_matches(db: Session) -> list[GroupData]:
@@ -245,30 +158,8 @@ def _standings_from_matches(db: Session) -> list[GroupData]:
     return result
 
 
-@router.get("", response_model=List[GroupData])
-def get_standings(
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    rows = (
-        db.query(GroupStanding)
-        .order_by(GroupStanding.group, GroupStanding.position)
-        .all()
-    )
-
-    # Build base groups dict
-    if rows:
-        groups: dict[str, list[GroupStandingRow]] = {}
-        for row in rows:
-            if row.group not in groups:
-                groups[row.group] = []
-            groups[row.group].append(GroupStandingRow.model_validate(row))
-    else:
-        # No standings synced yet — derive structure from fixtures with zero stats
-        fallback = _standings_from_matches(db)
-        groups = {g.group: g.standings for g in fallback}
-
-    # Merge live match deltas
+def _attach_live_badges(groups: dict[str, list[GroupStandingRow]], db: Session) -> None:
+    """Stamp live_match badges onto standing rows for teams currently playing."""
     live_matches = (
         db.query(Match)
         .filter(
@@ -280,15 +171,60 @@ def get_standings(
         )
         .all()
     )
+    if not live_matches:
+        return
 
-    if live_matches:
-        delta, badges = _build_live_delta(live_matches)
-        groups = _apply_live_delta(groups, delta, badges)
+    badges: dict[str, LiveMatchBadge] = {}
+    for match in live_matches:
+        hs, as_ = match.home_score, match.away_score
+        if hs > as_:
+            home_result, away_result = "W", "L"
+        elif hs < as_:
+            home_result, away_result = "L", "W"
+        else:
+            home_result = away_result = "D"
+        badges[match.home_team] = LiveMatchBadge(team_score=hs, opp_score=as_, result=home_result)
+        badges[match.away_team] = LiveMatchBadge(team_score=as_, opp_score=hs, result=away_result)
 
-    return [
-        GroupData(group=group, standings=standings)
-        for group, standings in sorted(groups.items())
-    ]
+    for rows in groups.values():
+        for i, row in enumerate(rows):
+            if row.team_name in badges:
+                rows[i] = row.model_copy(update={"live_match": badges[row.team_name]})
+
+
+@router.get("", response_model=List[GroupData])
+def get_standings(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    rows = (
+        db.query(GroupStanding)
+        .order_by(GroupStanding.group, GroupStanding.position)
+        .all()
+    )
+
+    if rows:
+        groups: dict[str, list[GroupStandingRow]] = {}
+        for row in rows:
+            if row.group not in groups:
+                groups[row.group] = []
+            groups[row.group].append(GroupStandingRow.model_validate(row))
+
+        # Fill in groups that have fixtures but no standings rows yet (e.g. only
+        # some groups have played — recalculate only writes rows for played groups).
+        for fallback in _standings_from_matches(db):
+            if fallback.group not in groups:
+                groups[fallback.group] = fallback.standings
+
+        _attach_live_badges(groups, db)
+
+        return [
+            GroupData(group=group, standings=standings)
+            for group, standings in sorted(groups.items())
+        ]
+
+    # No standings synced at all yet — derive all groups from fixtures
+    return _standings_from_matches(db)
 
 
 @router.get("/bracket", response_model=List[BracketSlot])
@@ -317,11 +253,9 @@ def get_bracket(
         match = knockout_by_slot.get(slot_id)
 
         if match:
-            # DB record takes precedence — use actual team names
             home_label = match.home_team
             away_label = match.away_team
         else:
-            # Attempt to resolve from advancement map
             resolved_home = _resolve_label(slot_id, "home", knockout_by_slot)
             resolved_away = _resolve_label(slot_id, "away", knockout_by_slot)
             home_label = resolved_home if resolved_home is not None else entry["home_label"]

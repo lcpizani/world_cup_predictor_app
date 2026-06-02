@@ -22,6 +22,7 @@ export default function LeaderboardPage() {
   const { data: lb, isLoading } = useQuery({
     queryKey: ['leaderboard-live', code],
     queryFn: () => api.getLiveLeaderboard(code),
+    refetchInterval: 60_000,
   })
 
   const entries = lb?.entries ?? []

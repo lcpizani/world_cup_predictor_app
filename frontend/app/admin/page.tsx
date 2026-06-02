@@ -398,7 +398,7 @@ export default function AdminPage() {
           ? await api.syncMatches(competitionCode)
           : type === 'results'
           ? await api.syncResults(competitionCode)
-          : await api.syncStandings(competitionCode)
+          : await api.syncStandings()
       setSyncMsg(JSON.stringify(result))
       qc.invalidateQueries({ queryKey: ['matches'] })
       if (type === 'standings') qc.invalidateQueries({ queryKey: ['standings'] })

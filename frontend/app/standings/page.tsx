@@ -47,7 +47,6 @@ function TeamFlag({ name }: { name: string }) {
   )
 }
 
-// ── LiveBadge ─────────────────────────────────────────────────────────────────
 
 function LiveBadge({ live_match }: { live_match: LiveMatchBadge }) {
   const [bg, border, color] =
@@ -664,6 +663,7 @@ export default function StandingsPage() {
   const { data: standingsData = [], isLoading: standingsLoading } = useQuery({
     queryKey: ['standings'],
     queryFn: api.getStandings,
+    refetchInterval: 30_000,
   })
 
   const { data: bracketData = [], isLoading: bracketLoading } = useQuery({

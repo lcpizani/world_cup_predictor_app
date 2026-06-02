@@ -18,7 +18,6 @@ from app.schemas.tournament import (
     TournamentCompareMatch,
 )
 from app.schemas.leaderboard import LeaderboardResponse, LiveLeaderboardEntry, LiveLeaderboardResponse
-from app.services import scoring as scoring_service
 from app.models.match import Match
 from app.models.tournament import TournamentMember
 
@@ -93,21 +92,17 @@ def live_leaderboard(invite_code: str, db: Session = Depends(get_db), current_us
         .all()
     )
 
-    entries_raw = []
-    for m in members:
-        provisional = (
-            scoring_service.compute_provisional_points(db, tournament.id, m.user_id)
-            if has_live else 0
-        )
-        entries_raw.append((m, provisional))
-
-    entries_raw.sort(key=lambda x: x[0].total_points + x[1], reverse=True)
+    members_sorted = sorted(
+        members,
+        key=lambda m: m.total_points + m.provisional_points,
+        reverse=True,
+    )
 
     entries = []
     last_total = None
     last_rank = 0
-    for idx, (m, provisional) in enumerate(entries_raw, start=1):
-        live_total = m.total_points + provisional
+    for idx, m in enumerate(members_sorted, start=1):
+        live_total = m.total_points + m.provisional_points
         if last_total is None or live_total != last_total:
             rank = idx
             last_rank = rank
@@ -118,7 +113,7 @@ def live_leaderboard(invite_code: str, db: Session = Depends(get_db), current_us
             rank=rank,
             user=m.user,
             total_points=m.total_points,
-            provisional_points=provisional,
+            provisional_points=m.provisional_points,
             live_total=live_total,
         ))
 

@@ -102,10 +102,13 @@ export interface LeaderboardEntry {
   rank: number
   user: User
   total_points: number
+  provisional_points: number
+  live_total: number
 }
 
 export interface LeaderboardResponse {
   tournament_id: string
+  has_live_matches: boolean
   entries: LeaderboardEntry[]
 }
 

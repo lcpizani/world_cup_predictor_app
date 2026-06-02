@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
-import { useQuery, useQueries } from '@tanstack/react-query'
+import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { computeAccuracy, formatCountdown } from '@/lib/stats'
 import { getTeamFlagCode, getFlagUrl, getTeamAbbr, translateTeamName } from '@/lib/flags'
@@ -222,7 +222,7 @@ function LeagueMiniLeaderboard({ entries, currentUserId, isLoading }: {
     )
   }
 
-  const hasScores = entries.some(e => e.total_points > 0)
+  const hasScores = entries.some(e => e.live_total > 0)
   if (!hasScores) {
     return <p className="text-xs text-[#3f5068] mt-3 font-medium">{t('no_scores_yet')}</p>
   }
@@ -259,7 +259,7 @@ function LeagueMiniLeaderboard({ entries, currentUserId, isLoading }: {
               {entry.user.username}{isMe ? ` (${t('you')})` : ''}
             </span>
             <span className={`text-xs font-bold tabular-nums shrink-0 font-[family-name:var(--font-oswald)] ${isMe ? 'text-[#f0b429]' : 'text-white'}`}>
-              {entry.total_points}
+              {entry.live_total}
             </span>
           </div>
         )
@@ -281,7 +281,7 @@ function LeagueMiniLeaderboard({ entries, currentUserId, isLoading }: {
               {userEntry.user.username} ({t('you')})
             </span>
             <span className="text-xs font-bold tabular-nums shrink-0 font-[family-name:var(--font-oswald)] text-[#f0b429]">
-              {userEntry.total_points}
+              {userEntry.live_total}
             </span>
           </div>
         </>
@@ -674,8 +674,22 @@ function MatchRail({ matches, predictions, loading, timezone }: {
 
 export default function DashboardPage() {
   const t = useTranslations('dashboard')
+  const qc = useQueryClient()
+  const [reloading, setReloading] = useState(false)
+
   const { data: me, isLoading: meLoading } = useQuery({ queryKey: ['me'], queryFn: api.getMe })
   useOnboardingGuard(me, meLoading)
+
+  async function handleReload() {
+    setReloading(true)
+    await Promise.all([
+      qc.refetchQueries({ queryKey: ['matches'] }),
+      qc.refetchQueries({ queryKey: ['predictions'] }),
+      qc.refetchQueries({ queryKey: ['leaderboard'] }),
+      qc.refetchQueries({ queryKey: ['tournaments'] }),
+    ])
+    setReloading(false)
+  }
 
   const { data: tournaments = [], isLoading: tournamentsLoading } = useQuery({
     queryKey: ['tournaments'],
@@ -685,18 +699,20 @@ export default function DashboardPage() {
   const { data: matches = [], isLoading: matchesLoading } = useQuery({
     queryKey: ['matches'],
     queryFn: () => api.listMatches(),
+    refetchInterval: 60_000,
   })
 
   const { data: predictions = [], isLoading: predictionsLoading } = useQuery({
     queryKey: ['predictions'],
     queryFn: () => api.listPredictions(),
+    refetchInterval: 60_000,
   })
 
   const leaderboards = useQueries({
     queries: tournaments.map(t => ({
       queryKey: ['leaderboard', t.invite_code],
       queryFn: () => api.getLeaderboard(t.invite_code),
-      staleTime: 60_000,
+      refetchInterval: 60_000,
     })),
   })
 
@@ -706,13 +722,35 @@ export default function DashboardPage() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
 
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
-          {t('title')}
-        </h1>
-        <p className="text-[#5a7090] text-sm mt-1.5 font-medium">
-          {me ? t('welcome_back', { name: me.username }) : t('subtitle')}
-        </p>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
+            {t('title')}
+          </h1>
+          <p className="text-[#5a7090] text-sm mt-1.5 font-medium">
+            {me ? t('welcome_back', { name: me.username }) : t('subtitle')}
+          </p>
+        </div>
+        <button
+          onClick={handleReload}
+          disabled={reloading}
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+          style={{ color: '#4a6080' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#8a9ab8'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#4a6080'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+        >
+          <svg
+            width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            className={reloading ? 'animate-spin' : ''}
+          >
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+            <path d="M21 3v5h-5" />
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+            <path d="M8 16H3v5" />
+          </svg>
+          {reloading ? t('reloading') : t('reload')}
+        </button>
       </div>
 
       {/* Tier 1 — Match Rail */}

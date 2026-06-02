@@ -71,11 +71,18 @@ function LoginForm() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') }),
     })
-    const data = await res.json()
+    let data: { error?: string } = {}
+    try {
+      data = await res.json()
+    } catch {
+      setLoading(false)
+      setError(t('login_failed'))
+      return
+    }
     setLoading(false)
 
     if (!res.ok) {
-      setError((data as { error?: string }).error ?? t('login_failed'))
+      setError(data.error ?? t('login_failed'))
       return
     }
     const me = await api.getMe().catch(() => null)
