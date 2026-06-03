@@ -15,7 +15,7 @@ class Prediction(Base):
 
     id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
-    match_id = Column(PGUUID(as_uuid=True), ForeignKey("matches.id", ondelete="CASCADE"), nullable=False)
+    match_id = Column(PGUUID(as_uuid=True), ForeignKey("matches.id", ondelete="RESTRICT"), nullable=False)
     predicted_home = Column(Integer, nullable=False)
     predicted_away = Column(Integer, nullable=False)
     is_locked = Column(Boolean, nullable=False, server_default="false")

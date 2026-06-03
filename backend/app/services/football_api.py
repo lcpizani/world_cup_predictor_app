@@ -59,7 +59,13 @@ def sync_matches(db: Session, competition_code: str = "WC") -> dict:
         resp.raise_for_status()
         data = resp.json()
 
+    # Snapshot the table state before we touch it. A sync that fills a
+    # previously-empty matches table is a strong signal that the table was wiped
+    # and is being silently repopulated — surface it loudly rather than masking.
+    matches_before = db.query(Match).count()
+
     upserted = 0
+    inserted = 0
     for fixture in data.get("matches", []):
         ext_id = str(fixture["id"])
         kickoff = datetime.fromisoformat(fixture["utcDate"].replace("Z", "+00:00"))
@@ -95,10 +101,17 @@ def sync_matches(db: Session, competition_code: str = "WC") -> dict:
                 group=group,
                 status="scheduled",
             ))
+            inserted += 1
         upserted += 1
 
     db.commit()
     recalculate_standings_from_matches(db)
+    if matches_before == 0 and inserted > 0:
+        logger.warning(
+            "Repopulated empty matches table from API",
+            competition_code=competition_code,
+            inserted=inserted,
+        )
     logger.info("Fixtures sync complete", competition_code=competition_code, upserted=upserted)
     return {"upserted": upserted}
 

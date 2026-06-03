@@ -383,6 +383,106 @@ curl -X POST "https://YOUR_BACKEND_URL/admin/sync/matches?competition_code=WC" \
 
 ---
 
+## Phase 10 — Backups & Restore
+
+The database lives in a single Docker `pgdata` volume on the VM. There is **no managed
+point-in-time recovery** — an accidental admin reset or a stray `DELETE` is irreversible
+without a backup. Set up automated logical backups before the tournament starts.
+
+### 10.1 Create a backups bucket with retention
+
+```bash
+gsutil mb -l $REGION gs://$PROJECT_ID-worldcup-backups
+
+# Keep only the last 14 days of dumps
+cat > /tmp/lifecycle.json <<'EOF'
+{ "rule": [ { "action": {"type": "Delete"}, "condition": {"age": 14} } ] }
+EOF
+gsutil lifecycle set /tmp/lifecycle.json gs://$PROJECT_ID-worldcup-backups
+```
+
+### 10.2 Daily backup cron on the VM
+
+SSH into the VM and install a daily `pg_dump` that uploads to the bucket:
+
+```bash
+gcloud compute ssh worldcup-db-vm --zone=$ZONE
+
+# Inside the VM — write the backup script
+cat > ~/backup-db.sh <<'EOF'
+#!/bin/sh
+set -e
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+docker exec postgres pg_dump -U worldcup worldcup | gzip \
+  | gsutil cp - gs://PROJECT_ID-worldcup-backups/worldcup-$STAMP.sql.gz
+EOF
+sed -i "s/PROJECT_ID/$PROJECT_ID/" ~/backup-db.sh   # or edit the bucket name by hand
+chmod +x ~/backup-db.sh
+
+# Run once to verify it works, then schedule it daily at 06:00 UTC
+~/backup-db.sh
+( crontab -l 2>/dev/null; echo "0 6 * * * /home/$USER/backup-db.sh >> /home/$USER/backup.log 2>&1" ) | crontab -
+```
+
+> The VM's service account needs write access to the bucket. Grant least privilege:
+> ```bash
+> VM_SA=$(gcloud compute instances describe worldcup-db-vm --zone=$ZONE \
+>   --format='value(serviceAccounts[0].email)')
+> gsutil iam ch serviceAccount:$VM_SA:roles/storage.objectAdmin \
+>   gs://$PROJECT_ID-worldcup-backups
+> ```
+
+> During the tournament, raise the frequency (e.g. hourly: `0 * * * *`) — that's when the data is most precious.
+
+### 10.3 Restore from a backup
+
+```bash
+# List available dumps and pick one
+gsutil ls gs://$PROJECT_ID-worldcup-backups/
+
+# On the VM: restore a chosen dump into the running database
+gsutil cp gs://$PROJECT_ID-worldcup-backups/worldcup-YYYYMMDDTHHMMSSZ.sql.gz - \
+  | gunzip \
+  | docker exec -i postgres psql -U worldcup -d worldcup
+```
+
+> **Verify the round-trip once before relying on it:** restore a dump into a scratch
+> database (`createdb worldcup_restore_test` inside the container, restore into it,
+> then `SELECT count(*) FROM predictions;`) and confirm users, matches, predictions,
+> and point events are present.
+
+---
+
+## Destructive admin operations
+
+The admin "Danger Zone" reset (`DELETE /admin/matches/reset`) and the seed endpoints
+(`POST /admin/seed/*`) delete matches, predictions, and point events. These are gated by
+the `ALLOW_ADMIN_MATCH_UPDATES` environment variable, which is **`false` in production** —
+so they return `403` even for an authenticated admin. This is intentional: it prevents an
+accidental reset from wiping live data.
+
+To run a destructive admin action deliberately (a maintenance window):
+
+```bash
+# 1. Temporarily enable mutations
+gcloud run services update backend --region=$REGION \
+  --update-env-vars="ALLOW_ADMIN_MATCH_UPDATES=true"
+
+# 2. Perform the action in the admin panel (reset now also requires echoing the
+#    current match count, so a stale/blind call is rejected).
+
+# 3. Disable again immediately
+gcloud run services update backend --region=$REGION \
+  --update-env-vars="ALLOW_ADMIN_MATCH_UPDATES=false"
+```
+
+> The fixtures sync no longer runs automatically on every cold start. If you need an
+> immediate fixtures refresh on boot (e.g. right after the first deploy), set
+> `SYNC_FIXTURES_ON_BOOT=true` for that window; otherwise fixtures refresh on the normal
+> 6-hour interval and via the admin "Sync Fixtures" button.
+
+---
+
 ## Appendix
 
 ### Cost breakdown
@@ -461,7 +561,8 @@ gcloud compute instances describe worldcup-db-vm --zone=$ZONE
 | `FOOTBALL_API_KEY` | Cloud Run (manual) | football-data.org API access |
 | `CORS_ORIGINS` | Cloud Run (manual) | Allowed frontend origins |
 | `ENVIRONMENT` | Cloud Run (manual) | Set to `production` |
-| `ALLOW_ADMIN_MATCH_UPDATES` | Cloud Run (manual) | `false` in production |
+| `ALLOW_ADMIN_MATCH_UPDATES` | Cloud Run (manual) | `false` in production — hard-disables the reset and seed endpoints (returns 403) |
+| `SYNC_FIXTURES_ON_BOOT` | Cloud Run (manual) | `false` by default — when `true`, runs a fixtures sync immediately on scheduler startup |
 | `NEXT_PUBLIC_API_URL` | Cloud Run build arg | Backend URL baked into frontend bundle (client-side calls) |
 | `BACKEND_URL` | Cloud Run (manual) | Backend URL for frontend server-side proxy (login/register routes) |
 | `NODE_ENV` | Cloud Run (manual) | Set to `production` |

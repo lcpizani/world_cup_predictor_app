@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import get_admin_user
+from app.dependencies import get_admin_user, require_admin_mutations
 from app.logger import logger
 from app.services import scoring as scoring_service
 from app.services import football_api
@@ -76,16 +76,45 @@ def recompute_tournament_scores(
 
 @router.delete("/matches/reset", status_code=status.HTTP_200_OK)
 def reset_all_matches(
+    confirm: str = Body(...),
+    expected_match_count: int = Body(...),
     db: Session = Depends(get_db),
-    admin=Depends(get_admin_user),
+    admin=Depends(require_admin_mutations),
 ) -> dict:
-    logger.warning("Resetting all matches, predictions, and point events", admin=str(admin.id))
+    # A hardcoded {"confirm": "RESET"} alone is too weak — the frontend hardcodes
+    # it, so a stray/replayed click trivially satisfies it. Require the caller to
+    # also echo the current match count: this forces live knowledge of DB state,
+    # so a blind or stale call fails instead of wiping everything.
+    actual_match_count = db.query(Match).count()
+    if confirm != "RESET" or expected_match_count != actual_match_count:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Pass {\"confirm\": \"RESET\", \"expected_match_count\": <current match count>} "
+                "to confirm this destructive action"
+            ),
+        )
+
+    pe_count = db.query(PointEvent).count()
+    pred_count = db.query(Prediction).count()
+    logger.warning(
+        "Resetting all matches, predictions, and point events",
+        admin=str(admin.id),
+        matches=actual_match_count,
+        predictions=pred_count,
+        point_events=pe_count,
+    )
     db.query(PointEvent).delete(synchronize_session=False)
     db.query(Prediction).delete(synchronize_session=False)
     db.query(Match).delete(synchronize_session=False)
     db.query(TournamentMember).update({"total_points": 0, "provisional_points": 0}, synchronize_session=False)
     db.commit()
-    logger.info("All matches reset successfully")
+    logger.info(
+        "All matches reset successfully",
+        matches=actual_match_count,
+        predictions=pred_count,
+        point_events=pe_count,
+    )
     return {"ok": True}
 
 
@@ -142,7 +171,7 @@ def seed_live_match(
     group: str = Body("Group A"),
     minute: int = Body(45),
     db: Session = Depends(get_db),
-    admin=Depends(get_admin_user),
+    admin=Depends(require_admin_mutations),
 ) -> dict:
     """Seed a fake live match for testing the standings/points pipeline.
 
@@ -200,7 +229,7 @@ def seed_finish_match(
     home_score: int = Body(...),
     away_score: int = Body(...),
     db: Session = Depends(get_db),
-    admin=Depends(get_admin_user),
+    admin=Depends(require_admin_mutations),
 ) -> dict:
     """Mark the seeded live match as finished and run scoring."""
     ext_id = f"seed-{home_team[:3].lower()}-{away_team[:3].lower()}"

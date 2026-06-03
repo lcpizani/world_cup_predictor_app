@@ -53,3 +53,19 @@ def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
+
+
+def require_admin_mutations(admin: User = Depends(get_admin_user)) -> User:
+    """Gate destructive / seed-data admin endpoints behind ALLOW_ADMIN_MATCH_UPDATES.
+
+    Admin authentication is checked first (via get_admin_user), then the
+    environment flag. In production the flag is False, so these endpoints are
+    hard-disabled regardless of admin status — an accidental reset click does
+    nothing. To run them deliberately, enable the flag for a maintenance window.
+    """
+    if not settings.ALLOW_ADMIN_MATCH_UPDATES:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin mutations are disabled in this environment",
+        )
+    return admin
