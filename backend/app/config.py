@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     # Allow admin match updates in production if explicitly enabled
     ALLOW_ADMIN_MATCH_UPDATES: bool = False
+    # Run a fixtures sync immediately on scheduler startup. Off by default so a
+    # routine cold start does not auto-mutate match data (and cannot silently
+    # repopulate an emptied matches table, masking a wipe). Enable for a
+    # controlled prompt sync (e.g. right after a post-deploy fixtures load).
+    SYNC_FIXTURES_ON_BOOT: bool = False
     # football-data.org API key for match/result sync
     FOOTBALL_API_KEY: str = ""
     CORS_ORIGINS: str = "http://localhost:3000"

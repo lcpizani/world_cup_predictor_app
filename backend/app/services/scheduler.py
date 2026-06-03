@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import SessionLocal
 from app.logger import logger
 from app.models.match import Match
@@ -46,9 +47,16 @@ def start_scheduler() -> None:
     if os.getenv("DATABASE_URL", "").startswith("sqlite"):
         return
     scheduler.add_job(_lock_predictions_pre_kickoff, "interval", minutes=1, id="lock_predictions", max_instances=1)
+    # Only sync fixtures immediately on boot when explicitly opted in. Off by
+    # default so a routine cold start cannot auto-mutate match data or silently
+    # repopulate an emptied matches table (which previously masked a wipe). When
+    # off, the job's first run is the normal interval from now (~6h), not paused.
+    fixtures_kwargs = {}
+    if settings.SYNC_FIXTURES_ON_BOOT:
+        fixtures_kwargs["next_run_time"] = datetime.now(timezone.utc)
     scheduler.add_job(
         _sync_fixtures_job, "interval", hours=6, id="sync_fixtures", max_instances=1,
-        next_run_time=datetime.now(timezone.utc),
+        **fixtures_kwargs,
     )
     scheduler.add_job(_sync_results_job, "interval", seconds=60, id="sync_results", max_instances=1)
     scheduler.start()

@@ -18,21 +18,30 @@ const STAGES = [
 
 // ── Reset all matches ────────────────────────────────────────────────────────
 
-function ResetMatchesButton() {
+function ResetMatchesButton({ matchCount }: { matchCount: number }) {
   const t = useTranslations('admin')
   const qc = useQueryClient()
   const [confirm, setConfirm] = useState(false)
   const [msg, setMsg] = useState('')
 
   const mutation = useMutation({
-    mutationFn: () => api.resetAllMatches(),
+    // Echo the current match count so a stale/blind call is rejected server-side.
+    mutationFn: () => api.resetAllMatches(matchCount),
     onSuccess: () => {
       setConfirm(false)
       setMsg(t('reset_success'))
       qc.invalidateQueries({ queryKey: ['matches'] })
       qc.invalidateQueries({ queryKey: ['tournaments'] })
     },
-    onError: (e: Error) => setMsg(e.message),
+    onError: (e: Error) => {
+      // In production ALLOW_ADMIN_MATCH_UPDATES is false → backend returns 403.
+      setConfirm(false)
+      setMsg(
+        /disabled in this environment/i.test(e.message)
+          ? t('reset_disabled')
+          : e.message,
+      )
+    },
   })
 
   return (
@@ -425,7 +434,7 @@ export default function AdminPage() {
 
       {/* Danger zone */}
       <AdminCard title={t('card_danger')} icon="⚠️">
-        <ResetMatchesButton />
+        <ResetMatchesButton matchCount={matches.length} />
       </AdminCard>
 
       {/* Create match */}

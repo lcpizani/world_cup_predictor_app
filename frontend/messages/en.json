@@ -438,6 +438,7 @@
     "yes_reset": "Yes, Reset",
     "cancel": "Cancel",
     "reset_success": "All matches, predictions and points have been reset.",
+    "reset_disabled": "Reset is disabled in this environment. Enable ALLOW_ADMIN_MATCH_UPDATES for a maintenance window to run it.",
     "home_team": "Home Team",
     "away_team": "Away Team",
     "kickoff": "Kickoff",

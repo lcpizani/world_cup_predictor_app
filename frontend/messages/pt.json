@@ -438,6 +438,7 @@
     "yes_reset": "Sim, Resetar",
     "cancel": "Cancelar",
     "reset_success": "Todos os jogos, palpites e pontos foram resetados.",
+    "reset_disabled": "O reset está desativado neste ambiente. Ative ALLOW_ADMIN_MATCH_UPDATES em uma janela de manutenção para executá-lo.",
     "home_team": "Time da Casa",
     "away_team": "Time Visitante",
     "kickoff": "Início",

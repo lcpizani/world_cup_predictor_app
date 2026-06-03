@@ -27,5 +27,10 @@ class Match(Base):
     minute = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    predictions = relationship("Prediction", back_populates="match", cascade="all, delete-orphan")
+    # No delete cascade on predictions: the DB-level FK is ON DELETE RESTRICT, so
+    # deleting a match that still has predictions must fail loudly. An ORM-level
+    # "all, delete-orphan" here would delete the predictions in Python first and
+    # silently defeat that guard. (The reset endpoint deletes predictions
+    # explicitly via bulk query before deleting matches, so it is unaffected.)
+    predictions = relationship("Prediction", back_populates="match", passive_deletes="all")
     point_events = relationship("PointEvent", back_populates="match", cascade="all, delete-orphan")

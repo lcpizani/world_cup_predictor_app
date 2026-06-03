@@ -125,8 +125,12 @@ export const api = {
       `/admin/tournaments/${tournament_id}/recompute`,
       { method: 'POST' }
     ),
-  resetAllMatches: () =>
-    request<{ ok: boolean }>('/admin/matches/reset', { method: 'DELETE' }),
+  resetAllMatches: (expectedMatchCount: number) =>
+    request<{ ok: boolean }>('/admin/matches/reset', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'RESET', expected_match_count: expectedMatchCount }),
+    }),
   syncMatches: (competition_code = 'WC') =>
     request<{ upserted: number }>(
       `/admin/sync/matches?competition_code=${competition_code}`,

@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend — World Cup Predictor
 
-## Getting Started
+Next.js 15 (App Router) frontend for the World Cup Predictor app.
 
-First, run the development server:
+---
+
+## Environment variables
+
+Create a `.env.local` file in this directory (copy from `.env.local.example` if it exists):
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.local.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Variable | Required | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | Yes | Backend URL baked into the client bundle at build time — used for all client-side API calls (e.g. `https://your-backend.run.app`) |
+| `BACKEND_URL` | Yes (production) | Backend URL used by Next.js server-side API routes to proxy auth requests (login, register, logout). Without this, auth fails server-side. |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+For local development both can point to the Docker backend:
+```
+NEXT_PUBLIC_API_URL=http://localhost:8080
+BACKEND_URL=http://localhost:8080
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Running locally
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# Install dependencies
+npm install
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Start the dev server (auto-reloads on save)
+npm run dev
+# → http://localhost:3000
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Requires the backend to be running. Start everything together with:
+```bash
+docker compose up --build
+```
+from the repo root, then run `npm run dev` in this directory for hot-reload on frontend changes.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Folder structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+frontend/
+├── app/
+│   ├── layout.tsx                    # Root layout — Navbar, React Query provider
+│   ├── page.tsx                      # Root redirect to /dashboard
+│   ├── dashboard/page.tsx            # My leagues overview
+│   ├── auth/
+│   │   ├── login/page.tsx
+│   │   └── register/page.tsx
+│   ├── tournaments/
+│   │   ├── new/page.tsx              # Create league form
+│   │   ├── [id]/page.tsx             # League detail + predictions
+│   │   └── [id]/leaderboard/page.tsx # Live leaderboard
+│   ├── predictions/page.tsx          # My picks (all matches, all leagues)
+│   ├── compare/page.tsx              # Compare picks with league mates
+│   ├── standings/page.tsx            # Group standings + bracket
+│   ├── admin/page.tsx                # Admin panel (sync, results, recompute)
+│   └── api/auth/                     # Next.js server-side API routes
+│       ├── login/route.ts            # Proxies login to backend, sets cookie
+│       ├── register/route.ts         # Proxies registration to backend
+│       └── logout/route.ts           # Clears auth cookie
+├── components/                       # Shared UI components
+├── lib/
+│   ├── api.ts                        # Typed API client for all backend calls
+│   ├── flags.ts                      # Country flag emoji helpers
+│   └── providers.tsx                 # TanStack Query + auth context providers
+└── types/
+    └── api.ts                        # Shared TypeScript types matching backend schemas
+```
+
+---
+
+## How it connects to the backend
+
+**Client-side calls** use `NEXT_PUBLIC_API_URL` — this variable is baked into the JavaScript bundle at build time. All data fetching (matches, predictions, leaderboard) goes through `lib/api.ts` which sends requests directly from the browser to the backend.
+
+**Auth (server-side proxy)** uses `BACKEND_URL` — the Next.js API routes at `app/api/auth/` run on the server and forward login/register requests to the backend. This allows setting HttpOnly cookies securely. `BACKEND_URL` is never exposed to the browser.
+
+The auth token is stored in a cookie and sent as `Authorization: Bearer <token>` on every backend request.
