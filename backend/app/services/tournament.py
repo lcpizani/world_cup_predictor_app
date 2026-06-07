@@ -124,6 +124,129 @@ def delete_tournament(db: Session, invite_code: str, user: User) -> None:
     db.commit()
 
 
+def update_tournament(db: Session, invite_code: str, data, user: User) -> Tournament:
+    from app.services.scoring import KNOCKOUT_STAGES
+
+    tournament = db.query(Tournament).options(joinedload(Tournament.creator)).filter(
+        Tournament.invite_code == invite_code
+    ).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    if tournament.created_by != user.id:
+        raise HTTPException(status_code=403, detail="Only the creator can update this tournament")
+
+    if data.name is not None:
+        name = data.name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Name cannot be empty")
+        tournament.name = name
+
+    if data.scoring_rules is not None:
+        has_knockout_scored = (
+            db.query(PointEvent)
+            .join(Match, Match.id == PointEvent.match_id)
+            .filter(
+                PointEvent.tournament_id == tournament.id,
+                Match.stage.in_(KNOCKOUT_STAGES),
+            )
+            .first()
+        ) is not None
+        if has_knockout_scored:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot change scoring settings after knockout match results have been scored",
+            )
+
+        scoring = db.query(TournamentScoringRules).filter(
+            TournamentScoringRules.tournament_id == tournament.id
+        ).first()
+        if scoring is None:
+            raise HTTPException(status_code=404, detail="Scoring rules not found")
+
+        rules = data.scoring_rules
+        provided = rules.model_dump(exclude_unset=True)
+        if "correct_result_pts" in provided and rules.correct_result_pts is not None:
+            scoring.correct_result_pts = rules.correct_result_pts
+        if "correct_winner_pts" in provided and rules.correct_winner_pts is not None:
+            scoring.correct_winner_pts = rules.correct_winner_pts
+        if "correct_goal_diff_pts" in provided and rules.correct_goal_diff_pts is not None:
+            scoring.correct_goal_diff_pts = rules.correct_goal_diff_pts
+        if "correct_goals_one_team_pts" in provided and rules.correct_goals_one_team_pts is not None:
+            scoring.correct_goals_one_team_pts = rules.correct_goals_one_team_pts
+        # double_points_from_stage may be explicitly set to None to clear it
+        if "double_points_from_stage" in provided:
+            scoring.double_points_from_stage = rules.double_points_from_stage
+        db.add(scoring)
+
+    db.add(tournament)
+    db.commit()
+    db.refresh(tournament)
+    return tournament
+
+
+def list_members(db: Session, invite_code: str, user: User) -> List[TournamentMember]:
+    tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    membership = db.query(TournamentMember).filter(
+        TournamentMember.tournament_id == tournament.id, TournamentMember.user_id == user.id
+    ).first()
+    if membership is None:
+        raise HTTPException(status_code=403, detail="Not a member of tournament")
+    return (
+        db.query(TournamentMember)
+        .filter(TournamentMember.tournament_id == tournament.id)
+        .options(joinedload(TournamentMember.user))
+        .order_by(TournamentMember.joined_at)
+        .all()
+    )
+
+
+def remove_member(db: Session, invite_code: str, member_user_id: UUID, user: User) -> None:
+    tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    if tournament.created_by != user.id:
+        raise HTTPException(status_code=403, detail="Only the creator can remove members")
+    if member_user_id == tournament.created_by:
+        raise HTTPException(status_code=400, detail="The creator cannot be removed")
+
+    member = db.query(TournamentMember).filter(
+        TournamentMember.tournament_id == tournament.id,
+        TournamentMember.user_id == member_user_id,
+    ).first()
+    if member is None:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    db.delete(member)
+    db.commit()
+
+
+def transfer_ownership(db: Session, invite_code: str, new_owner_user_id: UUID, user: User) -> Tournament:
+    tournament = db.query(Tournament).options(joinedload(Tournament.creator)).filter(
+        Tournament.invite_code == invite_code
+    ).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    if tournament.created_by != user.id:
+        raise HTTPException(status_code=403, detail="Only the creator can transfer ownership")
+    if new_owner_user_id == tournament.created_by:
+        raise HTTPException(status_code=400, detail="That user is already the creator")
+
+    new_owner_membership = db.query(TournamentMember).filter(
+        TournamentMember.tournament_id == tournament.id,
+        TournamentMember.user_id == new_owner_user_id,
+    ).first()
+    if new_owner_membership is None:
+        raise HTTPException(status_code=404, detail="New owner must be a member of the tournament")
+
+    tournament.created_by = new_owner_user_id
+    db.add(tournament)
+    db.commit()
+    db.refresh(tournament)
+    return tournament
+
+
 def get_leaderboard_by_code(db: Session, invite_code: str, user: User) -> LeaderboardResponse:
     tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
     if tournament is None:

@@ -6,6 +6,7 @@ import type {
   Match,
   Prediction,
   PredictionHistoryItem,
+  ScoringRules,
   Tournament,
   TournamentCompareMatch,
   TournamentMember,
@@ -57,6 +58,7 @@ export const api = {
       correct_winner_pts: number
       correct_goal_diff_pts: number
       correct_goals_one_team_pts: number
+      double_points_from_stage?: string | null
     }
   }) => request<Tournament>('/tournaments', { method: 'POST', body: JSON.stringify(data) }),
   joinTournament: (invite_code: string) =>
@@ -66,6 +68,37 @@ export const api = {
     }),
   deleteTournament: (invite_code: string) =>
     request<void>(`/tournaments/${invite_code}`, { method: 'DELETE' }),
+  updateTournamentScoring: (code: string, payload: { double_points_from_stage: string | null }) =>
+    request<ScoringRules>(`/tournaments/${code}/scoring`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  getMembers: (code: string) =>
+    request<TournamentMember[]>(`/tournaments/${code}/members`),
+  updateTournament: (
+    code: string,
+    payload: {
+      name?: string
+      scoring_rules?: {
+        correct_result_pts?: number
+        correct_winner_pts?: number
+        correct_goal_diff_pts?: number
+        correct_goals_one_team_pts?: number
+        double_points_from_stage?: string | null
+      }
+    }
+  ) =>
+    request<Tournament>(`/tournaments/${code}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  removeMember: (code: string, userId: string) =>
+    request<void>(`/tournaments/${code}/members/${userId}`, { method: 'DELETE' }),
+  transferOwnership: (code: string, newOwnerUserId: string) =>
+    request<Tournament>(`/tournaments/${code}/transfer`, {
+      method: 'POST',
+      body: JSON.stringify({ new_owner_user_id: newOwnerUserId }),
+    }),
   getLeaderboard: (code: string) =>
     request<LeaderboardResponse>(`/tournaments/${code}/leaderboard`),
   getLiveLeaderboard: (code: string) =>

@@ -39,6 +39,7 @@ class TournamentScoringRules(Base):
     correct_winner_pts = Column(Integer, nullable=False, default=0)
     correct_goal_diff_pts = Column(Integer, nullable=False, default=0)
     correct_goals_one_team_pts = Column(Integer, nullable=False, default=0)
+    double_points_from_stage = Column(String(50), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     tournament = relationship("Tournament", back_populates="scoring_rules")

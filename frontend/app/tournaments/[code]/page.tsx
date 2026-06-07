@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useParams } from 'next/navigation'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import Image from 'next/image'
 import { api } from '@/lib/api'
@@ -14,19 +14,29 @@ import { encodeInviteCode } from '@/lib/invite'
 import { useLocale, useTranslations } from 'next-intl'
 import ScoringExplanationModal from '@/components/ScoringExplanationModal'
 
-const STAGE_ORDER = ['group_stage', 'round_of_16', 'quarter_finals', 'semi_finals', 'third_place', 'final']
+const STAGE_ORDER = ['group_stage', 'round_of_32', 'round_of_16', 'quarter_finals', 'semi_finals', 'third_place', 'final']
+
+function getPointsMultiplier(matchStage: string, doubleFromStage: string | null): number {
+  if (!doubleFromStage) return 1
+  const matchIdx = STAGE_ORDER.indexOf(matchStage)
+  const threshIdx = STAGE_ORDER.indexOf(doubleFromStage)
+  if (matchIdx === -1 || threshIdx === -1) return 1
+  return matchIdx >= threshIdx ? 2 : 1
+}
 
 function computeProvisionalPoints(
   predictedHome: number, predictedAway: number,
   actualHome: number, actualAway: number,
   s: ScoringRules,
+  matchStage: string,
 ): number {
+  const multiplier = getPointsMultiplier(matchStage, s.double_points_from_stage ?? null)
   const outcome = (h: number, a: number) => h > a ? 1 : h < a ? -1 : 0
-  if (predictedHome === actualHome && predictedAway === actualAway) return s.correct_result_pts
+  if (predictedHome === actualHome && predictedAway === actualAway) return s.correct_result_pts * multiplier
   let total = 0
-  if (outcome(predictedHome, predictedAway) === outcome(actualHome, actualAway)) total += s.correct_winner_pts
-  if ((predictedHome - predictedAway) === (actualHome - actualAway)) total += s.correct_goal_diff_pts
-  if (predictedHome === actualHome || predictedAway === actualAway) total += s.correct_goals_one_team_pts
+  if (outcome(predictedHome, predictedAway) === outcome(actualHome, actualAway)) total += s.correct_winner_pts * multiplier
+  if ((predictedHome - predictedAway) === (actualHome - actualAway)) total += s.correct_goal_diff_pts * multiplier
+  if (predictedHome === actualHome || predictedAway === actualAway) total += s.correct_goals_one_team_pts * multiplier
   return total
 }
 
@@ -210,7 +220,7 @@ function MatchCard({ match, prediction, timezone, scoring }: { match: Match; pre
           match.home_score !== null && match.away_score !== null && (() => {
             const pts = computeProvisionalPoints(
               prediction.predicted_home, prediction.predicted_away,
-              match.home_score, match.away_score, scoring,
+              match.home_score, match.away_score, scoring, match.stage,
             )
             const isLive = match.status === 'live'
             return pts > 0 ? (
@@ -236,9 +246,7 @@ function MatchCard({ match, prediction, timezone, scoring }: { match: Match; pre
 export default function TournamentPage() {
   const t = useTranslations('tournament')
   const { code } = useParams<{ code: string }>()
-  const router = useRouter()
   const [copied, setCopied] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showScoringHelp, setShowScoringHelp] = useState(false)
   const qc = useQueryClient()
@@ -255,19 +263,6 @@ export default function TournamentPage() {
   useOnboardingGuard(me, meLoading)
 
   const isCreator = !!me && !!tournament && me.id === tournament.created_by
-
-  const deleteMutation = useMutation({
-    mutationFn: () => api.deleteTournament(code),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ['tournaments'] })
-      qc.removeQueries({ queryKey: ['tournament', code] })
-      router.push('/dashboard')
-    },
-    onError: (err: Error) => {
-      setConfirmDelete(false)
-      alert(err.message || 'Failed to delete competition. Try again.')
-    },
-  })
 
   function copyInviteLink() {
     if (!tournament) return
@@ -330,7 +325,7 @@ export default function TournamentPage() {
           {t('back_leagues')}
         </Link>
 
-        <div className="flex items-end justify-between gap-4">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="font-[family-name:var(--font-oswald)] text-2xl sm:text-3xl font-bold uppercase tracking-wider text-white leading-none break-words">
               {tournament?.name ?? '…'}
@@ -341,37 +336,91 @@ export default function TournamentPage() {
               </p>
             )}
           </div>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="shrink-0 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider px-3 py-2 rounded-xl transition-all duration-200 disabled:opacity-40"
-            style={{
-              background: 'rgba(20,184,166,0.12)',
-              border: '1px solid rgba(20,184,166,0.3)',
-              color: '#2dd4bf',
-            }}
-            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.2)', borderColor: 'rgba(20,184,166,0.5)' })}
-            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.12)', borderColor: 'rgba(20,184,166,0.3)' })}
-          >
-            <svg
-              width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-              className={refreshing ? 'animate-spin' : ''}
+
+          {/* Utility icons — reload + edit (creator) */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              aria-label={refreshing ? t('reloading') : t('reload')}
+              title={refreshing ? t('reloading') : t('reload')}
+              className="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 disabled:opacity-40"
+              style={{ background: 'rgba(20,184,166,0.12)', border: '1px solid rgba(20,184,166,0.3)', color: '#2dd4bf' }}
+              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.2)', borderColor: 'rgba(20,184,166,0.5)' })}
+              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(20,184,166,0.12)', borderColor: 'rgba(20,184,166,0.3)' })}
             >
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-            </svg>
-            {refreshing ? t('reloading') : t('reload')}
-          </button>
+              <svg
+                width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                className={refreshing ? 'animate-spin' : ''}
+              >
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+            </button>
+
+            {isCreator && (
+              <Link
+                href={`/tournaments/${code}/settings`}
+                aria-label={t('edit')}
+                title={t('edit')}
+                className="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#8496af' }}
+                onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.18)', color: 'white' })}
+                onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#8496af' })}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+              </Link>
+            )}
+          </div>
         </div>
 
-        {/* Action buttons */}
-        <div className="mt-4 flex items-center gap-2 flex-wrap">
-          {/* Invite — ghost neutral with copy icon */}
+        {/* Action buttons — primary leaderboard, secondary compare/invite */}
+        <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {/* Leaderboard — primary, full-width on mobile */}
+          <Link
+            href={`/tournaments/${code}/leaderboard`}
+            className="col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-2 text-sm sm:text-xs font-bold uppercase tracking-wide px-4 py-3 sm:py-2.5 rounded-xl transition-all duration-200"
+            style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.3)', color: '#f0b429' }}
+            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.18)', borderColor: 'rgba(240,180,41,0.5)', color: '#fcd86e' })}
+            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.1)', borderColor: 'rgba(240,180,41,0.3)', color: '#f0b429' })}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+              <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+              <path d="M4 22h16" />
+              <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+              <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+              <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+            </svg>
+            {t('leaderboard')}
+          </Link>
+
+          {/* Compare — secondary */}
+          <Link
+            href={`/tournaments/${code}/compare`}
+            className="inline-flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#8496af' }}
+            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.18)', color: 'white' })}
+            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#8496af' })}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            {t('compare')}
+          </Link>
+
+          {/* Invite — secondary */}
           <button
             onClick={copyInviteLink}
             disabled={!tournament}
-            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200 disabled:opacity-40"
+            className="inline-flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200 disabled:opacity-40"
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#8496af' }}
             onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.18)', color: 'white' })}
             onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#8496af' })}
@@ -388,133 +437,66 @@ export default function TournamentPage() {
             )}
             {copied ? t('copied') : t('invite')}
           </button>
-
-          {/* Compare — ghost neutral with compare icon + chevron */}
-          <Link
-            href={`/tournaments/${code}/compare`}
-            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#8496af' }}
-            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.18)', color: 'white' })}
-            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#8496af' })}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            {t('compare')}
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </Link>
-
-          {/* Leaderboard — gold accent as primary action + chevron */}
-          <Link
-            href={`/tournaments/${code}/leaderboard`}
-            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
-            style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.3)', color: '#f0b429' }}
-            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.18)', borderColor: 'rgba(240,180,41,0.5)', color: '#fcd86e' })}
-            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.1)', borderColor: 'rgba(240,180,41,0.3)', color: '#f0b429' })}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-              <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-              <path d="M4 22h16" />
-              <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-              <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-              <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-            </svg>
-            {t('leaderboard')}
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </Link>
         </div>
       </div>
-
-      {/* Delete — creator only */}
-      {isCreator && (
-        <div className="mb-8">
-          {!confirmDelete ? (
-            <button
-              onClick={() => setConfirmDelete(true)}
-              className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
-              style={{ color: '#f87171', background: 'rgba(244,63,94,0.07)', border: '1px solid rgba(244,63,94,0.18)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(244,63,94,0.12)' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(244,63,94,0.07)' }}
-            >
-              {t('delete_competition')}
-            </button>
-          ) : (
-            <div className="rounded-2xl p-5" style={{ background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.2)' }}>
-              <p className="text-sm text-red-300 font-semibold mb-1">{t('delete_confirm_title')}</p>
-              <p className="text-xs mb-4" style={{ color: 'rgba(244,63,94,0.6)' }}>
-                {t('delete_confirm_desc')}
-              </p>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => deleteMutation.mutate()}
-                  disabled={deleteMutation.isPending}
-                  className="px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide transition-all disabled:opacity-50"
-                  style={{ background: '#ef4444', color: 'white' }}
-                >
-                  {deleteMutation.isPending ? t('deleting') : t('yes_delete')}
-                </button>
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  className="px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide transition-all"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#8496af' }}
-                >
-                  {t('cancel')}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Scoring bar */}
       {tournament?.scoring_rules && (
         <div
-          className="rounded-2xl px-4 py-3 mb-6 flex items-center gap-3"
+          className="rounded-2xl px-4 py-3.5 mb-6"
           style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
         >
-          <span className="text-[0.6rem] font-bold uppercase tracking-[0.2em] shrink-0" style={{ color: '#3f5068' }}>
-            {t('scoring_rules_label')}
-          </span>
-          <div className="flex items-center gap-1 flex-wrap flex-1">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <span className="text-[0.6rem] font-bold uppercase tracking-[0.2em]" style={{ color: '#3f5068' }}>
+              {t('scoring_rules_label')}
+            </span>
+            <button
+              onClick={() => setShowScoringHelp(true)}
+              className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold transition-all duration-200"
+              style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.25)', color: '#f0b429' }}
+              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.2)', borderColor: 'rgba(240,180,41,0.5)' })}
+              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.1)', borderColor: 'rgba(240,180,41,0.25)' })}
+              title={t('how_it_works_link')}
+            >
+              ?
+            </button>
+          </div>
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
             {[
               { icon: '🎯', pts: tournament.scoring_rules.correct_result_pts, label: t('score_exact') },
               { icon: '🏆', pts: tournament.scoring_rules.correct_winner_pts, label: t('score_winner') },
               { icon: '⚖️', pts: tournament.scoring_rules.correct_goal_diff_pts, label: t('score_diff') },
               { icon: '⚽', pts: tournament.scoring_rules.correct_goals_one_team_pts, label: t('score_one_team') },
-            ].map(({ icon, pts, label }, i, arr) => (
-              <div key={label} className="flex items-center gap-1">
-                <span
-                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
-                  title={label}
-                >
-                  <span className="text-xs leading-none">{icon}</span>
-                  <span className="font-[family-name:var(--font-oswald)] font-bold text-sm tabular-nums leading-none" style={{ color: '#f0b429' }}>+{pts}</span>
-                </span>
-                {i < arr.length - 1 && (
-                  <span className="text-[#1e2d40] text-xs select-none">·</span>
-                )}
-              </div>
+            ].map(({ icon, pts, label }) => (
+              <span
+                key={label}
+                className="flex items-center justify-center gap-1.5 rounded-lg px-2 py-2"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+                title={label}
+              >
+                <span className="text-xs leading-none">{icon}</span>
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-sm tabular-nums leading-none" style={{ color: '#f0b429' }}>+{pts}</span>
+              </span>
             ))}
           </div>
-          <button
-            onClick={() => setShowScoringHelp(true)}
-            className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold transition-all duration-200"
-            style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.25)', color: '#f0b429' }}
-            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.2)', borderColor: 'rgba(240,180,41,0.5)' })}
-            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.1)', borderColor: 'rgba(240,180,41,0.25)' })}
-            title={t('how_it_works_link')}
-          >
-            ?
-          </button>
+
+          {/* Double points rule — visible to all members when active */}
+          {tournament.scoring_rules.double_points_from_stage && (
+            <div
+              className="mt-3 pt-3 flex items-center gap-2.5"
+              style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+            >
+              <span
+                className="inline-flex items-center justify-center px-2 py-1 rounded-lg font-[family-name:var(--font-oswald)] font-bold text-sm leading-none shrink-0"
+                style={{ background: 'rgba(240,180,41,0.14)', border: '1px solid rgba(240,180,41,0.4)', color: '#f0b429', letterSpacing: '0.05em' }}
+              >
+                2×
+              </span>
+              <span className="text-xs font-semibold" style={{ color: '#8496af' }}>
+                {t('double_active', { stage: t(`double_stage_${tournament.scoring_rules.double_points_from_stage}`) })}
+              </span>
+            </div>
+          )}
         </div>
       )}
 

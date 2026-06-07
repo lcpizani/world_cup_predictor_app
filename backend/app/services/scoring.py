@@ -10,6 +10,30 @@ from app.models.match import Match
 from app.models.tournament import Tournament, TournamentScoringRules, TournamentMember
 from app.services.standings import recalculate_standings_from_matches
 
+STAGE_ORDER = [
+    "group_stage",
+    "round_of_32",
+    "round_of_16",
+    "quarter_finals",
+    "semi_finals",
+    "third_place",
+    "final",
+]
+
+KNOCKOUT_STAGES = set(STAGE_ORDER[1:])
+
+
+def _points_multiplier(scoring: TournamentScoringRules, match_stage: str) -> int:
+    threshold = scoring.double_points_from_stage
+    if not threshold:
+        return 1
+    try:
+        if STAGE_ORDER.index(match_stage) >= STAGE_ORDER.index(threshold):
+            return 2
+    except ValueError:
+        pass
+    return 1
+
 
 def compute_points_for_prediction(
     prediction: Prediction,
@@ -25,6 +49,7 @@ def compute_points_for_prediction(
 
     ph, pa = prediction.predicted_home, prediction.predicted_away
     ah, aa = match.home_score, match.away_score
+    multiplier = _points_multiplier(scoring, match.stage)
 
     def outcome(h: int, a: int) -> int:
         if h > a:
@@ -37,18 +62,18 @@ def compute_points_for_prediction(
 
     # Exact score — does not stack with any other category
     if ph == ah and pa == aa:
-        pts = scoring.correct_result_pts
+        pts = scoring.correct_result_pts * multiplier
         return [("correct_result", pts)] if pts > 0 else []
 
     # All remaining categories stack freely
     if outcome(ph, pa) == outcome(ah, aa):
-        events.append(("correct_winner", scoring.correct_winner_pts))
+        events.append(("correct_winner", scoring.correct_winner_pts * multiplier))
 
     if (ph - pa) == (ah - aa):
-        events.append(("correct_goal_diff", scoring.correct_goal_diff_pts))
+        events.append(("correct_goal_diff", scoring.correct_goal_diff_pts * multiplier))
 
     if ph == ah or pa == aa:
-        events.append(("correct_goals_one_team", scoring.correct_goals_one_team_pts))
+        events.append(("correct_goals_one_team", scoring.correct_goals_one_team_pts * multiplier))
 
     return [(reason, pts) for reason, pts in events if pts > 0]
 

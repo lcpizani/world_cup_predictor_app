@@ -36,6 +36,7 @@ export interface ScoringRules {
   correct_winner_pts: number
   correct_goal_diff_pts: number
   correct_goals_one_team_pts: number
+  double_points_from_stage: string | null
 }
 
 export interface Tournament {
