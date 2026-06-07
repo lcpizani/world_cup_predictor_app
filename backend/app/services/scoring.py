@@ -12,6 +12,7 @@ from app.services.standings import recalculate_standings_from_matches
 
 STAGE_ORDER = [
     "group_stage",
+    "round_of_64",
     "round_of_32",
     "round_of_16",
     "quarter_finals",

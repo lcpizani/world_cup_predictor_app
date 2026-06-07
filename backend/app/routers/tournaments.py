@@ -16,16 +16,12 @@ from app.schemas.tournament import (
     TournamentMemberResponse,
     JoinTournamentRequest,
     TournamentCompareMatch,
-    ScoringRulesUpdate,
-    ScoringRulesResponse,
     TournamentUpdate,
     TransferOwnershipRequest,
 )
 from app.schemas.leaderboard import LeaderboardResponse, LiveLeaderboardEntry, LiveLeaderboardResponse
 from app.models.match import Match
-from app.models.tournament import TournamentMember, TournamentScoringRules
-from app.models.point_event import PointEvent
-from app.services.scoring import KNOCKOUT_STAGES
+from app.models.tournament import TournamentMember
 
 router = APIRouter()
 
@@ -143,54 +139,6 @@ def get_tournament(invite_code: str, db: Session = Depends(get_db), current_user
         logger.error("Tournament not found or access denied", invite_code=invite_code, user_id=str(current_user.id), detail=exc.detail)
         raise
     return result
-
-
-@router.patch("/{invite_code}/scoring", response_model=ScoringRulesResponse)
-def update_tournament_scoring(
-    invite_code: str,
-    data: ScoringRulesUpdate,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
-    if tournament is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tournament not found")
-    if tournament.created_by != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the league creator can update scoring settings")
-
-    has_knockout_scored = (
-        db.query(PointEvent)
-        .join(Match, Match.id == PointEvent.match_id)
-        .filter(
-            PointEvent.tournament_id == tournament.id,
-            Match.stage.in_(KNOCKOUT_STAGES),
-        )
-        .first()
-    ) is not None
-
-    if has_knockout_scored:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot change scoring settings after knockout match results have been scored",
-        )
-
-    scoring = db.query(TournamentScoringRules).filter(
-        TournamentScoringRules.tournament_id == tournament.id
-    ).first()
-    if scoring is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scoring rules not found")
-
-    scoring.double_points_from_stage = data.double_points_from_stage
-    db.add(scoring)
-    db.commit()
-    db.refresh(scoring)
-    logger.info(
-        "Tournament scoring updated",
-        tournament_id=str(tournament.id),
-        user_id=str(current_user.id),
-        double_points_from_stage=data.double_points_from_stage,
-    )
-    return scoring
 
 
 @router.get("/{invite_code}/members", response_model=List[TournamentMemberResponse])

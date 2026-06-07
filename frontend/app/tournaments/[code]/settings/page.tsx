@@ -8,9 +8,6 @@ import { api } from '@/lib/api'
 import { useTranslations } from 'next-intl'
 import { useOnboardingGuard } from '@/lib/hooks'
 
-const STAGE_ORDER = ['group_stage', 'round_of_32', 'round_of_16', 'quarter_finals', 'semi_finals', 'third_place', 'final']
-const KNOCKOUT_STAGES = new Set(STAGE_ORDER.slice(1))
-
 const RULE_META: Record<string, { key: string; icon: string }> = {
   correct_result_pts:         { key: 'exact_score',       icon: '🎯' },
   correct_winner_pts:         { key: 'correct_winner',    icon: '🏆' },
@@ -59,7 +56,13 @@ export default function LeagueSettingsPage() {
   })
 
   const isCreator = !!me && !!tournament && me.id === tournament.created_by
-  const scoringLocked = matches.some((m) => KNOCKOUT_STAGES.has(m.stage) && m.status === 'finished')
+  // Point values freeze once the tournament kicks off; the 2x multiplier stays
+  // editable through the group stage and locks once every group match is done.
+  const worldCupStarted = matches.some((m) => m.status === 'live' || m.status === 'finished')
+  const groupMatches = matches.filter((m) => m.stage === 'group_stage')
+  const groupStageComplete = groupMatches.length > 0 && groupMatches.every((m) => m.status === 'finished')
+  const pointValuesLocked = worldCupStarted
+  const doubleLocked = groupStageComplete
 
   const [name, setName] = useState('')
   const [rules, setRules] = useState<Rules>({
@@ -95,11 +98,11 @@ export default function LeagueSettingsPage() {
 
   const saveMutation = useMutation({
     mutationFn: () =>
+      // Always send the full scoring object — the backend ignores fields whose
+      // value is unchanged, so locked-but-resent fields are a safe no-op.
       api.updateTournament(code, {
         name,
-        ...(scoringLocked
-          ? {}
-          : { scoring_rules: { ...rules, double_points_from_stage: doubleFromStage } }),
+        scoring_rules: { ...rules, double_points_from_stage: doubleFromStage },
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['tournament', code] })
@@ -177,7 +180,7 @@ export default function LeagueSettingsPage() {
         <div className={card}>
           <p className={sectionLabel}>{t('scoring_section')}</p>
 
-          {scoringLocked && (
+          {pointValuesLocked && (
             <div className="flex items-center gap-2 py-2 px-3 mb-4 rounded-xl text-xs" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#3f5068' }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -186,37 +189,39 @@ export default function LeagueSettingsPage() {
             </div>
           )}
 
-          <div className={`space-y-3 ${scoringLocked ? 'opacity-50 pointer-events-none' : ''}`}>
-            {(Object.keys(RULE_META) as Array<keyof Rules>).map((key) => (
-              <div key={key} className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2.5 flex-1">
-                  <span className="text-base">{RULE_META[key].icon}</span>
-                  <span className="text-sm text-[#94a3b8]">{t(RULE_META[key].key)}</span>
+          <div className="space-y-3">
+            <div className={`space-y-3 ${pointValuesLocked ? 'opacity-50 pointer-events-none' : ''}`}>
+              {(Object.keys(RULE_META) as Array<keyof Rules>).map((key) => (
+                <div key={key} className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2.5 flex-1">
+                    <span className="text-base">{RULE_META[key].icon}</span>
+                    <span className="text-sm text-[#94a3b8]">{t(RULE_META[key].key)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRules((r) => ({ ...r, [key]: Math.max(0, r[key] - 1) }))}
+                      className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white text-sm hover:bg-white/10 transition flex items-center justify-center"
+                    >
+                      −
+                    </button>
+                    <span className="w-8 text-center font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-lg tabular-nums">
+                      {rules[key]}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setRules((r) => ({ ...r, [key]: Math.min(99, r[key] + 1) }))}
+                      className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white text-sm hover:bg-white/10 transition flex items-center justify-center"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRules((r) => ({ ...r, [key]: Math.max(0, r[key] - 1) }))}
-                    className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white text-sm hover:bg-white/10 transition flex items-center justify-center"
-                  >
-                    −
-                  </button>
-                  <span className="w-8 text-center font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-lg tabular-nums">
-                    {rules[key]}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setRules((r) => ({ ...r, [key]: Math.min(99, r[key] + 1) }))}
-                    className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white text-sm hover:bg-white/10 transition flex items-center justify-center"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
 
             <div className="pt-3 mt-1 border-t border-white/5">
-              <div className="flex items-center justify-between gap-4">
+              <div className={`flex items-center justify-between gap-4 ${doubleLocked ? 'opacity-50 pointer-events-none' : ''}`}>
                 <div className="flex items-center gap-2.5 flex-1">
                   <span className="text-base">2×</span>
                   <span className="text-sm text-[#94a3b8]">{t('double_points_from')}</span>
@@ -224,6 +229,7 @@ export default function LeagueSettingsPage() {
                 <select
                   value={doubleFromStage ?? ''}
                   onChange={(e) => setDoubleFromStage(e.target.value || null)}
+                  disabled={doubleLocked}
                   className="bg-[#080c14] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#f0b429]/50 transition"
                 >
                   {DOUBLE_STAGE_OPTIONS.map((opt) => (
@@ -233,6 +239,9 @@ export default function LeagueSettingsPage() {
                   ))}
                 </select>
               </div>
+              {doubleLocked && (
+                <p className="text-xs mt-2" style={{ color: '#3f5068' }}>{t('double_locked')}</p>
+              )}
             </div>
           </div>
         </div>

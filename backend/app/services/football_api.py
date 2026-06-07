@@ -45,6 +45,34 @@ def _map_api_status(api_status: str) -> str:
     return "suspended"
 
 
+# football-data.org returns knockout rounds as LAST_16 / LAST_32 / LAST_64, but the
+# rest of the app (scoring STAGE_ORDER, standings bracket, frontend, i18n keys) speaks
+# round_of_16 / round_of_32 / round_of_64. Translate to our canonical vocabulary here so
+# the multiplier and the "scoring locked once knockout scored" guard line up with the DB.
+_API_STAGE_TO_CANONICAL = {
+    "GROUP_STAGE": "group_stage",
+    "LAST_64": "round_of_64",
+    "LAST_32": "round_of_32",
+    "LAST_16": "round_of_16",
+    "QUARTER_FINALS": "quarter_finals",
+    "SEMI_FINALS": "semi_finals",
+    "THIRD_PLACE": "third_place",
+    "FINAL": "final",
+}
+
+
+def _normalize_stage(api_stage: str | None) -> str:
+    """Map a football-data.org stage enum to the app's canonical stage name.
+
+    Unknown values fall back to a lowercased form so a new/unexpected stage never
+    crashes a sync — at worst it simply won't qualify for double points (the scoring
+    multiplier safely returns 1 for stages it doesn't recognise).
+    """
+    if not api_stage:
+        return "group_stage"
+    return _API_STAGE_TO_CANONICAL.get(api_stage.upper(), api_stage.lower())
+
+
 def sync_matches(db: Session, competition_code: str = "WC") -> dict:
     """Fetch fixtures from football-data.org and upsert Match rows."""
     _validate_competition_code(competition_code)
@@ -71,7 +99,7 @@ def sync_matches(db: Session, competition_code: str = "WC") -> dict:
         kickoff = datetime.fromisoformat(fixture["utcDate"].replace("Z", "+00:00"))
         home = fixture["homeTeam"].get("name")
         away = fixture["awayTeam"].get("name")
-        stage = fixture.get("stage", "GROUP_STAGE").lower()
+        stage = _normalize_stage(fixture.get("stage"))
         raw_group = fixture.get("group")
         group = raw_group.replace("GROUP_", "Group ").title() if raw_group else None
 

@@ -6,7 +6,6 @@ import type {
   Match,
   Prediction,
   PredictionHistoryItem,
-  ScoringRules,
   Tournament,
   TournamentCompareMatch,
   TournamentMember,
@@ -68,11 +67,6 @@ export const api = {
     }),
   deleteTournament: (invite_code: string) =>
     request<void>(`/tournaments/${invite_code}`, { method: 'DELETE' }),
-  updateTournamentScoring: (code: string, payload: { double_points_from_stage: string | null }) =>
-    request<ScoringRules>(`/tournaments/${code}/scoring`, {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    }),
   getMembers: (code: string) =>
     request<TournamentMember[]>(`/tournaments/${code}/members`),
   updateTournament: (

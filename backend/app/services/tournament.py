@@ -124,9 +124,26 @@ def delete_tournament(db: Session, invite_code: str, user: User) -> None:
     db.commit()
 
 
-def update_tournament(db: Session, invite_code: str, data, user: User) -> Tournament:
-    from app.services.scoring import KNOCKOUT_STAGES
+def _world_cup_started(db: Session) -> bool:
+    """True once any match has kicked off (gone live or finished)."""
+    return (
+        db.query(Match.id)
+        .filter(Match.status.in_(("live", "finished")))
+        .first()
+    ) is not None
 
+
+def _group_stage_complete(db: Session) -> bool:
+    """True once every group-stage match has finished (knockouts about to begin)."""
+    group_q = db.query(Match).filter(Match.stage == "group_stage")
+    total = group_q.count()
+    if total == 0:
+        return False
+    remaining = group_q.filter(Match.status != "finished").count()
+    return remaining == 0
+
+
+def update_tournament(db: Session, invite_code: str, data, user: User) -> Tournament:
     tournament = db.query(Tournament).options(joinedload(Tournament.creator)).filter(
         Tournament.invite_code == invite_code
     ).first()
@@ -142,21 +159,6 @@ def update_tournament(db: Session, invite_code: str, data, user: User) -> Tourna
         tournament.name = name
 
     if data.scoring_rules is not None:
-        has_knockout_scored = (
-            db.query(PointEvent)
-            .join(Match, Match.id == PointEvent.match_id)
-            .filter(
-                PointEvent.tournament_id == tournament.id,
-                Match.stage.in_(KNOCKOUT_STAGES),
-            )
-            .first()
-        ) is not None
-        if has_knockout_scored:
-            raise HTTPException(
-                status_code=400,
-                detail="Cannot change scoring settings after knockout match results have been scored",
-            )
-
         scoring = db.query(TournamentScoringRules).filter(
             TournamentScoringRules.tournament_id == tournament.id
         ).first()
@@ -165,14 +167,45 @@ def update_tournament(db: Session, invite_code: str, data, user: User) -> Tourna
 
         rules = data.scoring_rules
         provided = rules.model_dump(exclude_unset=True)
-        if "correct_result_pts" in provided and rules.correct_result_pts is not None:
-            scoring.correct_result_pts = rules.correct_result_pts
-        if "correct_winner_pts" in provided and rules.correct_winner_pts is not None:
-            scoring.correct_winner_pts = rules.correct_winner_pts
-        if "correct_goal_diff_pts" in provided and rules.correct_goal_diff_pts is not None:
-            scoring.correct_goal_diff_pts = rules.correct_goal_diff_pts
-        if "correct_goals_one_team_pts" in provided and rules.correct_goals_one_team_pts is not None:
-            scoring.correct_goals_one_team_pts = rules.correct_goals_one_team_pts
+
+        # Only fields whose value actually differs from what's stored count as a
+        # change. This lets the frontend resend the whole scoring object while a
+        # field is locked, as long as it isn't trying to alter that field.
+        point_fields = (
+            "correct_result_pts",
+            "correct_winner_pts",
+            "correct_goal_diff_pts",
+            "correct_goals_one_team_pts",
+        )
+        changing_point_values = any(
+            field in provided
+            and provided[field] is not None
+            and provided[field] != getattr(scoring, field)
+            for field in point_fields
+        )
+        changing_double = (
+            "double_points_from_stage" in provided
+            and provided["double_points_from_stage"] != scoring.double_points_from_stage
+        )
+
+        # Point values freeze the moment the tournament kicks off. The 2x
+        # multiplier stays editable through the group stage (the feature ships
+        # close to kickoff) but locks once the group stage is complete — before
+        # any knockout match it could affect is played.
+        if changing_point_values and _world_cup_started(db):
+            raise HTTPException(
+                status_code=400,
+                detail="Scoring values can no longer be changed once the World Cup has started",
+            )
+        if changing_double and _group_stage_complete(db):
+            raise HTTPException(
+                status_code=400,
+                detail="Double points can no longer be changed once the group stage is over",
+            )
+
+        for field in point_fields:
+            if field in provided and provided[field] is not None:
+                setattr(scoring, field, provided[field])
         # double_points_from_stage may be explicitly set to None to clear it
         if "double_points_from_stage" in provided:
             scoring.double_points_from_stage = rules.double_points_from_stage
