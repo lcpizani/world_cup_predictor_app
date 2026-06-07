@@ -90,6 +90,26 @@ _STAGE_TO_ROUND = {
     "final": "final",
 }
 
+# The FIFA match numbers (slot_ids) belonging to each round, in bracket order.
+# Derived from the topology so the two never drift apart.
+_ROUND_SLOT_IDS: dict[str, list[int]] = {}
+for _entry in _BRACKET_TOPOLOGY:
+    _ROUND_SLOT_IDS.setdefault(_entry["round"], []).append(_entry["slot_id"])
+
+
+def _match_order_key(match: Match) -> tuple[int, int]:
+    """Sort knockout matches within a stage so they line up with the FIFA slots.
+
+    football-data.org assigns sequential external IDs in FIFA match-number order
+    *within each stage* (the IDs themselves are not 73–104, but their ascending
+    order within a round matches the bracket order). Matches without a numeric
+    external ID sort last but stay deterministic.
+    """
+    try:
+        return (0, int(match.external_match_id))
+    except (TypeError, ValueError):
+        return (1, 0)
+
 
 def _winner_of(match: Match) -> str | None:
     if match.status != "finished" or match.home_score is None or match.away_score is None:
@@ -239,13 +259,16 @@ def get_bracket(
         .filter(Match.stage.in_(list(_STAGE_TO_ROUND.keys())))
         .all()
     )
-    for match in knockout_matches:
-        if match.external_match_id:
-            try:
-                slot_id = int(match.external_match_id)
-                knockout_by_slot[slot_id] = match
-            except (ValueError, TypeError):
-                pass
+    # Assign each stage's matches to that stage's bracket slots in order. We sort
+    # by external ID (FIFA match-number order within a round) rather than trusting
+    # the ID to literally equal the slot number, which it does not.
+    for round_name, slot_ids in _ROUND_SLOT_IDS.items():
+        stage_matches = sorted(
+            (m for m in knockout_matches if m.stage == round_name),
+            key=_match_order_key,
+        )
+        for slot_id, match in zip(slot_ids, stage_matches):
+            knockout_by_slot[slot_id] = match
 
     slots: list[BracketSlot] = []
     for entry in _BRACKET_TOPOLOGY:
