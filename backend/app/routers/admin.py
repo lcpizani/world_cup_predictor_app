@@ -228,6 +228,9 @@ def seed_finish_match(
     away_team: str = Body(...),
     home_score: int = Body(...),
     away_score: int = Body(...),
+    duration: str = Body("REGULAR"),
+    home_score_penalties: int = Body(None),
+    away_score_penalties: int = Body(None),
     db: Session = Depends(get_db),
     admin=Depends(require_admin_mutations),
 ) -> dict:
@@ -239,7 +242,13 @@ def seed_finish_match(
     if match.status == "finished":
         raise HTTPException(status_code=400, detail="Match already finished")
 
-    scoring_service.apply_match_result(db, match.id, home_score, away_score, status="finished")
+    scoring_service.apply_match_result(
+        db, match.id, home_score, away_score,
+        status="finished",
+        duration=duration,
+        home_score_penalties=home_score_penalties,
+        away_score_penalties=away_score_penalties,
+    )
     update_provisional_points(db)
 
     logger.info("Finished seeded match", home=home_team, away=away_team,

@@ -188,12 +188,20 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
             continue
 
         if internal_status == "live":
-            score = fixture.get("score", {}).get("fullTime", {})
-            # Use regular time score; fall back to half-time if full-time not yet set
-            home_score = score.get("home")
-            away_score = score.get("away")
+            score_obj = fixture.get("score", {})
+            api_duration = score_obj.get("duration", "REGULAR")
+            # During ET/penalties use the running extraTime total; fall back to fullTime
+            if api_duration in ("EXTRA_TIME", "PENALTY_SHOOTOUT"):
+                et = score_obj.get("extraTime") or {}
+                home_score = et.get("home")
+                away_score = et.get("away")
+            else:
+                ft = score_obj.get("fullTime") or {}
+                home_score = ft.get("home")
+                away_score = ft.get("away")
+            # Fall back to half-time if no score available yet
             if home_score is None or away_score is None:
-                ht = fixture.get("score", {}).get("halfTime", {})
+                ht = score_obj.get("halfTime") or {}
                 home_score = ht.get("home")
                 away_score = ht.get("away")
             if home_score is not None and away_score is not None:
@@ -206,13 +214,32 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
             continue
 
         if internal_status == "finished":
-            score = fixture.get("score", {}).get("fullTime", {})
-            home_score = score.get("home")
-            away_score = score.get("away")
+            score_obj = fixture.get("score", {})
+            api_duration = score_obj.get("duration", "REGULAR")
+            ft = score_obj.get("fullTime") or {}
+            # Use extraTime total when available (it's cumulative, includes 90-min goals)
+            if api_duration in ("EXTRA_TIME", "PENALTY_SHOOTOUT"):
+                et = score_obj.get("extraTime") or {}
+                home_score = et.get("home") if et.get("home") is not None else ft.get("home")
+                away_score = et.get("away") if et.get("away") is not None else ft.get("away")
+            else:
+                home_score = ft.get("home")
+                away_score = ft.get("away")
             if home_score is None or away_score is None:
                 continue
+            pen_home = pen_away = None
+            if api_duration == "PENALTY_SHOOTOUT":
+                pen = score_obj.get("penalties") or {}
+                pen_home = pen.get("home")
+                pen_away = pen.get("away")
             try:
-                apply_match_result(db, match.id, home_score, away_score, status="finished")
+                apply_match_result(
+                    db, match.id, home_score, away_score,
+                    status="finished",
+                    duration=api_duration,
+                    home_score_penalties=pen_home,
+                    away_score_penalties=pen_away,
+                )
                 match.minute = None
                 scored += 1
             except HTTPException as exc:

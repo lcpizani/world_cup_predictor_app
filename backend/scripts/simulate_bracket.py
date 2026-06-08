@@ -115,14 +115,48 @@ def bracket_by_slot(db):
 
 
 def winner_team(match):
-    return match.home_team if match.home_score > match.away_score else match.away_team
+    if match.home_score > match.away_score:
+        return match.home_team
+    if match.away_score > match.home_score:
+        return match.away_team
+    # Penalty shootout — winner determined by pen tally
+    return match.home_team if (match.home_score_penalties or 0) > (match.away_score_penalties or 0) else match.away_team
 
 
 def decisive(rng):
+    """Regular-time decisive result (no ET/pens)."""
     hs, as_ = rng.randint(0, 3), rng.randint(0, 3)
     if hs == as_:
         hs += 1
     return hs, as_
+
+
+def decisive_with_et(rng):
+    """Knockout result that can go to ET or penalties (~40% chance).
+
+    Returns (home_score, away_score, duration, pen_home, pen_away).
+    home_score/away_score are the 120-min totals (what gets stored).
+    """
+    r = rng.random()
+    if r < 0.60:
+        # Decided in regular time
+        hs, as_ = rng.randint(0, 3), rng.randint(0, 3)
+        if hs == as_:
+            hs += 1
+        return hs, as_, "REGULAR", None, None
+    elif r < 0.80:
+        # Decided in extra time (score changes in ET)
+        base = rng.randint(0, 2)
+        if rng.random() < 0.5:
+            return base + 1, base, "EXTRA_TIME", None, None
+        else:
+            return base, base + 1, "EXTRA_TIME", None, None
+    else:
+        # Penalty shootout: still level after 120 min
+        base = rng.randint(0, 2)
+        pen_options = [(3, 4), (4, 3), (4, 5), (5, 4), (3, 5), (5, 3), (5, 6), (6, 5)]
+        ph, pa = rng.choice(pen_options)
+        return base, base, "PENALTY_SHOOTOUT", ph, pa
 
 
 # ── wipe ─────────────────────────────────────────────────────────────────────────
@@ -134,7 +168,8 @@ def wipe(db):
     db.execute(text("DELETE FROM group_standings"))
     knockout = db.execute(text("DELETE FROM matches WHERE stage <> 'group_stage'"))
     db.execute(text(
-        "UPDATE matches SET status='scheduled', home_score=NULL, away_score=NULL, minute=NULL "
+        "UPDATE matches SET status='scheduled', home_score=NULL, away_score=NULL, minute=NULL, "
+        "duration=NULL, home_score_penalties=NULL, away_score_penalties=NULL "
         "WHERE stage='group_stage'"
     ))
     db.execute(text("UPDATE tournament_members SET total_points=0, provisional_points=0"))
@@ -323,11 +358,13 @@ def main():
 
         for sid in ROUND_SLOTS[round_name]:
             m = slot_to_match[sid]
-            hs, as_ = decisive(rng)
-            apply_match_result(db, m.id, hs, as_, status="finished")
+            hs, as_, dur, ph, pa = decisive_with_et(rng)
+            apply_match_result(db, m.id, hs, as_, status="finished",
+                               duration=dur, home_score_penalties=ph, away_score_penalties=pa)
             db.refresh(m)
             winner_by_slot[sid] = winner_team(m)
-            print(f"  M{sid}: {m.home_team:<16} {hs}-{as_} {m.away_team:<16} -> {winner_by_slot[sid]}")
+            pen_str = f" (pens {ph}-{pa})" if ph is not None else (" AET" if dur == "EXTRA_TIME" else "")
+            print(f"  M{sid}: {m.home_team:<16} {hs}-{as_}{pen_str} {m.away_team:<16} -> {winner_by_slot[sid]}")
 
         slots_after = bracket_by_slot(db)
         nexts = sorted(sid for sid, adv in _ADVANCEMENT.items() if adv["home"][0] in ROUND_SLOTS[round_name])
@@ -357,7 +394,7 @@ def main():
     db.commit()
 
     m101 = slot_to_match[101]
-    apply_match_result(db, m101.id, 2, 1, status="finished")
+    apply_match_result(db, m101.id, 2, 1, status="finished", duration="REGULAR")
     db.refresh(m101)
     winner_by_slot[101] = winner_team(m101)
     print(f"  M101 FINISHED: {m101.home_team} 2-1 {m101.away_team} -> finalist {winner_by_slot[101]}")

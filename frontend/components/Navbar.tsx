@@ -83,6 +83,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
     { title: t('lock_window'), desc: t('lock_window_desc') },
     { title: t('change_prediction'), desc: t('change_prediction_desc') },
     { title: t('knockout_stages'), desc: t('knockout_stages_desc') },
+    { title: t('knockout_scoring'), desc: t('knockout_scoring_desc') },
     { title: t('live_results'), desc: t('live_results_desc') },
   ]
 

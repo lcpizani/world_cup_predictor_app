@@ -47,7 +47,7 @@ function ResultBadge({ exact, winner, hasPred }: { exact: boolean; winner: boole
   )
 }
 
-function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string; kickoff_at: string; timezone?: string | null; minute?: number | null }) {
+function StatusBadge({ status, kickoff_at, timezone, minute, duration }: { status: string; kickoff_at: string; timezone?: string | null; minute?: number | null; duration?: string | null }) {
   const t = useTranslations('predictions')
   const locale = useLocale()
   if (status === 'live') return (
@@ -56,11 +56,14 @@ function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string;
       {minute != null ? `${minute}'` : t('live')}
     </span>
   )
-  if (status === 'finished') return (
-    <span className="text-[9px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider" style={{ color: '#3f5068', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-      {t('ft')}
-    </span>
-  )
+  if (status === 'finished') {
+    const isAet = duration === 'EXTRA_TIME' || duration === 'PENALTY_SHOOTOUT'
+    return (
+      <span className="text-[9px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider" style={{ color: '#3f5068', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+        {isAet ? t('aet') : t('ft')}
+      </span>
+    )
+  }
   const label = formatMatchDateTime(kickoff_at, timezone, locale)
   return (
     <span className="text-[9px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full tracking-wider text-[#f0b429]" style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)' }}>
@@ -170,7 +173,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
           </div>
           <div className="flex items-center gap-2">
             <ResultBadge exact={exact} winner={scoreColors.winner} hasPred={hasPred} />
-            <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} minute={match.minute} />
+            <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} minute={match.minute} duration={match.duration} />
           </div>
         </div>
         <div className="flex items-center gap-3 sm:gap-4">
@@ -192,16 +195,30 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
                     {pa}
                   </span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5">
+                  {match.home_score_penalties != null && (
+                    <span className="font-[family-name:var(--font-oswald)] text-xs" style={{ color: '#2d3e52' }}>({match.home_score_penalties})</span>
+                  )}
                   <span className="font-[family-name:var(--font-oswald)] text-sm sm:text-base w-4 sm:w-5 text-center" style={{ color: '#3f5068' }}>{ah}</span>
                   <span className="text-xs sm:text-sm" style={{ color: '#1e2d40' }}>–</span>
                   <span className="font-[family-name:var(--font-oswald)] text-sm sm:text-base w-4 sm:w-5 text-center" style={{ color: '#3f5068' }}>{aa}</span>
+                  {match.away_score_penalties != null && (
+                    <span className="font-[family-name:var(--font-oswald)] text-xs" style={{ color: '#2d3e52' }}>({match.away_score_penalties})</span>
+                  )}
                 </div>
               </div>
             ) : (
-              <span className="font-[family-name:var(--font-oswald)] font-bold text-xl sm:text-3xl w-20 sm:w-28 text-center" style={{ color: '#3f5068' }}>
-                {ah} – {aa}
-              </span>
+              <div className="flex items-center gap-0.5 w-20 sm:w-28 justify-center">
+                {match.home_score_penalties != null && (
+                  <span className="font-[family-name:var(--font-oswald)] text-sm" style={{ color: '#2d3e52' }}>({match.home_score_penalties})</span>
+                )}
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-xl sm:text-3xl text-center" style={{ color: '#3f5068' }}>
+                  {ah} – {aa}
+                </span>
+                {match.away_score_penalties != null && (
+                  <span className="font-[family-name:var(--font-oswald)] text-sm" style={{ color: '#2d3e52' }}>({match.away_score_penalties})</span>
+                )}
+              </div>
             )}
           </div>
           <div className="flex-1 flex items-center gap-2 sm:gap-2.5 min-w-0">

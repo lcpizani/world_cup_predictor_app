@@ -24,6 +24,9 @@ class Match(Base):
     status = Column(String(20), nullable=False, server_default="scheduled")
     home_score = Column(Integer, nullable=True)
     away_score = Column(Integer, nullable=True)
+    home_score_penalties = Column(Integer, nullable=True)
+    away_score_penalties = Column(Integer, nullable=True)
+    duration = Column(String(20), nullable=True)
     minute = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

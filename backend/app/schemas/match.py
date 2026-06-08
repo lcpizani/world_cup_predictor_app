@@ -24,6 +24,9 @@ class MatchResponse(BaseModel):
     status: str
     home_score: Optional[int] = None
     away_score: Optional[int] = None
+    home_score_penalties: Optional[int] = None
+    away_score_penalties: Optional[int] = None
+    duration: Optional[str] = None
     minute: Optional[int] = None
     created_at: datetime
 

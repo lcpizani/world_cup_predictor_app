@@ -157,7 +157,8 @@
       "semi_finals": "Semifinais",
       "third_place": "3º Lugar",
       "final": "Final"
-    }
+    },
+    "aet": "AET"
   },
   "predictions": {
     "title": "Meus Palpites",
@@ -199,7 +200,8 @@
     "auto_save_notice": "Seus palpites são salvos automaticamente enquanto você digita.",
     "auto_save_short": "Salva automaticamente",
     "saving": "Salvando…",
-    "error_saving": "Erro ao salvar"
+    "error_saving": "Erro ao salvar",
+    "aet": "AET"
   },
   "leagues": {
     "title": "Minhas Ligas",
@@ -289,7 +291,8 @@
     "double_stage_semi_finals": "Semifinais",
     "double_stage_final": "Final",
     "edit": "Editar",
-    "double_active": "Pontos em dobro a partir de {stage}"
+    "double_active": "Pontos em dobro a partir de {stage}",
+    "aet": "AET"
   },
   "leagueSettings": {
     "back": "← Voltar à liga",
@@ -478,7 +481,9 @@
     "knockout_stages_desc": "Os times das oitavas, quartas, semis e final são determinados após a fase de grupos — você poderá palpitar quando as equipes forem confirmadas.",
     "live_results": "Os placares ao vivo atualizam em tempo quase real",
     "live_results_desc": "O placar geral atualiza a cada 20 segundos e a comparação de palpites atualiza a cada 30 segundos durante as partidas.",
-    "close": "Fechar"
+    "close": "Fechar",
+    "knockout_scoring": "Placar dos eliminatórios vale até 120 minutos",
+    "knockout_scoring_desc": "Nos jogos eliminatórios, seu palpite é comparado com o placar após 90 minutos + prorrogação. Se você previu 1–1 e o jogo terminar 1–1 após a prorrogação — mesmo indo para os pênaltis — isso conta como placar exato. O resultado dos pênaltis nunca afeta seus pontos."
   },
   "admin": {
     "panel_title": "Painel de Admin",
@@ -562,6 +567,8 @@
     "example_5_earned": "✗ Errou (resultado diferente)",
     "note": "Os valores dos pontos dependem das regras de cada liga. Confira a barra de Regras de Pontuação dentro da sua liga.",
     "close": "Entendi",
-    "how_scored": "Como os palpites são pontuados?"
+    "how_scored": "Como os palpites são pontuados?",
+    "knockout_title": "Jogos eliminatórios: vale o placar dos 120 minutos",
+    "knockout_desc": "Os palpites são comparados com o placar após 90 minutos + prorrogação. Se você previu 1–1 e o jogo terminou 1–1 após a prorrogação — mesmo que tenha ido para os pênaltis — isso conta como Placar Exato. O resultado da disputa de pênaltis não afeta seu palpite."
   }
 }

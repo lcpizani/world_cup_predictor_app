@@ -96,6 +96,9 @@ def apply_match_result(
     away_score: int,
     applied_by=None,
     status: Optional[str] = None,
+    duration: Optional[str] = None,
+    home_score_penalties: Optional[int] = None,
+    away_score_penalties: Optional[int] = None,
 ) -> Match:
     match = db.query(Match).filter(Match.id == match_id).first()
     if match is None:
@@ -109,6 +112,9 @@ def apply_match_result(
 
     match.home_score = home_score
     match.away_score = away_score
+    match.duration = duration
+    match.home_score_penalties = home_score_penalties
+    match.away_score_penalties = away_score_penalties
     match.status = status or "finished"
     db.add(match)
     db.flush()

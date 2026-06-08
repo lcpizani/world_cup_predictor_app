@@ -456,10 +456,18 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
   const isLive     = match?.status === 'live'
   const isFinished = match?.status === 'finished'
   const hasBoth    = !!match
-  const homeWins   = isFinished && match && (match.home_score ?? 0) > (match.away_score ?? 0)
-  const awayWins   = isFinished && match && (match.away_score ?? 0) > (match.home_score ?? 0)
+  const isAet      = match?.duration === 'EXTRA_TIME' || match?.duration === 'PENALTY_SHOOTOUT'
+  // For penalty shootouts the 120-min score is tied — use pen tallies to determine winner
+  const homeWins   = isFinished && match && (
+    (match.home_score ?? 0) > (match.away_score ?? 0) ||
+    ((match.home_score ?? 0) === (match.away_score ?? 0) && (match.home_score_penalties ?? 0) > (match.away_score_penalties ?? 0))
+  )
+  const awayWins   = isFinished && match && (
+    (match.away_score ?? 0) > (match.home_score ?? 0) ||
+    ((match.home_score ?? 0) === (match.away_score ?? 0) && (match.away_score_penalties ?? 0) > (match.home_score_penalties ?? 0))
+  )
 
-  function Team({ name, score, winner }: { name: string; score?: number | null; winner?: boolean }) {
+  function Team({ name, score, penScore, winner }: { name: string; score?: number | null; penScore?: number | null; winner?: boolean }) {
     const code = getTeamFlagCode(name)
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, height: 22, overflow: 'hidden' }}>
@@ -479,12 +487,17 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
           {hasBoth ? translateTeamName(name, locale) : translateBracketLabel(name, locale)}
         </span>
         {(isFinished || isLive) && score != null && (
-          <span style={{
-            fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-oswald)',
-            fontVariantNumeric: 'tabular-nums', flexShrink: 0, minWidth: 14, textAlign: 'right',
-            color: winner ? '#f0b429' : '#4a6080',
-          }}>
-            {score}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            {penScore != null && (
+              <span style={{ fontSize: 9, color: '#3a5070', fontFamily: 'var(--font-oswald)' }}>({penScore})</span>
+            )}
+            <span style={{
+              fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-oswald)',
+              fontVariantNumeric: 'tabular-nums', minWidth: 14, textAlign: 'right',
+              color: winner ? '#f0b429' : '#4a6080',
+            }}>
+              {score}
+            </span>
           </span>
         )}
       </div>
@@ -522,15 +535,15 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
               </span>
             </>
           )}
-          {isFinished && <span style={{ fontSize: 9, fontWeight: 700, color: '#3a5070' }}>{t('ft')}</span>}
+          {isFinished && <span style={{ fontSize: 9, fontWeight: 700, color: '#3a5070' }}>{isAet ? t('aet') : t('ft')}</span>}
           {match && !isLive && !isFinished && <span style={{ fontSize: 9, color: '#2a4060' }}>{formatMatchTime(match.kickoff_at, null, locale)}</span>}
         </span>
       </div>
 
       {/* Teams — flex:1 fills the remaining CARD_H - 22px - 1px(border) = 57px */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly', padding: '4px 8px' }}>
-        <Team name={match ? match.home_team : slot.home_label} score={match?.home_score} winner={!!homeWins} />
-        <Team name={match ? match.away_team : slot.away_label} score={match?.away_score} winner={!!awayWins} />
+        <Team name={match ? match.home_team : slot.home_label} score={match?.home_score} penScore={match?.home_score_penalties} winner={!!homeWins} />
+        <Team name={match ? match.away_team : slot.away_label} score={match?.away_score} penScore={match?.away_score_penalties} winner={!!awayWins} />
       </div>
     </div>
   )
