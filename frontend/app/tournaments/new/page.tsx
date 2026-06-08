@@ -23,6 +23,15 @@ const DEFAULT_RULES = {
   correct_goals_one_team_pts: 1,
 }
 
+const DOUBLE_STAGE_OPTIONS: { value: string | null; labelKey: string }[] = [
+  { value: null,             labelKey: 'double_stage_off' },
+  { value: 'round_of_32',   labelKey: 'double_stage_round_of_32' },
+  { value: 'round_of_16',   labelKey: 'double_stage_round_of_16' },
+  { value: 'quarter_finals', labelKey: 'double_stage_quarter_finals' },
+  { value: 'semi_finals',   labelKey: 'double_stage_semi_finals' },
+  { value: 'final',         labelKey: 'double_stage_final' },
+]
+
 export default function NewTournamentPage() {
   const t = useTranslations('newLeague')
   const router = useRouter()
@@ -32,6 +41,7 @@ export default function NewTournamentPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [rules, setRules] = useState(DEFAULT_RULES)
+  const [doubleFromStage, setDoubleFromStage] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -42,7 +52,7 @@ export default function NewTournamentPage() {
     try {
       await api.createTournament({
         name: fd.get('name') as string,
-        scoring_rules: rules,
+        scoring_rules: { ...rules, double_points_from_stage: doubleFromStage },
       })
       await qc.invalidateQueries({ queryKey: ['tournaments'] })
       router.push('/leagues')
@@ -119,6 +129,26 @@ export default function NewTournamentPage() {
                 </div>
               </div>
             ))}
+
+            <div className="pt-3 mt-1 border-t border-white/5">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2.5 flex-1">
+                  <span className="text-base">2×</span>
+                  <span className="text-sm text-[#94a3b8]">{t('double_points_from')}</span>
+                </div>
+                <select
+                  value={doubleFromStage ?? ''}
+                  onChange={(e) => setDoubleFromStage(e.target.value || null)}
+                  className="bg-[#080c14] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#f0b429]/50 transition"
+                >
+                  {DOUBLE_STAGE_OPTIONS.map((opt) => (
+                    <option key={opt.value ?? 'off'} value={opt.value ?? ''}>
+                      {t(opt.labelKey)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -398,6 +398,37 @@ const R32_GAP = 4    // px — gap between adjacent cards in the R32 column
 
 const MAIN_ROUNDS = ['round_of_32', 'round_of_16', 'quarter_finals', 'semi_finals', 'final'] as const
 
+// Top-to-bottom display order of each column.
+// Source: https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_knockout_stage
+//
+// The bracket is a binary tree — each card in round N is fed by exactly two
+// adjacent cards in round N-1 (positions 2k and 2k+1 feed card k). The arrays
+// below are a pre-order walk of that tree so the connector geometry works
+// automatically. Do NOT sort by match number; the tree order is what matters.
+//
+//  Top half  → M101
+//    QF1 M97  → R16 M89 (M74, M77)  then  R16 M90 (M73, M75)
+//    QF2 M98  → R16 M93 (M83, M84)  then  R16 M94 (M81, M82)
+//  Bottom half → M102
+//    QF3 M99  → R16 M91 (M76, M78)  then  R16 M92 (M79, M80)
+//    QF4 M100 → R16 M95 (M86, M88)  then  R16 M96 (M85, M87)
+const BRACKET_SLOT_ORDER: Record<string, number[]> = {
+  //            QF1 pair          QF2 pair          QF3 pair          QF4 pair
+  round_of_32: [74, 77, 73, 75,  83, 84, 81, 82,  76, 78, 79, 80,  86, 88, 85, 87],
+  //            QF1   QF2   QF3   QF4
+  round_of_16: [89, 90, 93, 94, 91, 92, 95, 96],
+  quarter_finals: [97, 98, 99, 100],
+  semi_finals:    [101, 102],
+  final:          [104],
+}
+
+function bracketOrderIndex(round: string, slotId: number): number {
+  const order = BRACKET_SLOT_ORDER[round]
+  if (!order) return slotId
+  const idx = order.indexOf(slotId)
+  return idx === -1 ? slotId : idx
+}
+
 const BRACKET_LAYOUTS: Record<string, { gap: number; paddingTop: number }> = (() => {
   const out: Record<string, { gap: number; paddingTop: number }> = {}
   let gap = R32_GAP
@@ -425,15 +456,23 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
   const isLive     = match?.status === 'live'
   const isFinished = match?.status === 'finished'
   const hasBoth    = !!match
-  const homeWins   = isFinished && match && (match.home_score ?? 0) > (match.away_score ?? 0)
-  const awayWins   = isFinished && match && (match.away_score ?? 0) > (match.home_score ?? 0)
+  const isAet      = match?.duration === 'EXTRA_TIME' || match?.duration === 'PENALTY_SHOOTOUT'
+  // For penalty shootouts the 120-min score is tied — use pen tallies to determine winner
+  const homeWins   = isFinished && match && (
+    (match.home_score ?? 0) > (match.away_score ?? 0) ||
+    ((match.home_score ?? 0) === (match.away_score ?? 0) && (match.home_score_penalties ?? 0) > (match.away_score_penalties ?? 0))
+  )
+  const awayWins   = isFinished && match && (
+    (match.away_score ?? 0) > (match.home_score ?? 0) ||
+    ((match.home_score ?? 0) === (match.away_score ?? 0) && (match.away_score_penalties ?? 0) > (match.home_score_penalties ?? 0))
+  )
 
-  function Team({ name, score, winner }: { name: string; score?: number | null; winner?: boolean }) {
+  function Team({ name, score, penScore, winner }: { name: string; score?: number | null; penScore?: number | null; winner?: boolean }) {
     const code = getTeamFlagCode(name)
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, height: 22, overflow: 'hidden' }}>
         <div style={{ width: 20, height: 14, flexShrink: 0, borderRadius: 2, overflow: 'hidden', background: 'rgba(255,255,255,0.04)' }}>
-          {hasBoth && code && (
+          {code && (
             <Image src={getFlagUrl(code, 40)} alt={name} width={20} height={14}
               className="w-full h-full object-contain"
               unoptimized />
@@ -448,12 +487,17 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
           {hasBoth ? translateTeamName(name, locale) : translateBracketLabel(name, locale)}
         </span>
         {(isFinished || isLive) && score != null && (
-          <span style={{
-            fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-oswald)',
-            fontVariantNumeric: 'tabular-nums', flexShrink: 0, minWidth: 14, textAlign: 'right',
-            color: winner ? '#f0b429' : '#4a6080',
-          }}>
-            {score}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+            {penScore != null && (
+              <span style={{ fontSize: 9, color: '#3a5070', fontFamily: 'var(--font-oswald)' }}>({penScore})</span>
+            )}
+            <span style={{
+              fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-oswald)',
+              fontVariantNumeric: 'tabular-nums', minWidth: 14, textAlign: 'right',
+              color: winner ? '#f0b429' : '#4a6080',
+            }}>
+              {score}
+            </span>
           </span>
         )}
       </div>
@@ -491,15 +535,15 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
               </span>
             </>
           )}
-          {isFinished && <span style={{ fontSize: 9, fontWeight: 700, color: '#3a5070' }}>{t('ft')}</span>}
+          {isFinished && <span style={{ fontSize: 9, fontWeight: 700, color: '#3a5070' }}>{isAet ? t('aet') : t('ft')}</span>}
           {match && !isLive && !isFinished && <span style={{ fontSize: 9, color: '#2a4060' }}>{formatMatchTime(match.kickoff_at, null, locale)}</span>}
         </span>
       </div>
 
       {/* Teams — flex:1 fills the remaining CARD_H - 22px - 1px(border) = 57px */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly', padding: '4px 8px' }}>
-        <Team name={match ? match.home_team : slot.home_label} score={match?.home_score} winner={!!homeWins} />
-        <Team name={match ? match.away_team : slot.away_label} score={match?.away_score} winner={!!awayWins} />
+        <Team name={match ? match.home_team : slot.home_label} score={match?.home_score} penScore={match?.home_score_penalties} winner={!!homeWins} />
+        <Team name={match ? match.away_team : slot.away_label} score={match?.away_score} penScore={match?.away_score_penalties} winner={!!awayWins} />
       </div>
     </div>
   )
@@ -527,6 +571,8 @@ function BracketConnectors({ slotsByRound }: { slotsByRound: Record<string, Brac
     const xBL = (ri + 1) * (COL_W + COL_GAP)           // left  edge of column B
     const mx  = (xAR + xBL) / 2                         // midpoint in the gap
 
+    // Columns are laid out in tree order (BRACKET_SLOT_ORDER), so the two feeders
+    // of card k are exactly cards 2k and 2k+1 of the previous column.
     for (let k = 0; k < sB.length; k++) {
       const y1 = la.paddingTop + (2 * k)     * (CARD_H + la.gap) + CARD_H / 2
       const y2 = la.paddingTop + (2 * k + 1) * (CARD_H + la.gap) + CARD_H / 2
@@ -563,15 +609,18 @@ function BracketView({ slots }: { slots: BracketSlot[] }) {
   const t = useTranslations('standings')
   const hasR32Pending = slots.filter(s => s.round === 'round_of_32').some(s => s.match === null)
 
-  // Build per-round arrays sorted by slot_id so that consecutive pairs in round N
-  // feed the corresponding card in round N+1.
+  // Build per-round arrays in canonical tree order (BRACKET_SLOT_ORDER) so the two
+  // feeders of each next-round match sit next to each other and the card lands
+  // centred between them — the layout the connector geometry relies on.
   const slotsByRound: Record<string, BracketSlot[]> = {}
   for (const slot of slots) {
     if (!slotsByRound[slot.round]) slotsByRound[slot.round] = []
     slotsByRound[slot.round].push(slot)
   }
   for (const key of Object.keys(slotsByRound)) {
-    slotsByRound[key].sort((a, b) => a.slot_id - b.slot_id)
+    slotsByRound[key].sort(
+      (a, b) => bracketOrderIndex(key, a.slot_id) - bracketOrderIndex(key, b.slot_id),
+    )
   }
 
   const thirdPlace = slotsByRound['third_place'] ?? []

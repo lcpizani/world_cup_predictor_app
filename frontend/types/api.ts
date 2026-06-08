@@ -36,6 +36,7 @@ export interface ScoringRules {
   correct_winner_pts: number
   correct_goal_diff_pts: number
   correct_goals_one_team_pts: number
+  double_points_from_stage: string | null
 }
 
 export interface Tournament {
@@ -69,6 +70,9 @@ export interface Match {
   status: MatchStatus
   home_score: number | null
   away_score: number | null
+  home_score_penalties: number | null
+  away_score_penalties: number | null
+  duration: string | null
   minute: number | null
   created_at: string
 }

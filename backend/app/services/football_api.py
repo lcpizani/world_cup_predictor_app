@@ -45,6 +45,34 @@ def _map_api_status(api_status: str) -> str:
     return "suspended"
 
 
+# football-data.org returns knockout rounds as LAST_16 / LAST_32 / LAST_64, but the
+# rest of the app (scoring STAGE_ORDER, standings bracket, frontend, i18n keys) speaks
+# round_of_16 / round_of_32 / round_of_64. Translate to our canonical vocabulary here so
+# the multiplier and the "scoring locked once knockout scored" guard line up with the DB.
+_API_STAGE_TO_CANONICAL = {
+    "GROUP_STAGE": "group_stage",
+    "LAST_64": "round_of_64",
+    "LAST_32": "round_of_32",
+    "LAST_16": "round_of_16",
+    "QUARTER_FINALS": "quarter_finals",
+    "SEMI_FINALS": "semi_finals",
+    "THIRD_PLACE": "third_place",
+    "FINAL": "final",
+}
+
+
+def _normalize_stage(api_stage: str | None) -> str:
+    """Map a football-data.org stage enum to the app's canonical stage name.
+
+    Unknown values fall back to a lowercased form so a new/unexpected stage never
+    crashes a sync — at worst it simply won't qualify for double points (the scoring
+    multiplier safely returns 1 for stages it doesn't recognise).
+    """
+    if not api_stage:
+        return "group_stage"
+    return _API_STAGE_TO_CANONICAL.get(api_stage.upper(), api_stage.lower())
+
+
 def sync_matches(db: Session, competition_code: str = "WC") -> dict:
     """Fetch fixtures from football-data.org and upsert Match rows."""
     _validate_competition_code(competition_code)
@@ -71,7 +99,7 @@ def sync_matches(db: Session, competition_code: str = "WC") -> dict:
         kickoff = datetime.fromisoformat(fixture["utcDate"].replace("Z", "+00:00"))
         home = fixture["homeTeam"].get("name")
         away = fixture["awayTeam"].get("name")
-        stage = fixture.get("stage", "GROUP_STAGE").lower()
+        stage = _normalize_stage(fixture.get("stage"))
         raw_group = fixture.get("group")
         group = raw_group.replace("GROUP_", "Group ").title() if raw_group else None
 
@@ -160,12 +188,20 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
             continue
 
         if internal_status == "live":
-            score = fixture.get("score", {}).get("fullTime", {})
-            # Use regular time score; fall back to half-time if full-time not yet set
-            home_score = score.get("home")
-            away_score = score.get("away")
+            score_obj = fixture.get("score", {})
+            api_duration = score_obj.get("duration", "REGULAR")
+            # During ET/penalties use the running extraTime total; fall back to fullTime
+            if api_duration in ("EXTRA_TIME", "PENALTY_SHOOTOUT"):
+                et = score_obj.get("extraTime") or {}
+                home_score = et.get("home")
+                away_score = et.get("away")
+            else:
+                ft = score_obj.get("fullTime") or {}
+                home_score = ft.get("home")
+                away_score = ft.get("away")
+            # Fall back to half-time if no score available yet
             if home_score is None or away_score is None:
-                ht = fixture.get("score", {}).get("halfTime", {})
+                ht = score_obj.get("halfTime") or {}
                 home_score = ht.get("home")
                 away_score = ht.get("away")
             if home_score is not None and away_score is not None:
@@ -178,13 +214,32 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
             continue
 
         if internal_status == "finished":
-            score = fixture.get("score", {}).get("fullTime", {})
-            home_score = score.get("home")
-            away_score = score.get("away")
+            score_obj = fixture.get("score", {})
+            api_duration = score_obj.get("duration", "REGULAR")
+            ft = score_obj.get("fullTime") or {}
+            # Use extraTime total when available (it's cumulative, includes 90-min goals)
+            if api_duration in ("EXTRA_TIME", "PENALTY_SHOOTOUT"):
+                et = score_obj.get("extraTime") or {}
+                home_score = et.get("home") if et.get("home") is not None else ft.get("home")
+                away_score = et.get("away") if et.get("away") is not None else ft.get("away")
+            else:
+                home_score = ft.get("home")
+                away_score = ft.get("away")
             if home_score is None or away_score is None:
                 continue
+            pen_home = pen_away = None
+            if api_duration == "PENALTY_SHOOTOUT":
+                pen = score_obj.get("penalties") or {}
+                pen_home = pen.get("home")
+                pen_away = pen.get("away")
             try:
-                apply_match_result(db, match.id, home_score, away_score, status="finished")
+                apply_match_result(
+                    db, match.id, home_score, away_score,
+                    status="finished",
+                    duration=api_duration,
+                    home_score_penalties=pen_home,
+                    away_score_penalties=pen_away,
+                )
                 match.minute = None
                 scored += 1
             except HTTPException as exc:

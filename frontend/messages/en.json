@@ -157,7 +157,8 @@
       "semi_finals": "Semi-Finals",
       "third_place": "3rd Place",
       "final": "Final"
-    }
+    },
+    "aet": "AET"
   },
   "predictions": {
     "title": "My Predictions",
@@ -187,6 +188,7 @@
     "filter_group_all": "All Groups",
     "filter_no_results": "No matches found",
     "stage_group_stage": "Group Stage",
+    "stage_round_of_32": "Round of 32",
     "stage_round_of_16": "Round of 16",
     "stage_quarter_finals": "Quarterfinals",
     "stage_semi_finals": "Semifinals",
@@ -198,7 +200,8 @@
     "auto_save_notice": "Your picks are saved automatically as you type.",
     "auto_save_short": "Saves automatically",
     "saving": "Saving…",
-    "error_saving": "Error saving"
+    "error_saving": "Error saving",
+    "aet": "AET"
   },
   "leagues": {
     "title": "My Leagues",
@@ -239,6 +242,7 @@
   "tournament": {
     "back_leagues": "← Leagues",
     "stage_group_stage": "Group Stage",
+    "stage_round_of_32": "Round of 32",
     "stage_round_of_16": "Round of 16",
     "stage_quarter_finals": "Quarterfinals",
     "stage_semi_finals": "Semifinals",
@@ -276,7 +280,58 @@
     "score_exact": "Exact score",
     "score_winner": "Correct winner",
     "score_diff": "Goal difference",
-    "score_one_team": "One team's score"
+    "score_one_team": "One team's score",
+    "double_points_label": "2× Double Points",
+    "double_points_desc": "All points earned from this stage onwards count twice.",
+    "double_points_locked": "Cannot be changed after knockout results have been scored.",
+    "double_stage_off": "Off",
+    "double_stage_round_of_32": "Round of 32",
+    "double_stage_round_of_16": "Round of 16",
+    "double_stage_quarter_finals": "Quarter Finals",
+    "double_stage_semi_finals": "Semi Finals",
+    "double_stage_final": "Final",
+    "edit": "Edit",
+    "double_active": "Points double from {stage}",
+    "aet": "AET"
+  },
+  "leagueSettings": {
+    "back": "← Back to league",
+    "title": "League Settings",
+    "subtitle": "Manage your league name, scoring and members",
+    "name_section": "League name",
+    "name_placeholder": "League name",
+    "scoring_section": "Scoring rules",
+    "exact_score": "Exact score",
+    "correct_winner": "Correct winner",
+    "correct_goal_diff": "Correct goal difference",
+    "one_team_score": "One team's goals",
+    "double_points_from": "Double points from",
+    "double_stage_off": "Off",
+    "double_stage_round_of_32": "Round of 32",
+    "double_stage_round_of_16": "Round of 16",
+    "double_stage_quarter_finals": "Quarter Finals",
+    "double_stage_semi_finals": "Semi Finals",
+    "double_stage_final": "Final",
+    "scoring_locked": "Point values are locked because the World Cup has already started.",
+    "double_locked": "Double points can no longer be changed — the group stage is over.",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "save_failed": "Could not save. Try again.",
+    "members_section": "Members",
+    "creator_badge": "Creator",
+    "you_badge": "You",
+    "make_owner": "Make owner",
+    "make_owner_confirm": "Transfer ownership to {name}? You will no longer be the creator.",
+    "remove": "Remove",
+    "remove_confirm": "Remove {name} from the league?",
+    "danger_section": "Danger zone",
+    "delete_competition": "Delete league",
+    "delete_confirm_title": "Delete this league?",
+    "delete_confirm_desc": "This permanently removes the league and all its standings. This cannot be undone.",
+    "deleting": "Deleting…",
+    "yes_delete": "Yes, delete",
+    "cancel": "Cancel"
   },
   "leaderboard": {
     "back_matches": "← Matches",
@@ -317,6 +372,13 @@
     "correct_winner": "Correct winner / draw",
     "correct_goal_diff": "Correct goal difference",
     "one_team_score": "One team's score right",
+    "double_points_from": "2× Double Points From",
+    "double_stage_off": "Off",
+    "double_stage_round_of_32": "Round of 32",
+    "double_stage_round_of_16": "Round of 16",
+    "double_stage_quarter_finals": "Quarter Finals",
+    "double_stage_semi_finals": "Semi Finals",
+    "double_stage_final": "Final",
     "create": "🏆 Create League",
     "creating": "Creating league…",
     "failed": "Failed to create tournament"
@@ -419,7 +481,9 @@
     "knockout_stages_desc": "Round of 16, Quarterfinals, Semis, and Final teams are determined after the group stage concludes — you'll be able to predict them then.",
     "live_results": "Live scores update in near real-time",
     "live_results_desc": "The leaderboard refreshes every 20 seconds, and the compare view refreshes every 30 seconds during live matches.",
-    "close": "Close"
+    "close": "Close",
+    "knockout_scoring": "Knockout scores count up to 120 minutes",
+    "knockout_scoring_desc": "For knockout matches, your prediction is compared to the score after 90 minutes + extra time. If you predicted 1–1 and the game ends 1–1 after extra time — even if it then goes to a penalty shootout — that counts as an exact score. Penalty shootout results never affect your points."
   },
   "admin": {
     "panel_title": "Admin Panel",
@@ -503,6 +567,8 @@
     "example_5_earned": "✗ Miss (wrong outcome)",
     "note": "Point values depend on each league's rules. Check the Scoring Rules bar inside your league for the exact values.",
     "close": "Got it",
-    "how_scored": "How are predictions scored?"
+    "how_scored": "How are predictions scored?",
+    "knockout_title": "Knockout matches: 120-minute score counts",
+    "knockout_desc": "Predictions are compared to the score after 90 minutes + extra time. If you predicted 1–1 and the game finishes 1–1 after extra time — even if it goes to a penalty shootout — that counts as an Exact Score. Penalty shootout results do not affect your prediction."
   }
 }

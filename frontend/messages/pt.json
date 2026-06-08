@@ -157,7 +157,8 @@
       "semi_finals": "Semifinais",
       "third_place": "3º Lugar",
       "final": "Final"
-    }
+    },
+    "aet": "AET"
   },
   "predictions": {
     "title": "Meus Palpites",
@@ -187,6 +188,7 @@
     "filter_group_all": "Todos os Grupos",
     "filter_no_results": "Nenhum jogo encontrado",
     "stage_group_stage": "Fase de Grupos",
+    "stage_round_of_32": "Rodada de 32",
     "stage_round_of_16": "Oitavas de Final",
     "stage_quarter_finals": "Quartas de Final",
     "stage_semi_finals": "Semifinais",
@@ -198,7 +200,8 @@
     "auto_save_notice": "Seus palpites são salvos automaticamente enquanto você digita.",
     "auto_save_short": "Salva automaticamente",
     "saving": "Salvando…",
-    "error_saving": "Erro ao salvar"
+    "error_saving": "Erro ao salvar",
+    "aet": "AET"
   },
   "leagues": {
     "title": "Minhas Ligas",
@@ -239,6 +242,7 @@
   "tournament": {
     "back_leagues": "← Ligas",
     "stage_group_stage": "Fase de Grupos",
+    "stage_round_of_32": "Rodada de 32",
     "stage_round_of_16": "Oitavas de Final",
     "stage_quarter_finals": "Quartas de Final",
     "stage_semi_finals": "Semifinais",
@@ -276,7 +280,58 @@
     "score_exact": "Placar exato",
     "score_winner": "Vencedor correto",
     "score_diff": "Diferença de gols",
-    "score_one_team": "Placar de um time"
+    "score_one_team": "Placar de um time",
+    "double_points_label": "2× Pontos Duplos",
+    "double_points_desc": "Todos os pontos ganhos a partir desta fase contam em dobro.",
+    "double_points_locked": "Não pode ser alterado após os resultados do mata-mata serem registrados.",
+    "double_stage_off": "Desativado",
+    "double_stage_round_of_32": "Oitavas de Final",
+    "double_stage_round_of_16": "Rodada de 16",
+    "double_stage_quarter_finals": "Quartas de Final",
+    "double_stage_semi_finals": "Semifinais",
+    "double_stage_final": "Final",
+    "edit": "Editar",
+    "double_active": "Pontos em dobro a partir de {stage}",
+    "aet": "AET"
+  },
+  "leagueSettings": {
+    "back": "← Voltar à liga",
+    "title": "Configurações da Liga",
+    "subtitle": "Gerencie o nome, a pontuação e os membros da sua liga",
+    "name_section": "Nome da liga",
+    "name_placeholder": "Nome da liga",
+    "scoring_section": "Regras de pontuação",
+    "exact_score": "Placar exato",
+    "correct_winner": "Vencedor correto",
+    "correct_goal_diff": "Saldo de gols correto",
+    "one_team_score": "Gols de um time",
+    "double_points_from": "Pontos em dobro a partir de",
+    "double_stage_off": "Desligado",
+    "double_stage_round_of_32": "Rodada de 32",
+    "double_stage_round_of_16": "Rodada de 16",
+    "double_stage_quarter_finals": "Quartas de Final",
+    "double_stage_semi_finals": "Semifinais",
+    "double_stage_final": "Final",
+    "scoring_locked": "Os valores de pontos estão bloqueados porque a Copa do Mundo já começou.",
+    "double_locked": "Os pontos em dobro não podem mais ser alterados — a fase de grupos acabou.",
+    "save": "Salvar alterações",
+    "saving": "Salvando…",
+    "saved": "Salvo",
+    "save_failed": "Não foi possível salvar. Tente novamente.",
+    "members_section": "Membros",
+    "creator_badge": "Criador",
+    "you_badge": "Você",
+    "make_owner": "Tornar dono",
+    "make_owner_confirm": "Transferir a propriedade para {name}? Você deixará de ser o criador.",
+    "remove": "Remover",
+    "remove_confirm": "Remover {name} da liga?",
+    "danger_section": "Zona de perigo",
+    "delete_competition": "Excluir liga",
+    "delete_confirm_title": "Excluir esta liga?",
+    "delete_confirm_desc": "Isso remove permanentemente a liga e toda a sua classificação. Não pode ser desfeito.",
+    "deleting": "Excluindo…",
+    "yes_delete": "Sim, excluir",
+    "cancel": "Cancelar"
   },
   "leaderboard": {
     "back_matches": "← Jogos",
@@ -317,6 +372,13 @@
     "correct_winner": "Vencedor correto / empate",
     "correct_goal_diff": "Diferença de gols correta",
     "one_team_score": "Gols de um time corretos",
+    "double_points_from": "2× Pontos Duplos A Partir De",
+    "double_stage_off": "Desativado",
+    "double_stage_round_of_32": "Oitavas de Final",
+    "double_stage_round_of_16": "Rodada de 16",
+    "double_stage_quarter_finals": "Quartas de Final",
+    "double_stage_semi_finals": "Semifinais",
+    "double_stage_final": "Final",
     "create": "🏆 Criar Liga",
     "creating": "Criando liga…",
     "failed": "Falha ao criar torneio"
@@ -419,7 +481,9 @@
     "knockout_stages_desc": "Os times das oitavas, quartas, semis e final são determinados após a fase de grupos — você poderá palpitar quando as equipes forem confirmadas.",
     "live_results": "Os placares ao vivo atualizam em tempo quase real",
     "live_results_desc": "O placar geral atualiza a cada 20 segundos e a comparação de palpites atualiza a cada 30 segundos durante as partidas.",
-    "close": "Fechar"
+    "close": "Fechar",
+    "knockout_scoring": "Placar dos eliminatórios vale até 120 minutos",
+    "knockout_scoring_desc": "Nos jogos eliminatórios, seu palpite é comparado com o placar após 90 minutos + prorrogação. Se você previu 1–1 e o jogo terminar 1–1 após a prorrogação — mesmo indo para os pênaltis — isso conta como placar exato. O resultado dos pênaltis nunca afeta seus pontos."
   },
   "admin": {
     "panel_title": "Painel de Admin",
@@ -503,6 +567,8 @@
     "example_5_earned": "✗ Errou (resultado diferente)",
     "note": "Os valores dos pontos dependem das regras de cada liga. Confira a barra de Regras de Pontuação dentro da sua liga.",
     "close": "Entendi",
-    "how_scored": "Como os palpites são pontuados?"
+    "how_scored": "Como os palpites são pontuados?",
+    "knockout_title": "Jogos eliminatórios: vale o placar dos 120 minutos",
+    "knockout_desc": "Os palpites são comparados com o placar após 90 minutos + prorrogação. Se você previu 1–1 e o jogo terminou 1–1 após a prorrogação — mesmo que tenha ido para os pênaltis — isso conta como Placar Exato. O resultado da disputa de pênaltis não afeta seu palpite."
   }
 }

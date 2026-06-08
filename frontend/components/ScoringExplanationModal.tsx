@@ -126,6 +126,17 @@ export default function ScoringExplanationModal({ open, onClose }: Props) {
                 {t('stacking_desc')}
               </p>
             </div>
+
+            {/* Knockout matches */}
+            <div
+              className="rounded-xl p-4"
+              style={{ background: 'rgba(99,179,237,0.06)', border: '1px solid rgba(99,179,237,0.18)' }}
+            >
+              <p className="text-sm font-bold mb-1" style={{ color: '#63b3ed' }}>{t('knockout_title')}</p>
+              <p className="text-xs leading-relaxed" style={{ color: '#4a6e8a' }}>
+                {t('knockout_desc')}
+              </p>
+            </div>
           </div>
 
           {/* Worked examples */}

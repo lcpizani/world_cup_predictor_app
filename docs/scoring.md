@@ -17,6 +17,26 @@ League creators can assign any point value (including 0) to any category. A cate
 
 ---
 
+## Stage multiplier
+
+Each league has a `double_points_from_stage` setting, configured at creation. From that stage onwards, **all point values are doubled** before being applied.
+
+For example, if a league sets `double_points_from_stage = quarter_finals`:
+
+| Stage | Multiplier |
+|---|---|
+| Group stage | ×1 |
+| Round of 32 | ×1 |
+| Round of 16 | ×1 |
+| Quarter-finals | ×2 |
+| Semi-finals | ×2 |
+| Third place | ×2 |
+| Final | ×2 |
+
+The multiplier applies to each category individually, so an exact score in the final (with default 5 pts) scores 10. The stage order used is: `group_stage → round_of_32 → round_of_16 → quarter_finals → semi_finals → third_place → final`.
+
+---
+
 ## Stacking rules
 
 **Exact score is exclusive.** If you nail the exact score, only the exact score category fires — the other three don't stack on top. This keeps the maximum per-prediction points clean.

@@ -124,6 +124,162 @@ def delete_tournament(db: Session, invite_code: str, user: User) -> None:
     db.commit()
 
 
+def _world_cup_started(db: Session) -> bool:
+    """True once any match has kicked off (gone live or finished)."""
+    return (
+        db.query(Match.id)
+        .filter(Match.status.in_(("live", "finished")))
+        .first()
+    ) is not None
+
+
+def _group_stage_complete(db: Session) -> bool:
+    """True once every group-stage match has finished (knockouts about to begin)."""
+    group_q = db.query(Match).filter(Match.stage == "group_stage")
+    total = group_q.count()
+    if total == 0:
+        return False
+    remaining = group_q.filter(Match.status != "finished").count()
+    return remaining == 0
+
+
+def update_tournament(db: Session, invite_code: str, data, user: User) -> Tournament:
+    tournament = db.query(Tournament).options(joinedload(Tournament.creator)).filter(
+        Tournament.invite_code == invite_code
+    ).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    if tournament.created_by != user.id:
+        raise HTTPException(status_code=403, detail="Only the creator can update this tournament")
+
+    if data.name is not None:
+        name = data.name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Name cannot be empty")
+        tournament.name = name
+
+    if data.scoring_rules is not None:
+        scoring = db.query(TournamentScoringRules).filter(
+            TournamentScoringRules.tournament_id == tournament.id
+        ).first()
+        if scoring is None:
+            raise HTTPException(status_code=404, detail="Scoring rules not found")
+
+        rules = data.scoring_rules
+        provided = rules.model_dump(exclude_unset=True)
+
+        # Only fields whose value actually differs from what's stored count as a
+        # change. This lets the frontend resend the whole scoring object while a
+        # field is locked, as long as it isn't trying to alter that field.
+        point_fields = (
+            "correct_result_pts",
+            "correct_winner_pts",
+            "correct_goal_diff_pts",
+            "correct_goals_one_team_pts",
+        )
+        changing_point_values = any(
+            field in provided
+            and provided[field] is not None
+            and provided[field] != getattr(scoring, field)
+            for field in point_fields
+        )
+        changing_double = (
+            "double_points_from_stage" in provided
+            and provided["double_points_from_stage"] != scoring.double_points_from_stage
+        )
+
+        # Point values freeze the moment the tournament kicks off. The 2x
+        # multiplier stays editable through the group stage (the feature ships
+        # close to kickoff) but locks once the group stage is complete — before
+        # any knockout match it could affect is played.
+        if changing_point_values and _world_cup_started(db):
+            raise HTTPException(
+                status_code=400,
+                detail="Scoring values can no longer be changed once the World Cup has started",
+            )
+        if changing_double and _group_stage_complete(db):
+            raise HTTPException(
+                status_code=400,
+                detail="Double points can no longer be changed once the group stage is over",
+            )
+
+        for field in point_fields:
+            if field in provided and provided[field] is not None:
+                setattr(scoring, field, provided[field])
+        # double_points_from_stage may be explicitly set to None to clear it
+        if "double_points_from_stage" in provided:
+            scoring.double_points_from_stage = rules.double_points_from_stage
+        db.add(scoring)
+
+    db.add(tournament)
+    db.commit()
+    db.refresh(tournament)
+    return tournament
+
+
+def list_members(db: Session, invite_code: str, user: User) -> List[TournamentMember]:
+    tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    membership = db.query(TournamentMember).filter(
+        TournamentMember.tournament_id == tournament.id, TournamentMember.user_id == user.id
+    ).first()
+    if membership is None:
+        raise HTTPException(status_code=403, detail="Not a member of tournament")
+    return (
+        db.query(TournamentMember)
+        .filter(TournamentMember.tournament_id == tournament.id)
+        .options(joinedload(TournamentMember.user))
+        .order_by(TournamentMember.joined_at)
+        .all()
+    )
+
+
+def remove_member(db: Session, invite_code: str, member_user_id: UUID, user: User) -> None:
+    tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    if tournament.created_by != user.id:
+        raise HTTPException(status_code=403, detail="Only the creator can remove members")
+    if member_user_id == tournament.created_by:
+        raise HTTPException(status_code=400, detail="The creator cannot be removed")
+
+    member = db.query(TournamentMember).filter(
+        TournamentMember.tournament_id == tournament.id,
+        TournamentMember.user_id == member_user_id,
+    ).first()
+    if member is None:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    db.delete(member)
+    db.commit()
+
+
+def transfer_ownership(db: Session, invite_code: str, new_owner_user_id: UUID, user: User) -> Tournament:
+    tournament = db.query(Tournament).options(joinedload(Tournament.creator)).filter(
+        Tournament.invite_code == invite_code
+    ).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    if tournament.created_by != user.id:
+        raise HTTPException(status_code=403, detail="Only the creator can transfer ownership")
+    if new_owner_user_id == tournament.created_by:
+        raise HTTPException(status_code=400, detail="That user is already the creator")
+
+    new_owner_membership = db.query(TournamentMember).filter(
+        TournamentMember.tournament_id == tournament.id,
+        TournamentMember.user_id == new_owner_user_id,
+    ).first()
+    if new_owner_membership is None:
+        raise HTTPException(status_code=404, detail="New owner must be a member of the tournament")
+
+    tournament.created_by = new_owner_user_id
+    db.add(tournament)
+    db.commit()
+    db.refresh(tournament)
+    return tournament
+
+
 def get_leaderboard_by_code(db: Session, invite_code: str, user: User) -> LeaderboardResponse:
     tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
     if tournament is None:

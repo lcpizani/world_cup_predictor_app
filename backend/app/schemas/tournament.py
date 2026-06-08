@@ -13,6 +13,7 @@ class ScoringRulesCreate(BaseModel):
     correct_winner_pts: int = Field(default=0, ge=0)
     correct_goal_diff_pts: int = Field(default=0, ge=0)
     correct_goals_one_team_pts: int = Field(default=0, ge=0)
+    double_points_from_stage: Optional[str] = None
 
 
 class ScoringRulesResponse(BaseModel):
@@ -20,8 +21,26 @@ class ScoringRulesResponse(BaseModel):
     correct_winner_pts: int
     correct_goal_diff_pts: int
     correct_goals_one_team_pts: int
+    double_points_from_stage: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+class ScoringRulesUpdate(BaseModel):
+    correct_result_pts: Optional[int] = Field(default=None, ge=0)
+    correct_winner_pts: Optional[int] = Field(default=None, ge=0)
+    correct_goal_diff_pts: Optional[int] = Field(default=None, ge=0)
+    correct_goals_one_team_pts: Optional[int] = Field(default=None, ge=0)
+    double_points_from_stage: Optional[str] = None
+
+
+class TournamentUpdate(BaseModel):
+    name: Optional[str] = None
+    scoring_rules: Optional[ScoringRulesUpdate] = None
+
+
+class TransferOwnershipRequest(BaseModel):
+    new_owner_user_id: UUID
 
 
 class TournamentCreate(BaseModel):
