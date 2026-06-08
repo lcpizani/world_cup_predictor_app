@@ -39,16 +39,16 @@ export default function ScoringExplanationModal({ open, onClose }: Props) {
       <div
         className="relative z-10 w-full max-w-lg rounded-2xl overflow-y-auto"
         style={{
-          background: '#0d1520',
-          border: '1px solid rgba(255,255,255,0.09)',
-          boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+          background: 'linear-gradient(160deg, rgba(170,255,0,0.06) 0%, #060f18 30%)',
+          border: '1px solid rgba(170,255,0,0.35)',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.75), 0 0 60px rgba(170,255,0,0.1), inset 0 1px 0 rgba(170,255,0,0.2)',
           maxHeight: '90vh',
         }}
       >
-        {/* Gold accent line */}
+        {/* Teal accent line */}
         <div
-          className="h-px w-full"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(240,180,41,0.6), transparent)' }}
+          className="h-[2px] w-full"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(170,255,0,0.8), transparent)' }}
         />
 
         <div className="p-6 sm:p-8">
@@ -65,9 +65,9 @@ export default function ScoringExplanationModal({ open, onClose }: Props) {
             <button
               onClick={onClose}
               className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
-              style={{ color: '#3f5068' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'white' }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3f5068' }}
+              style={{ color: '#aaff00', opacity: 0.6 }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = '1' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '0.6' }}
             >
               ✕
             </button>
@@ -75,7 +75,7 @@ export default function ScoringExplanationModal({ open, onClose }: Props) {
 
           {/* Categories */}
           <div className="mb-6">
-            <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em] mb-3" style={{ color: '#5a6a82' }}>
+            <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em] mb-3" style={{ color: '#aaff00' }}>
               {t('categories_title')}
             </p>
             <div className="space-y-2.5">
@@ -141,7 +141,7 @@ export default function ScoringExplanationModal({ open, onClose }: Props) {
 
           {/* Worked examples */}
           <div className="mb-6">
-            <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em] mb-1" style={{ color: '#5a6a82' }}>
+            <p className="text-[0.65rem] font-bold uppercase tracking-[0.22em] mb-1" style={{ color: '#aaff00' }}>
               {t('examples_title')}
             </p>
             <p className="text-xs mb-3" style={{ color: '#3f5068' }}>
@@ -201,9 +201,9 @@ export default function ScoringExplanationModal({ open, onClose }: Props) {
           <button
             onClick={onClose}
             className="w-full py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all duration-200"
-            style={{ background: '#f0b429', color: '#080c14' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#fcd86e' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#f0b429' }}
+            style={{ background: 'rgba(170,255,0,0.12)', border: '1px solid rgba(170,255,0,0.3)', color: '#aaff00' }}
+            onMouseEnter={e => { Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(170,255,0,0.2)', borderColor: 'rgba(170,255,0,0.55)' }) }}
+            onMouseLeave={e => { Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(170,255,0,0.12)', borderColor: 'rgba(170,255,0,0.3)' }) }}
           >
             {t('close')}
           </button>
