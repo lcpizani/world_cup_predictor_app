@@ -398,17 +398,25 @@ const R32_GAP = 4    // px — gap between adjacent cards in the R32 column
 
 const MAIN_ROUNDS = ['round_of_32', 'round_of_16', 'quarter_finals', 'semi_finals', 'final'] as const
 
-// Top-to-bottom display order of each round's slots (FIFA match numbers).
+// Top-to-bottom display order of each column.
+// Source: https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_knockout_stage
 //
-// The 2026 bracket tree is interleaved — e.g. M89 = Winner M74 vs Winner M77 —
-// so slots do NOT advance by consecutive match number. The connector geometry
-// below assumes card k in round N+1 sits between cards 2k and 2k+1 of round N,
-// which only holds if each round is laid out in this canonical bracket order
-// (a pre-order walk of the advancement tree in app/routers/standings.py), not by
-// raw slot_id. Keep this in sync with that backend _ADVANCEMENT map.
+// The bracket is a binary tree — each card in round N is fed by exactly two
+// adjacent cards in round N-1 (positions 2k and 2k+1 feed card k). The arrays
+// below are a pre-order walk of that tree so the connector geometry works
+// automatically. Do NOT sort by match number; the tree order is what matters.
+//
+//  Top half  → M101
+//    QF1 M97  → R16 M89 (M74, M77)  then  R16 M90 (M73, M75)
+//    QF2 M98  → R16 M93 (M83, M84)  then  R16 M94 (M81, M82)
+//  Bottom half → M102
+//    QF3 M99  → R16 M91 (M76, M78)  then  R16 M92 (M79, M80)
+//    QF4 M100 → R16 M95 (M86, M88)  then  R16 M96 (M85, M87)
 const BRACKET_SLOT_ORDER: Record<string, number[]> = {
-  round_of_32:    [74, 77, 73, 75, 83, 84, 81, 82, 76, 78, 79, 80, 86, 88, 85, 87],
-  round_of_16:    [89, 90, 93, 94, 91, 92, 95, 96],
+  //            QF1 pair          QF2 pair          QF3 pair          QF4 pair
+  round_of_32: [74, 77, 73, 75,  83, 84, 81, 82,  76, 78, 79, 80,  86, 88, 85, 87],
+  //            QF1   QF2   QF3   QF4
+  round_of_16: [89, 90, 93, 94, 91, 92, 95, 96],
   quarter_finals: [97, 98, 99, 100],
   semi_finals:    [101, 102],
   final:          [104],
@@ -456,7 +464,7 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, height: 22, overflow: 'hidden' }}>
         <div style={{ width: 20, height: 14, flexShrink: 0, borderRadius: 2, overflow: 'hidden', background: 'rgba(255,255,255,0.04)' }}>
-          {hasBoth && code && (
+          {code && (
             <Image src={getFlagUrl(code, 40)} alt={name} width={20} height={14}
               className="w-full h-full object-contain"
               unoptimized />
@@ -550,6 +558,8 @@ function BracketConnectors({ slotsByRound }: { slotsByRound: Record<string, Brac
     const xBL = (ri + 1) * (COL_W + COL_GAP)           // left  edge of column B
     const mx  = (xAR + xBL) / 2                         // midpoint in the gap
 
+    // Columns are laid out in tree order (BRACKET_SLOT_ORDER), so the two feeders
+    // of card k are exactly cards 2k and 2k+1 of the previous column.
     for (let k = 0; k < sB.length; k++) {
       const y1 = la.paddingTop + (2 * k)     * (CARD_H + la.gap) + CARD_H / 2
       const y2 = la.paddingTop + (2 * k + 1) * (CARD_H + la.gap) + CARD_H / 2
@@ -586,9 +596,9 @@ function BracketView({ slots }: { slots: BracketSlot[] }) {
   const t = useTranslations('standings')
   const hasR32Pending = slots.filter(s => s.round === 'round_of_32').some(s => s.match === null)
 
-  // Build per-round arrays in canonical bracket display order (see
-  // BRACKET_SLOT_ORDER) so that adjacent pairs in round N feed the corresponding
-  // card in round N+1 — the assumption the connector geometry relies on.
+  // Build per-round arrays in canonical tree order (BRACKET_SLOT_ORDER) so the two
+  // feeders of each next-round match sit next to each other and the card lands
+  // centred between them — the layout the connector geometry relies on.
   const slotsByRound: Record<string, BracketSlot[]> = {}
   for (const slot of slots) {
     if (!slotsByRound[slot.round]) slotsByRound[slot.round] = []

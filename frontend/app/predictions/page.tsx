@@ -306,7 +306,7 @@ function PredictionRow({ match, prediction, timezone }: { match: Match; predicti
 
 // ── Stage constants ────────────────────────────────────────────────────────────
 
-const STAGE_ORDER = ['group_stage', 'round_of_16', 'quarter_finals', 'semi_finals', 'third_place', 'final']
+const STAGE_ORDER = ['group_stage', 'round_of_32', 'round_of_16', 'quarter_finals', 'semi_finals', 'third_place', 'final']
 
 // ── Accordion helpers ──────────────────────────────────────────────────────────
 
@@ -598,6 +598,7 @@ export default function PredictionsPage() {
   // task 4.3 — stage display name lookup (type-safe, uses t())
   const stageLabels: Record<string, string> = {
     group_stage: t('stage_group_stage'),
+    round_of_32: t('stage_round_of_32'),
     round_of_16: t('stage_round_of_16'),
     quarter_finals: t('stage_quarter_finals'),
     semi_finals: t('stage_semi_finals'),
@@ -842,8 +843,10 @@ export default function PredictionsPage() {
 
           {!isLoading && availableStages.length > 0 && (
             <>
-              {/* tasks 4.1–4.2 — stage selector, horizontally scrollable */}
-              <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
+              {/* tasks 4.1–4.2 — stage selector. Wraps on narrow screens so every
+                  stage (incl. semifinals/final) stays reachable on mobile instead
+                  of being cut off in a hidden horizontal scroll. */}
+              <div className="flex flex-wrap gap-2 mb-6">
                 {availableStages.map(stage => (
                   <button
                     key={stage}

@@ -187,6 +187,7 @@
     "filter_group_all": "All Groups",
     "filter_no_results": "No matches found",
     "stage_group_stage": "Group Stage",
+    "stage_round_of_32": "Round of 32",
     "stage_round_of_16": "Round of 16",
     "stage_quarter_finals": "Quarterfinals",
     "stage_semi_finals": "Semifinals",
@@ -239,6 +240,7 @@
   "tournament": {
     "back_leagues": "← Leagues",
     "stage_group_stage": "Group Stage",
+    "stage_round_of_32": "Round of 32",
     "stage_round_of_16": "Round of 16",
     "stage_quarter_finals": "Quarterfinals",
     "stage_semi_finals": "Semifinals",

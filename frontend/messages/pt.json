@@ -187,6 +187,7 @@
     "filter_group_all": "Todos os Grupos",
     "filter_no_results": "Nenhum jogo encontrado",
     "stage_group_stage": "Fase de Grupos",
+    "stage_round_of_32": "Rodada de 32",
     "stage_round_of_16": "Oitavas de Final",
     "stage_quarter_finals": "Quartas de Final",
     "stage_semi_finals": "Semifinais",
@@ -239,6 +240,7 @@
   "tournament": {
     "back_leagues": "← Ligas",
     "stage_group_stage": "Fase de Grupos",
+    "stage_round_of_32": "Rodada de 32",
     "stage_round_of_16": "Oitavas de Final",
     "stage_quarter_finals": "Quartas de Final",
     "stage_semi_finals": "Semifinais",
