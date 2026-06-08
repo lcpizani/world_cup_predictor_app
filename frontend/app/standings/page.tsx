@@ -398,6 +398,29 @@ const R32_GAP = 4    // px — gap between adjacent cards in the R32 column
 
 const MAIN_ROUNDS = ['round_of_32', 'round_of_16', 'quarter_finals', 'semi_finals', 'final'] as const
 
+// Top-to-bottom display order of each round's slots (FIFA match numbers).
+//
+// The 2026 bracket tree is interleaved — e.g. M89 = Winner M74 vs Winner M77 —
+// so slots do NOT advance by consecutive match number. The connector geometry
+// below assumes card k in round N+1 sits between cards 2k and 2k+1 of round N,
+// which only holds if each round is laid out in this canonical bracket order
+// (a pre-order walk of the advancement tree in app/routers/standings.py), not by
+// raw slot_id. Keep this in sync with that backend _ADVANCEMENT map.
+const BRACKET_SLOT_ORDER: Record<string, number[]> = {
+  round_of_32:    [74, 77, 73, 75, 83, 84, 81, 82, 76, 78, 79, 80, 86, 88, 85, 87],
+  round_of_16:    [89, 90, 93, 94, 91, 92, 95, 96],
+  quarter_finals: [97, 98, 99, 100],
+  semi_finals:    [101, 102],
+  final:          [104],
+}
+
+function bracketOrderIndex(round: string, slotId: number): number {
+  const order = BRACKET_SLOT_ORDER[round]
+  if (!order) return slotId
+  const idx = order.indexOf(slotId)
+  return idx === -1 ? slotId : idx
+}
+
 const BRACKET_LAYOUTS: Record<string, { gap: number; paddingTop: number }> = (() => {
   const out: Record<string, { gap: number; paddingTop: number }> = {}
   let gap = R32_GAP
@@ -563,15 +586,18 @@ function BracketView({ slots }: { slots: BracketSlot[] }) {
   const t = useTranslations('standings')
   const hasR32Pending = slots.filter(s => s.round === 'round_of_32').some(s => s.match === null)
 
-  // Build per-round arrays sorted by slot_id so that consecutive pairs in round N
-  // feed the corresponding card in round N+1.
+  // Build per-round arrays in canonical bracket display order (see
+  // BRACKET_SLOT_ORDER) so that adjacent pairs in round N feed the corresponding
+  // card in round N+1 — the assumption the connector geometry relies on.
   const slotsByRound: Record<string, BracketSlot[]> = {}
   for (const slot of slots) {
     if (!slotsByRound[slot.round]) slotsByRound[slot.round] = []
     slotsByRound[slot.round].push(slot)
   }
   for (const key of Object.keys(slotsByRound)) {
-    slotsByRound[key].sort((a, b) => a.slot_id - b.slot_id)
+    slotsByRound[key].sort(
+      (a, b) => bracketOrderIndex(key, a.slot_id) - bracketOrderIndex(key, b.slot_id),
+    )
   }
 
   const thirdPlace = slotsByRound['third_place'] ?? []

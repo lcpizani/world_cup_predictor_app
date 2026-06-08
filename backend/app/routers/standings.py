@@ -15,37 +15,44 @@ router = APIRouter()
 # Hardcoded 2026 World Cup knockout bracket topology.
 # slot_id corresponds to FIFA match numbers (73–104).
 # R32 = 73–88, R16 = 89–96, QF = 97–100, SF = 101–102, 3rd = 103, Final = 104
+#
+# Pairings mirror the official FIFA 2026 knockout bracket (confirmed after the
+# December 2025 draw). The bracket tree is NOT a naive "consecutive match numbers
+# feed the next round" structure — e.g. M89 = Winner M74 vs Winner M77 — so both
+# the R32 group placeholders and the _ADVANCEMENT feeder map below are transcribed
+# directly from the published schedule rather than derived.
+# Sources: en.wikipedia.org/wiki/2026_FIFA_World_Cup_knockout_stage and FIFA/CBS.
 _BRACKET_TOPOLOGY = [
     # ── Round of 32 ─────────────────────────────────────────────────────────
-    {"slot_id": 73,  "round": "round_of_32", "home_label": "1st Group A", "away_label": "Best 3rd (C/D/E/F)"},
-    {"slot_id": 74,  "round": "round_of_32", "home_label": "1st Group B", "away_label": "Best 3rd (A/C/D/E/F)"},
-    {"slot_id": 75,  "round": "round_of_32", "home_label": "1st Group C", "away_label": "2nd Group A"},
-    {"slot_id": 76,  "round": "round_of_32", "home_label": "1st Group D", "away_label": "2nd Group B"},
-    {"slot_id": 77,  "round": "round_of_32", "home_label": "1st Group E", "away_label": "2nd Group C"},
-    {"slot_id": 78,  "round": "round_of_32", "home_label": "1st Group F", "away_label": "2nd Group D"},
-    {"slot_id": 79,  "round": "round_of_32", "home_label": "1st Group G", "away_label": "2nd Group E"},
-    {"slot_id": 80,  "round": "round_of_32", "home_label": "1st Group H", "away_label": "2nd Group F"},
-    {"slot_id": 81,  "round": "round_of_32", "home_label": "1st Group I", "away_label": "2nd Group G"},
-    {"slot_id": 82,  "round": "round_of_32", "home_label": "1st Group J", "away_label": "2nd Group H"},
-    {"slot_id": 83,  "round": "round_of_32", "home_label": "1st Group K", "away_label": "2nd Group I"},
-    {"slot_id": 84,  "round": "round_of_32", "home_label": "1st Group L", "away_label": "2nd Group J"},
-    {"slot_id": 85,  "round": "round_of_32", "home_label": "Best 3rd (A/B/G/H)", "away_label": "2nd Group K"},
-    {"slot_id": 86,  "round": "round_of_32", "home_label": "Best 3rd (A/B/C/D)", "away_label": "2nd Group L"},
-    {"slot_id": 87,  "round": "round_of_32", "home_label": "Best 3rd (I/J/K/L)", "away_label": "Best 3rd (E/F/G/H)"},
-    {"slot_id": 88,  "round": "round_of_32", "home_label": "Best 3rd (A/B/E/F)", "away_label": "Best 3rd (C/D/I/J)"},
+    {"slot_id": 73,  "round": "round_of_32", "home_label": "2nd Group A", "away_label": "2nd Group B"},
+    {"slot_id": 74,  "round": "round_of_32", "home_label": "1st Group E", "away_label": "Best 3rd (A/B/C/D/F)"},
+    {"slot_id": 75,  "round": "round_of_32", "home_label": "1st Group F", "away_label": "2nd Group C"},
+    {"slot_id": 76,  "round": "round_of_32", "home_label": "1st Group C", "away_label": "2nd Group F"},
+    {"slot_id": 77,  "round": "round_of_32", "home_label": "1st Group I", "away_label": "Best 3rd (C/D/F/G/H)"},
+    {"slot_id": 78,  "round": "round_of_32", "home_label": "2nd Group E", "away_label": "2nd Group I"},
+    {"slot_id": 79,  "round": "round_of_32", "home_label": "1st Group A", "away_label": "Best 3rd (C/E/F/H/I)"},
+    {"slot_id": 80,  "round": "round_of_32", "home_label": "1st Group L", "away_label": "Best 3rd (E/H/I/J/K)"},
+    {"slot_id": 81,  "round": "round_of_32", "home_label": "1st Group D", "away_label": "Best 3rd (B/E/F/I/J)"},
+    {"slot_id": 82,  "round": "round_of_32", "home_label": "1st Group G", "away_label": "Best 3rd (A/E/H/I/J)"},
+    {"slot_id": 83,  "round": "round_of_32", "home_label": "2nd Group K", "away_label": "2nd Group L"},
+    {"slot_id": 84,  "round": "round_of_32", "home_label": "1st Group H", "away_label": "2nd Group J"},
+    {"slot_id": 85,  "round": "round_of_32", "home_label": "1st Group B", "away_label": "Best 3rd (E/F/G/I/J)"},
+    {"slot_id": 86,  "round": "round_of_32", "home_label": "1st Group J", "away_label": "2nd Group H"},
+    {"slot_id": 87,  "round": "round_of_32", "home_label": "1st Group K", "away_label": "Best 3rd (D/E/I/J/L)"},
+    {"slot_id": 88,  "round": "round_of_32", "home_label": "2nd Group D", "away_label": "2nd Group G"},
     # ── Round of 16 ─────────────────────────────────────────────────────────
-    {"slot_id": 89,  "round": "round_of_16", "home_label": "Winner M73", "away_label": "Winner M74"},
-    {"slot_id": 90,  "round": "round_of_16", "home_label": "Winner M75", "away_label": "Winner M76"},
-    {"slot_id": 91,  "round": "round_of_16", "home_label": "Winner M77", "away_label": "Winner M78"},
+    {"slot_id": 89,  "round": "round_of_16", "home_label": "Winner M74", "away_label": "Winner M77"},
+    {"slot_id": 90,  "round": "round_of_16", "home_label": "Winner M73", "away_label": "Winner M75"},
+    {"slot_id": 91,  "round": "round_of_16", "home_label": "Winner M76", "away_label": "Winner M78"},
     {"slot_id": 92,  "round": "round_of_16", "home_label": "Winner M79", "away_label": "Winner M80"},
-    {"slot_id": 93,  "round": "round_of_16", "home_label": "Winner M81", "away_label": "Winner M82"},
-    {"slot_id": 94,  "round": "round_of_16", "home_label": "Winner M83", "away_label": "Winner M84"},
-    {"slot_id": 95,  "round": "round_of_16", "home_label": "Winner M85", "away_label": "Winner M86"},
-    {"slot_id": 96,  "round": "round_of_16", "home_label": "Winner M87", "away_label": "Winner M88"},
+    {"slot_id": 93,  "round": "round_of_16", "home_label": "Winner M83", "away_label": "Winner M84"},
+    {"slot_id": 94,  "round": "round_of_16", "home_label": "Winner M81", "away_label": "Winner M82"},
+    {"slot_id": 95,  "round": "round_of_16", "home_label": "Winner M86", "away_label": "Winner M88"},
+    {"slot_id": 96,  "round": "round_of_16", "home_label": "Winner M85", "away_label": "Winner M87"},
     # ── Quarter Finals ───────────────────────────────────────────────────────
     {"slot_id": 97,  "round": "quarter_finals", "home_label": "Winner M89", "away_label": "Winner M90"},
-    {"slot_id": 98,  "round": "quarter_finals", "home_label": "Winner M91", "away_label": "Winner M92"},
-    {"slot_id": 99,  "round": "quarter_finals", "home_label": "Winner M93", "away_label": "Winner M94"},
+    {"slot_id": 98,  "round": "quarter_finals", "home_label": "Winner M93", "away_label": "Winner M94"},
+    {"slot_id": 99,  "round": "quarter_finals", "home_label": "Winner M91", "away_label": "Winner M92"},
     {"slot_id": 100, "round": "quarter_finals", "home_label": "Winner M95", "away_label": "Winner M96"},
     # ── Semi Finals ──────────────────────────────────────────────────────────
     {"slot_id": 101, "round": "semi_finals", "home_label": "Winner M97", "away_label": "Winner M98"},
@@ -59,18 +66,18 @@ _BRACKET_TOPOLOGY = [
 # Maps each slot to the (feeder_slot_id, "winner"|"loser") pair for home and away.
 _ADVANCEMENT: dict[int, dict[str, tuple[int, str]]] = {
     # R16
-    89:  {"home": (73,  "winner"), "away": (74,  "winner")},
-    90:  {"home": (75,  "winner"), "away": (76,  "winner")},
-    91:  {"home": (77,  "winner"), "away": (78,  "winner")},
+    89:  {"home": (74,  "winner"), "away": (77,  "winner")},
+    90:  {"home": (73,  "winner"), "away": (75,  "winner")},
+    91:  {"home": (76,  "winner"), "away": (78,  "winner")},
     92:  {"home": (79,  "winner"), "away": (80,  "winner")},
-    93:  {"home": (81,  "winner"), "away": (82,  "winner")},
-    94:  {"home": (83,  "winner"), "away": (84,  "winner")},
-    95:  {"home": (85,  "winner"), "away": (86,  "winner")},
-    96:  {"home": (87,  "winner"), "away": (88,  "winner")},
+    93:  {"home": (83,  "winner"), "away": (84,  "winner")},
+    94:  {"home": (81,  "winner"), "away": (82,  "winner")},
+    95:  {"home": (86,  "winner"), "away": (88,  "winner")},
+    96:  {"home": (85,  "winner"), "away": (87,  "winner")},
     # QF
     97:  {"home": (89,  "winner"), "away": (90,  "winner")},
-    98:  {"home": (91,  "winner"), "away": (92,  "winner")},
-    99:  {"home": (93,  "winner"), "away": (94,  "winner")},
+    98:  {"home": (93,  "winner"), "away": (94,  "winner")},
+    99:  {"home": (91,  "winner"), "away": (92,  "winner")},
     100: {"home": (95,  "winner"), "away": (96,  "winner")},
     # SF
     101: {"home": (97,  "winner"), "away": (98,  "winner")},
@@ -259,15 +266,36 @@ def get_bracket(
         .filter(Match.stage.in_(list(_STAGE_TO_ROUND.keys())))
         .all()
     )
-    # Assign each stage's matches to that stage's bracket slots in order. We sort
-    # by external ID (FIFA match-number order within a round) rather than trusting
-    # the ID to literally equal the slot number, which it does not.
+    # Link each stage's fixtures to its bracket slots. Rounds are processed in
+    # dependency order (R32 first) so a round's feeder results are already linked
+    # when we resolve the teams that have advanced into it.
     for round_name, slot_ids in _ROUND_SLOT_IDS.items():
-        stage_matches = sorted(
+        remaining = sorted(
             (m for m in knockout_matches if m.stage == round_name),
             key=_match_order_key,
         )
-        for slot_id, match in zip(slot_ids, stage_matches):
+
+        # Primary link: attach a fixture to the slot whose advanced teams it
+        # contains. football-data.org publishes knockout fixtures incrementally
+        # and not necessarily in FIFA match-number order, so a positional mapping
+        # would misroute live results — matching on the teams themselves is exact.
+        for slot_id in slot_ids:
+            home = _resolve_label(slot_id, "home", knockout_by_slot)
+            away = _resolve_label(slot_id, "away", knockout_by_slot)
+            if home is None or away is None:
+                continue
+            for match in remaining:
+                if {match.home_team, match.away_team} == {home, away}:
+                    knockout_by_slot[slot_id] = match
+                    remaining.remove(match)
+                    break
+
+        # Fallback: any fixtures we couldn't resolve by teams (notably the Round
+        # of 32, whose participants come from the group standings rather than from
+        # feeder winners) fill the still-empty slots in FIFA match-number order,
+        # i.e. ascending external ID within the round.
+        empty_slots = [s for s in slot_ids if s not in knockout_by_slot]
+        for slot_id, match in zip(empty_slots, remaining):
             knockout_by_slot[slot_id] = match
 
     slots: list[BracketSlot] = []
