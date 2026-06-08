@@ -460,19 +460,23 @@ export default function TournamentPage() {
       {/* Scoring bar */}
       {tournament?.scoring_rules && (
         <div
-          className="rounded-2xl px-4 py-3.5 mb-6"
-          style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
+          className="rounded-2xl px-4 pt-3 pb-4 mb-6"
+          style={{
+            background: 'linear-gradient(135deg, rgba(170,255,0,0.09) 0%, rgba(5,16,24,0.98) 55%)',
+            border: '1px solid rgba(170,255,0,0.38)',
+            boxShadow: '0 0 28px rgba(170,255,0,0.09), inset 0 1px 0 rgba(170,255,0,0.15)',
+          }}
         >
           <div className="flex items-center justify-between gap-3 mb-3">
-            <span className="text-[0.6rem] font-bold uppercase tracking-[0.2em]" style={{ color: '#3f5068' }}>
+            <span className="text-[0.6rem] font-bold uppercase tracking-[0.22em]" style={{ color: '#aaff00' }}>
               {t('scoring_rules_label')}
             </span>
             <button
               onClick={() => setShowScoringHelp(true)}
               className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold transition-all duration-200"
-              style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.25)', color: '#f0b429' }}
-              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.2)', borderColor: 'rgba(240,180,41,0.5)' })}
-              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.1)', borderColor: 'rgba(240,180,41,0.25)' })}
+              style={{ background: 'rgba(170,255,0,0.14)', border: '1px solid rgba(170,255,0,0.45)', color: '#aaff00' }}
+              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(170,255,0,0.28)', borderColor: 'rgba(170,255,0,0.7)' })}
+              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(170,255,0,0.14)', borderColor: 'rgba(170,255,0,0.45)' })}
               title={t('how_it_works_link')}
             >
               ?
@@ -485,15 +489,15 @@ export default function TournamentPage() {
               { icon: '⚖️', pts: tournament.scoring_rules.correct_goal_diff_pts, label: t('score_diff') },
               { icon: '⚽', pts: tournament.scoring_rules.correct_goals_one_team_pts, label: t('score_one_team') },
             ].map(({ icon, pts, label }) => (
-              <span
+              <div
                 key={label}
-                className="flex items-center justify-center gap-1.5 rounded-lg px-2 py-2"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+                className="flex flex-col items-center gap-1 rounded-xl px-2 py-2.5"
+                style={{ background: 'rgba(170,255,0,0.08)', border: '1px solid rgba(170,255,0,0.22)' }}
                 title={label}
               >
-                <span className="text-xs leading-none">{icon}</span>
-                <span className="font-[family-name:var(--font-oswald)] font-bold text-sm tabular-nums leading-none" style={{ color: '#f0b429' }}>+{pts}</span>
-              </span>
+                <span className="text-base leading-none">{icon}</span>
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-base tabular-nums leading-none" style={{ color: '#aaff00' }}>+{pts}</span>
+              </div>
             ))}
           </div>
 
@@ -501,11 +505,11 @@ export default function TournamentPage() {
           {tournament.scoring_rules.double_points_from_stage && (
             <div
               className="mt-3 pt-3 flex items-center gap-2.5"
-              style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+              style={{ borderTop: '1px solid rgba(170,255,0,0.15)' }}
             >
               <span
                 className="inline-flex items-center justify-center px-2 py-1 rounded-lg font-[family-name:var(--font-oswald)] font-bold text-sm leading-none shrink-0"
-                style={{ background: 'rgba(240,180,41,0.14)', border: '1px solid rgba(240,180,41,0.4)', color: '#f0b429', letterSpacing: '0.05em' }}
+                style={{ background: 'rgba(170,255,0,0.14)', border: '1px solid rgba(170,255,0,0.45)', color: '#aaff00', letterSpacing: '0.05em' }}
               >
                 2×
               </span>
