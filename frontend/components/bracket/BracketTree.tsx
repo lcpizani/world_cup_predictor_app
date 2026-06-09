@@ -14,34 +14,24 @@ import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
 import { useTranslations } from 'next-intl'
 import { useLocale } from 'next-intl'
 
-// ── Layout constants (mirrors standings bracket geometry) ─────────────────────
+// ── Layout constants ───────────────────────────────────────────────────────────
 
-const CARD_H  = BRACKET_CARD_H  // 80px
-const COL_W   = 155              // px — column width
-const COL_GAP = 16               // px — gap between columns
+const CARD_H  = BRACKET_CARD_H   // 80px
+const COL_W   = 140              // px
+const COL_GAP = 10               // px
 const R32_GAP = 4                // px — gap between adjacent R32 cards
 
-const ROUNDS = ['R32', 'R16', 'QF', 'SF', 'F'] as const
-type RoundKey = typeof ROUNDS[number]
+const HALF_ROUNDS = ['R32', 'R16', 'QF', 'SF'] as const
+type HalfRoundKey = typeof HALF_ROUNDS[number]
 
-const ROUND_LABELS: Record<RoundKey, string> = {
-  R32: 'Round of 32',
-  R16: 'Round of 16',
-  QF:  'Quarter Finals',
-  SF:  'Semi Finals',
-  F:   'Final',
-}
-
-// Derived gaps / paddingTops via the standard binary-tree bracket recurrence:
-//   gap[n+1]  = CARD_H + 2 * gap[n]
+// Binary-tree recurrence for 8 R32 matches per half:
+//   gap[n+1]  = CARD_H + 2·gap[n]
 //   pt[n+1]   = pt[n]  + (CARD_H + gap[n]) / 2
-// This guarantees every card in round n+1 is vertically centred between its
-// two feeder cards in round n.
-const BRACKET_LAYOUTS = (() => {
+const HALF_LAYOUTS = (() => {
   const out: Record<string, { gap: number; paddingTop: number }> = {}
   let gap = R32_GAP
   let pt  = 0
-  for (const r of ROUNDS) {
+  for (const r of HALF_ROUNDS) {
     out[r] = { gap, paddingTop: Math.round(pt) }
     const g0 = gap
     gap = CARD_H + 2 * g0
@@ -50,75 +40,126 @@ const BRACKET_LAYOUTS = (() => {
   return out
 })()
 
-const BRACKET_H = 16 * CARD_H + 15 * R32_GAP
-const TOTAL_W   = ROUNDS.length * COL_W + (ROUNDS.length - 1) * COL_GAP
+// Total half height: 8 R32 cards + 7 gaps
+const HALF_H   = 8 * CARD_H + 7 * R32_GAP  // 668px
+// Final card centered vertically — equals HALF_LAYOUTS.SF.paddingTop (both = 294)
+const FINAL_PT = Math.round(HALF_H / 2 - CARD_H / 2)  // 294px
+// Full mirrored bracket width: 4 left cols + 1 Final col + 4 right cols
+const TOTAL_W  = 9 * COL_W + 8 * COL_GAP   // 1340px
 
-const ROUND_MATCHES: Record<RoundKey, string[]> = {
-  R32: BRACKET_STRUCTURE.R32,
-  R16: BRACKET_STRUCTURE.R16,
-  QF:  BRACKET_STRUCTURE.QF,
-  SF:  BRACKET_STRUCTURE.SF,
-  F:   BRACKET_STRUCTURE.F,
+const ROUND_LABELS: Record<string, string> = {
+  R32: 'Round of 32',
+  R16: 'Round of 16',
+  QF:  'Quarter Finals',
+  SF:  'Semi Finals',
+  F:   'Final',
 }
+
+// Column header colors — progressively brighter toward center
+const ROUND_HEADER_COLORS: Record<string, string> = {
+  R32: '#384d64',
+  R16: '#425870',
+  QF:  '#516780',
+  SF:  '#607a96',
+  F:   '#f0b429',
+}
+
+// Left half: first 8 R32, first 4 R16, first 2 QF, first SF
+const LEFT_MATCHES: Record<HalfRoundKey, string[]> = {
+  R32: BRACKET_STRUCTURE.R32.slice(0, 8),
+  R16: BRACKET_STRUCTURE.R16.slice(0, 4),
+  QF:  BRACKET_STRUCTURE.QF.slice(0, 2),
+  SF:  BRACKET_STRUCTURE.SF.slice(0, 1),
+}
+
+// Right half: last 8 R32, last 4 R16, last 2 QF, last SF
+const RIGHT_MATCHES: Record<HalfRoundKey, string[]> = {
+  R32: BRACKET_STRUCTURE.R32.slice(8),
+  R16: BRACKET_STRUCTURE.R16.slice(4),
+  QF:  BRACKET_STRUCTURE.QF.slice(2),
+  SF:  BRACKET_STRUCTURE.SF.slice(1),
+}
+
+// Champion banner constants
+const CHAMP_BANNER_W    = COL_W
+const CHAMP_BANNER_LEFT = 4 * (COL_W + COL_GAP)   // flush with Final column
+const CHAMP_BANNER_TOP  = FINAL_PT + CARD_H + 20
 
 // ── SVG connector lines ───────────────────────────────────────────────────────
 
 function BracketConnectors() {
   const segs: string[] = []
 
-  for (let ri = 0; ri < ROUNDS.length - 1; ri++) {
-    const rA = ROUNDS[ri]
-    const rB = ROUNDS[ri + 1]
-    const la = BRACKET_LAYOUTS[rA]
-    const lb = BRACKET_LAYOUTS[rB]
-    const matchesB = ROUND_MATCHES[rB]
+  // Left side: R32(col0)→R16(col1)→QF(col2)→SF(col3)
+  for (let i = 0; i < HALF_ROUNDS.length - 1; i++) {
+    const la = HALF_LAYOUTS[HALF_ROUNDS[i]]
+    const lb = HALF_LAYOUTS[HALF_ROUNDS[i + 1]]
+    const matchesB = LEFT_MATCHES[HALF_ROUNDS[i + 1]]
 
-    const xAR = ri       * (COL_W + COL_GAP) + COL_W   // right edge of column A
-    const xBL = (ri + 1) * (COL_W + COL_GAP)            // left edge of column B
-    const mx  = (xAR + xBL) / 2                          // midpoint in the gap
+    const xAR = i       * (COL_W + COL_GAP) + COL_W
+    const xBL = (i + 1) * (COL_W + COL_GAP)
+    const mx  = (xAR + xBL) / 2
 
     for (let k = 0; k < matchesB.length; k++) {
       const y1 = la.paddingTop + (2 * k)     * (CARD_H + la.gap) + CARD_H / 2
       const y2 = la.paddingTop + (2 * k + 1) * (CARD_H + la.gap) + CARD_H / 2
       const ym = lb.paddingTop + k           * (CARD_H + lb.gap) + CARD_H / 2
+      segs.push(`M ${xAR} ${y1} H ${mx}`, `M ${xAR} ${y2} H ${mx}`, `M ${mx} ${y1} V ${y2}`, `M ${mx} ${ym} H ${xBL}`)
+    }
+  }
 
-      segs.push(
-        `M ${xAR} ${y1} H ${mx}`,
-        `M ${xAR} ${y2} H ${mx}`,
-        `M ${mx}  ${y1} V ${y2}`,
-        `M ${mx}  ${ym} H ${xBL}`,
-      )
+  // Left SF (col3) → Final (col4) — straight horizontal line, same vertical center
+  {
+    const y  = HALF_LAYOUTS.SF.paddingTop + CARD_H / 2
+    const x0 = 3 * (COL_W + COL_GAP) + COL_W
+    const x1 = 4 * (COL_W + COL_GAP)
+    segs.push(`M ${x0} ${y} H ${x1}`)
+  }
+
+  // Right SF (col5) → Final (col4) — straight horizontal line (mirrored)
+  {
+    const y  = HALF_LAYOUTS.SF.paddingTop + CARD_H / 2
+    const x0 = 5 * (COL_W + COL_GAP)
+    const x1 = 4 * (COL_W + COL_GAP) + COL_W
+    segs.push(`M ${x0} ${y} H ${x1}`)
+  }
+
+  // Right side: R32(col8)→R16(col7)→QF(col6)→SF(col5) — mirrored
+  for (let i = 0; i < HALF_ROUNDS.length - 1; i++) {
+    const la = HALF_LAYOUTS[HALF_ROUNDS[i]]
+    const lb = HALF_LAYOUTS[HALF_ROUNDS[i + 1]]
+    const matchesB = RIGHT_MATCHES[HALF_ROUNDS[i + 1]]
+
+    // Right R32 at col8, R16 at col7, QF at col6, SF at col5
+    const colA = 8 - i
+    const colB = 7 - i
+    const xAL  = colA * (COL_W + COL_GAP)
+    const xBR  = colB * (COL_W + COL_GAP) + COL_W
+    const mx   = (xAL + xBR) / 2
+
+    for (let k = 0; k < matchesB.length; k++) {
+      const y1 = la.paddingTop + (2 * k)     * (CARD_H + la.gap) + CARD_H / 2
+      const y2 = la.paddingTop + (2 * k + 1) * (CARD_H + la.gap) + CARD_H / 2
+      const ym = lb.paddingTop + k           * (CARD_H + lb.gap) + CARD_H / 2
+      segs.push(`M ${xAL} ${y1} H ${mx}`, `M ${xAL} ${y2} H ${mx}`, `M ${mx} ${y1} V ${y2}`, `M ${mx} ${ym} H ${xBR}`)
     }
   }
 
   return (
     <svg
-      style={{ position: 'absolute', top: 0, left: 0, width: TOTAL_W, height: BRACKET_H, pointerEvents: 'none' }}
+      style={{ position: 'absolute', top: 0, left: 0, width: TOTAL_W, height: HALF_H, pointerEvents: 'none' }}
       overflow="visible"
     >
-      <path
-        d={segs.join(' ')}
-        stroke="rgba(255,255,255,0.1)"
-        strokeWidth={1}
-        fill="none"
-        strokeLinecap="round"
-      />
+      <path d={segs.join(' ')} stroke="rgba(255,255,255,0.07)" strokeWidth={1} fill="none" strokeLinecap="round" />
     </svg>
   )
 }
 
-// ── Champion banner (absolutely positioned inside the bracket grid) ───────────
-
-// Placed below the Final card in the Final column.
-// The Final card sits at BRACKET_LAYOUTS.F.paddingTop; the banner lives beneath it.
-const CHAMP_BANNER_W    = COL_W                                   // same width as the Final column
-const CHAMP_BANNER_LEFT = 4 * (COL_W + COL_GAP)                   // flush with the Final column
-const CHAMP_BANNER_TOP  = BRACKET_LAYOUTS['F'].paddingTop + CARD_H + 20
+// ── Champion banner ───────────────────────────────────────────────────────────
 
 function ChampionBanner({ team, locale }: { team: string; locale: string }) {
   const code = getTeamFlagCode(team)
   const name = translateTeamName(team, locale)
-  // Scale font down for longer names so they never overflow the 131px inner width
   const nameFontSize = Math.max(14, 24 - Math.max(0, name.length - 7))
 
   return (
@@ -154,11 +195,11 @@ function ChampionBanner({ team, locale }: { team: string; locale: string }) {
         }
       `}</style>
 
-      {/* Connector — fades downward */}
+      {/* Connector from Final card down to banner */}
       <div style={{
         position: 'absolute',
-        left: 4 * (COL_W + COL_GAP) + COL_W / 2 - 0.5,
-        top:  BRACKET_LAYOUTS['F'].paddingTop + CARD_H,
+        left: CHAMP_BANNER_LEFT + COL_W / 2 - 0.5,
+        top:  FINAL_PT + CARD_H,
         width: 1,
         height: 20,
         background: 'linear-gradient(to bottom, rgba(240,180,41,0.45), rgba(240,180,41,0.05))',
@@ -183,8 +224,6 @@ function ChampionBanner({ team, locale }: { team: string; locale: string }) {
           background: 'linear-gradient(170deg, rgba(240,180,41,0.07) 0%, rgba(8,12,20,0.98) 50%)',
           animation: 'champ-glow 3.5s ease-in-out infinite',
         }}>
-
-          {/* Pre-label — muted, tiny */}
           <div style={{
             fontSize: 7,
             fontWeight: 600,
@@ -192,20 +231,15 @@ function ChampionBanner({ team, locale }: { team: string; locale: string }) {
             letterSpacing: '0.13em',
             color: 'rgba(240,180,41,0.35)',
             marginBottom: 7,
-            alignSelf: 'center',
           }}>
             2026 FIFA World Cup
           </div>
-
-          {/* Trophy — small ornament */}
           <div style={{ marginBottom: 10, lineHeight: 0 }}>
             <div style={{ animation: 'champ-float 3s ease-in-out infinite' }}>
               <Image src="/trophy.png" alt="Trophy" width={44} height={54}
                 style={{ width: 44, height: 'auto', display: 'block' }} unoptimized />
             </div>
           </div>
-
-          {/* ── TEAM NAME — the hero ── */}
           <div style={{
             fontFamily: 'var(--font-oswald)',
             fontSize: nameFontSize,
@@ -221,12 +255,9 @@ function ChampionBanner({ team, locale }: { team: string; locale: string }) {
             lineHeight: 1.05,
             marginBottom: 9,
             whiteSpace: 'nowrap',
-            alignSelf: 'center',
           }}>
             {name}
           </div>
-
-          {/* Divider — thin gold line */}
           <div style={{
             height: 1,
             width: 'calc(100% - 20px)',
@@ -234,46 +265,35 @@ function ChampionBanner({ team, locale }: { team: string; locale: string }) {
             background: 'linear-gradient(90deg, transparent, rgba(240,180,41,0.5), transparent)',
             animation: 'champ-line-grow 0.45s 0.35s both',
             transformOrigin: 'center',
-            alignSelf: 'center',
           }} />
-
-          {/* Flag + CHAMPION badge — small, supporting role */}
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: 5,
             animation: 'champ-badge-in 0.4s 0.5s both',
           }}>
-            <div style={{ display: 'contents' }}>
-              {code && (
-                <div style={{
-                  width: 18, height: 13, borderRadius: 2,
-                  overflow: 'hidden',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  flexShrink: 0,
-                }}>
-                  <Image
-                    src={getFlagUrl(code, 40)}
-                    alt={name}
-                    width={18} height={13}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    unoptimized
-                  />
-                </div>
-              )}
-              <span style={{
-                fontSize: 8.5,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.2em',
-                color: 'rgba(240,180,41,0.6)',
-                lineHeight: 1,
+            {code && (
+              <div style={{
+                width: 18, height: 13, borderRadius: 2,
+                overflow: 'hidden',
+                border: '1px solid rgba(255,255,255,0.15)',
+                flexShrink: 0,
               }}>
-                Champion
-              </span>
-            </div>
+                <Image src={getFlagUrl(code, 40)} alt={name} width={18} height={13}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} unoptimized />
+              </div>
+            )}
+            <span style={{
+              fontSize: 8.5,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.2em',
+              color: 'rgba(240,180,41,0.6)',
+              lineHeight: 1,
+            }}>
+              Champion
+            </span>
           </div>
-
         </div>
       </div>
     </>
@@ -346,6 +366,21 @@ export function BracketTree({ r32, username }: BracketTreeProps) {
     }
   }, [r32, picks, locale, exporting, username, t])
 
+  const renderMatch = (matchKey: string) => {
+    const [home, away] = getSeededTeams(matchKey, r32, picks)
+    return (
+      <BracketMatch
+        key={matchKey}
+        matchKey={matchKey}
+        home={home}
+        away={away}
+        pick={picks[matchKey] ?? null}
+        onPick={handlePick}
+        isFinal={matchKey === 'F_1'}
+      />
+    )
+  }
+
   const btnBase = 'px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all duration-200'
 
   return (
@@ -385,27 +420,28 @@ export function BracketTree({ r32, username }: BracketTreeProps) {
         </div>
       </div>
 
-      {/* Bracket scroll container */}
+      {/* Bracket scroll container — scrolls on small screens, fits on ≥1360px */}
       <div
         ref={bracketRef}
         style={{
           overflowX: 'auto',
           WebkitOverflowScrolling: 'touch' as React.CSSProperties['WebkitOverflowScrolling'],
-          paddingBottom: 16,
+          paddingBottom: 24,
           background: '#0a1018',
         }}
       >
         {/* Round header labels */}
         <div style={{ display: 'flex', gap: COL_GAP, marginBottom: 12, width: TOTAL_W, flexShrink: 0 }}>
-          {ROUNDS.map(r => (
+          {/* Left headers: R32 → SF */}
+          {HALF_ROUNDS.map(r => (
             <div
-              key={r}
+              key={`lh-${r}`}
               style={{
                 width: COL_W,
                 flexShrink: 0,
                 textAlign: 'center',
                 paddingBottom: 7,
-                borderBottom: '1px solid rgba(255,255,255,0.07)',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
               }}
             >
               <span style={{
@@ -414,7 +450,52 @@ export function BracketTree({ r32, username }: BracketTreeProps) {
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 letterSpacing: '0.12em',
-                color: r === 'F' ? '#f0b429' : '#4a6080',
+                color: ROUND_HEADER_COLORS[r],
+              }}>
+                {ROUND_LABELS[r]}
+              </span>
+            </div>
+          ))}
+          {/* Center Final header */}
+          <div
+            style={{
+              width: COL_W,
+              flexShrink: 0,
+              textAlign: 'center',
+              paddingBottom: 7,
+              borderBottom: '1px solid rgba(240,180,41,0.3)',
+            }}
+          >
+            <span style={{
+              fontFamily: 'var(--font-oswald)',
+              fontSize: 10.5,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              color: ROUND_HEADER_COLORS['F'],
+            }}>
+              {ROUND_LABELS['F']}
+            </span>
+          </div>
+          {/* Right headers: SF → R32 (mirror of left) */}
+          {([...HALF_ROUNDS].reverse() as HalfRoundKey[]).map(r => (
+            <div
+              key={`rh-${r}`}
+              style={{
+                width: COL_W,
+                flexShrink: 0,
+                textAlign: 'center',
+                paddingBottom: 7,
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              <span style={{
+                fontFamily: 'var(--font-oswald)',
+                fontSize: 10.5,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                color: ROUND_HEADER_COLORS[r],
               }}>
                 {ROUND_LABELS[r]}
               </span>
@@ -422,42 +503,63 @@ export function BracketTree({ r32, username }: BracketTreeProps) {
           ))}
         </div>
 
-        {/* Bracket grid — position:relative anchors the SVG */}
-        <div style={{ position: 'relative', height: BRACKET_H, width: TOTAL_W, flexShrink: 0 }}>
+        {/* Bracket grid — position:relative anchors SVG and champion banner */}
+        <div style={{ position: 'relative', height: HALF_H, width: TOTAL_W, flexShrink: 0 }}>
+
+          {/* Subtle Final column highlight */}
+          <div style={{
+            position: 'absolute',
+            left: 4 * (COL_W + COL_GAP) - 6,
+            top: 0,
+            width: COL_W + 12,
+            height: HALF_H,
+            background: 'linear-gradient(to bottom, rgba(240,180,41,0.015), rgba(240,180,41,0.04), rgba(240,180,41,0.015))',
+            borderLeft:  '1px solid rgba(240,180,41,0.08)',
+            borderRight: '1px solid rgba(240,180,41,0.08)',
+            pointerEvents: 'none',
+          }} />
+
           <BracketConnectors />
+
           {picks['F_1'] && (
             <ChampionBanner key={picks['F_1']} team={picks['F_1']} locale={locale} />
           )}
 
+          {/* Columns */}
           <div style={{ position: 'relative', display: 'flex', gap: COL_GAP, zIndex: 1 }}>
-            {ROUNDS.map(r => {
-              const { paddingTop, gap } = BRACKET_LAYOUTS[r]
-              const matchKeys = ROUND_MATCHES[r]
+
+            {/* Left half: R32 | R16 | QF | SF */}
+            {HALF_ROUNDS.map(r => {
+              const { paddingTop, gap } = HALF_LAYOUTS[r]
               return (
-                <div key={r} style={{ width: COL_W, flexShrink: 0, paddingTop }}>
+                <div key={`lc-${r}`} style={{ width: COL_W, flexShrink: 0, paddingTop }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap }}>
-                    {matchKeys.map(matchKey => {
-                      const [home, away] = getSeededTeams(matchKey, r32, picks)
-                      return (
-                        <BracketMatch
-                          key={matchKey}
-                          matchKey={matchKey}
-                          home={home}
-                          away={away}
-                          pick={picks[matchKey] ?? null}
-                          onPick={handlePick}
-                          isFinal={r === 'F'}
-                        />
-                      )
-                    })}
+                    {LEFT_MATCHES[r].map(renderMatch)}
                   </div>
                 </div>
               )
             })}
+
+            {/* Center: Final */}
+            <div style={{ width: COL_W, flexShrink: 0, paddingTop: FINAL_PT }}>
+              {renderMatch('F_1')}
+            </div>
+
+            {/* Right half: SF | QF | R16 | R32 (center outward) */}
+            {([...HALF_ROUNDS].reverse() as HalfRoundKey[]).map(r => {
+              const { paddingTop, gap } = HALF_LAYOUTS[r]
+              return (
+                <div key={`rc-${r}`} style={{ width: COL_W, flexShrink: 0, paddingTop }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap }}>
+                    {RIGHT_MATCHES[r].map(renderMatch)}
+                  </div>
+                </div>
+              )
+            })}
+
           </div>
         </div>
       </div>
-
     </div>
   )
 }
