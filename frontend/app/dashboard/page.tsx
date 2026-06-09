@@ -769,8 +769,8 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Tier 3 — Standings shortcut */}
-      <div className="mt-4">
+      {/* Tier 3 — Standings + Simulator shortcuts */}
+      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Link
           href="/standings"
           className="flex items-center justify-between px-5 py-4 rounded-2xl transition-all duration-200 group"
@@ -785,6 +785,33 @@ export default function DashboardPage() {
                 {t('standings_title')}
               </p>
               <p className="text-[#3a5070] text-xs mt-0.5">{t('standings_desc')}</p>
+            </div>
+          </div>
+          <span className="text-[#3f5068] group-hover:text-[#f0b429] transition-colors text-sm font-medium">→</span>
+        </Link>
+
+        <Link
+          href="/simulate"
+          className="flex items-center justify-between px-5 py-4 rounded-2xl transition-all duration-200 group"
+          style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(240,180,41,0.3)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
+        >
+          <div className="flex items-center gap-3">
+            <span className="block w-[3px] h-5 rounded-full bg-[#f0b429]" />
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="font-[family-name:var(--font-oswald)] text-[1.05rem] font-bold uppercase tracking-[0.2em] text-[#90a0b8] group-hover:text-white transition-colors">
+                  {t('simulate_title')}
+                </p>
+                <span
+                  className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full leading-none"
+                  style={{ background: 'rgba(240,180,41,0.12)', color: '#f0b429', border: '1px solid rgba(240,180,41,0.22)' }}
+                >
+                  NEW
+                </span>
+              </div>
+              <p className="text-[#3a5070] text-xs mt-0.5">{t('simulate_desc')}</p>
             </div>
           </div>
           <span className="text-[#3f5068] group-hover:text-[#f0b429] transition-colors text-sm font-medium">→</span>

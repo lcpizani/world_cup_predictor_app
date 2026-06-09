@@ -122,6 +122,8 @@
     "you": "you",
     "standings_title": "Standings & Bracket",
     "standings_desc": "Live group tables and knockout bracket",
+    "simulate_title": "Bracket Simulator",
+    "simulate_desc": "Simulate the knockout bracket from your picks",
     "ft": "FT",
     "reload": "Reload",
     "reloading": "Reloading…"

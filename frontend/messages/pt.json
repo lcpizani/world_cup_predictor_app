@@ -122,6 +122,8 @@
     "you": "você",
     "standings_title": "Classificação e Chaveamento",
     "standings_desc": "Tabelas ao vivo e chaveamento da fase mata-mata",
+    "simulate_title": "Simulador de Chaveamento",
+    "simulate_desc": "Simule o mata-mata a partir dos seus palpites",
     "ft": "FT",
     "reload": "Atualizar",
     "reloading": "Atualizando…"
