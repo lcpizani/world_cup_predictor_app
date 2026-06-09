@@ -291,31 +291,27 @@ export default function SimulatePage() {
   // ── Bracket view ───────────────────────────────────────────────────────────
   return (
     <main className="px-4 sm:px-6 py-8" style={{ maxWidth: '100%' }}>
-      <div className="max-w-6xl mx-auto mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1
-              className="font-[family-name:var(--font-oswald)] font-bold text-2xl uppercase tracking-widest text-white"
-            >
-              {t('title')}
-            </h1>
-            <p className="text-[#4a5c70] text-xs mt-0.5">{t('bracket_subtitle')}</p>
-          </div>
-          <button
-            onClick={() => setStep('standings')}
-            className="text-[#4a5c70] hover:text-white text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-white/[0.05]"
-          >
-            ← {t('back')}
-          </button>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="font-[family-name:var(--font-oswald)] font-bold text-2xl uppercase tracking-widest text-white">
+            {t('title')}
+          </h1>
+          <p className="text-[#4a5c70] text-xs mt-0.5">{t('bracket_subtitle')}</p>
+          {!slotAssignmentValid && (
+            <p className="text-[#7a6030] text-xs mt-2">
+              ⚠ Third-place seeding is approximate — complete all 12 groups for correct FIFA bracket placement.
+            </p>
+          )}
+          {isError && (
+            <p className="text-red-400 text-xs mt-2">{t('load_error')}</p>
+          )}
         </div>
-        {!slotAssignmentValid && (
-          <p className="text-[#7a6030] text-xs mt-2">
-            ⚠ Third-place seeding is approximate — complete all 12 groups for correct FIFA bracket placement.
-          </p>
-        )}
-        {isError && (
-          <p className="text-red-400 text-xs mt-2">{t('load_error')}</p>
-        )}
+        <button
+          onClick={() => setStep('standings')}
+          className="text-[#4a5c70] hover:text-white text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-white/[0.05] shrink-0 ml-4"
+        >
+          ← {t('back')}
+        </button>
       </div>
 
       <BracketTree r32={r32Matchups} username={user?.display_name ?? user?.username ?? 'My'} />
