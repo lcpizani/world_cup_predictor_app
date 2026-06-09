@@ -221,6 +221,7 @@ export function Navbar() {
                 <NavLink href="/leagues" active={isActive('/leagues')}>{t('leagues')}</NavLink>
                 <NavLink href="/predictions" active={isActive('/predictions')}>{t('my_picks')}</NavLink>
                 <NavLink href="/standings" active={isActive('/standings')}>{t('standings')}</NavLink>
+                <NavLink href="/simulate" active={isActive('/simulate')}>{t('simulate')}</NavLink>
                 {user.is_admin && (
                   <NavLink href="/admin" active={isActive('/admin')}>{t('admin')}</NavLink>
                 )}
@@ -346,6 +347,7 @@ export function Navbar() {
                 <MobileNavLink href="/leagues" active={isActive('/leagues')} onClick={() => setOpen(false)}>{t('leagues')}</MobileNavLink>
                 <MobileNavLink href="/predictions" active={isActive('/predictions')} onClick={() => setOpen(false)}>{t('my_picks')}</MobileNavLink>
                 <MobileNavLink href="/standings" active={isActive('/standings')} onClick={() => setOpen(false)}>{t('standings')}</MobileNavLink>
+                <MobileNavLink href="/simulate" active={isActive('/simulate')} onClick={() => setOpen(false)}>{t('simulate')}</MobileNavLink>
                 {user.is_admin && (
                   <MobileNavLink href="/admin" active={isActive('/admin')} onClick={() => setOpen(false)}>{t('admin')}</MobileNavLink>
                 )}
