@@ -72,11 +72,11 @@ const WC_GROUPS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
 
 // ── PosBadge ──────────────────────────────────────────────────────────────────
 
-function PosBadge({ pos }: { pos: number }) {
+function PosBadge({ pos, thirdQualifies }: { pos: number; thirdQualifies?: boolean }) {
   const [bg, border, color] =
-    pos <= 2  ? ['rgba(34,197,94,0.1)',  'rgba(34,197,94,0.25)',  '#4ade80'] :
-    pos === 3 ? ['rgba(240,180,41,0.1)', 'rgba(240,180,41,0.25)', '#f0b429'] :
-                ['rgba(255,255,255,0.03)', 'rgba(255,255,255,0.08)', '#3d5070']
+    pos <= 2                        ? ['rgba(34,197,94,0.1)',  'rgba(34,197,94,0.25)',  '#4ade80'] :
+    pos === 3 && thirdQualifies     ? ['rgba(240,180,41,0.1)', 'rgba(240,180,41,0.25)', '#f0b429'] :
+                                      ['rgba(255,255,255,0.03)', 'rgba(255,255,255,0.08)', '#3d5070']
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -171,11 +171,12 @@ function EmptyGroupTable({ letter }: { letter: string }) {
 
 // ── GroupTable ────────────────────────────────────────────────────────────────
 
-function GroupTable({ group }: { group: GroupData }) {
+function GroupTable({ group, qualifyingThirdGroups }: { group: GroupData; qualifyingThirdGroups: Set<string> }) {
   const t = useTranslations('standings')
   const locale = useLocale()
   const letter = groupLetter(group.group)
   const color  = groupColor(group.group)
+  const thirdQualifies = qualifyingThirdGroups.has(group.group)
 
   return (
     <div className="rounded-xl overflow-hidden" style={{ background: '#0b1220', border: '1px solid rgba(255,255,255,0.07)' }}>
@@ -186,11 +187,11 @@ function GroupTable({ group }: { group: GroupData }) {
           {group.standings.map((row) => {
             const bl =
               row.position <= 2 ? 'rgba(34,197,94,0.55)' :
-              row.position === 3 ? 'rgba(240,180,41,0.45)' : 'transparent'
+              row.position === 3 && thirdQualifies ? 'rgba(240,180,41,0.45)' : 'transparent'
             return (
               <tr key={row.position} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', borderLeft: `3px solid ${bl}` }}>
                 <td style={{ paddingLeft: 10, paddingTop: 9, paddingBottom: 9, textAlign: 'center' }}>
-                  <PosBadge pos={row.position} />
+                  <PosBadge pos={row.position} thirdQualifies={row.position === 3 ? thirdQualifies : undefined} />
                 </td>
                 <td style={{ padding: '9px 8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
@@ -818,7 +819,22 @@ export default function StandingsPage() {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
-                {standingsData.map(group => <GroupTable key={group.group} group={group} />)}
+                {(() => {
+                  const qualifyingThirdGroups = new Set(
+                    standingsData
+                      .flatMap(g => g.standings.filter(r => r.position === 3))
+                      .sort((a, b) =>
+                        b.points - a.points ||
+                        b.goal_difference - a.goal_difference ||
+                        b.goals_for - a.goals_for
+                      )
+                      .slice(0, 8)
+                      .map(r => r.group)
+                  )
+                  return standingsData.map(group => (
+                    <GroupTable key={group.group} group={group} qualifyingThirdGroups={qualifyingThirdGroups} />
+                  ))
+                })()}
               </div>
               <QualificationLegend />
               <BestThirdSection groups={standingsData} />
