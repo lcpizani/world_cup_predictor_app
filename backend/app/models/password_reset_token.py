@@ -9,7 +9,7 @@ from app.database import Base
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
 
-    token = Column(String(86), primary_key=True)
+    token = Column(String(64), primary_key=True)
     user_id = Column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     used = Column(Boolean, nullable=False, default=False, server_default="false")

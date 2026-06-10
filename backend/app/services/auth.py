@@ -1,3 +1,4 @@
+import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
@@ -72,8 +73,9 @@ def create_reset_token(db: Session, email: str) -> None:
     ).delete(synchronize_session=False)
 
     token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
     reset_token = PasswordResetToken(
-        token=token,
+        token=token_hash,
         user_id=user.id,
         expires_at=now + timedelta(minutes=15),
     )
@@ -96,13 +98,14 @@ def create_reset_token(db: Session, email: str) -> None:
 
 def reset_password(db: Session, token: str, new_password: str) -> None:
     now = datetime.now(timezone.utc)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
 
     # Atomic CAS: mark the token used in a single statement so two concurrent
     # requests with the same token cannot both succeed (TOCTOU prevention).
     result = db.execute(
         update(PasswordResetToken)
         .where(
-            PasswordResetToken.token == token,
+            PasswordResetToken.token == token_hash,
             PasswordResetToken.used == False,  # noqa: E712
             PasswordResetToken.expires_at > now,
         )
