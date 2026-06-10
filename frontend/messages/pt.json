@@ -149,7 +149,8 @@
     "simulate_desc": "Simule o mata-mata a partir dos seus palpites",
     "ft": "FT",
     "reload": "Atualizar",
-    "reloading": "Atualizando…"
+    "reloading": "Atualizando…",
+    "add_to_calendar": "Adicionar ao Calendário"
   },
   "standings": {
     "title": "Copa do Mundo 2026",
@@ -227,7 +228,8 @@
     "auto_save_short": "Salva automaticamente",
     "saving": "Salvando…",
     "error_saving": "Erro ao salvar",
-    "aet": "AET"
+    "aet": "AET",
+    "add_to_calendar": "Adicionar ao Calendário"
   },
   "leagues": {
     "title": "Minhas Ligas",
@@ -632,5 +634,22 @@
     "how_scored": "Como os palpites são pontuados?",
     "knockout_title": "Jogos eliminatórios: vale o placar dos 120 minutos",
     "knockout_desc": "Os palpites são comparados com o placar após 90 minutos + prorrogação. Se você previu 1–1 e o jogo terminou 1–1 após a prorrogação — mesmo que tenha ido para os pênaltis — isso conta como Placar Exato. O resultado da disputa de pênaltis não afeta seu palpite."
+  },
+  "calendarExport": {
+    "title": "Adicionar ao Calendário",
+    "filter_placeholder": "Filtrar por seleção…",
+    "select_all": "Selecionar todos",
+    "deselect_all": "Desmarcar todos",
+    "shown": "({count} exibidos)",
+    "count_upcoming": "{count} próximos",
+    "count_filtered": "{shown} de {total}",
+    "no_matches": "Nenhum jogo encontrado",
+    "selected_count": "{count, plural, =0 {Nenhum jogo selecionado} one {# jogo selecionado} other {# jogos selecionados}}",
+    "download": "Baixar .ics",
+    "email_btn": "Enviar por E-mail",
+    "email_sending": "Enviando…",
+    "email_sent": "E-mail enviado!",
+    "email_error": "Falha ao enviar — tente novamente",
+    "import_hint": "Abra o arquivo para importar. Google Agenda: Configurações → Importar."
   }
 }

@@ -149,7 +149,8 @@
     "simulate_desc": "Simulate the knockout bracket from your picks",
     "ft": "FT",
     "reload": "Reload",
-    "reloading": "Reloading…"
+    "reloading": "Reloading…",
+    "add_to_calendar": "Add to Calendar"
   },
   "standings": {
     "title": "World Cup 2026",
@@ -227,7 +228,8 @@
     "auto_save_short": "Saves automatically",
     "saving": "Saving…",
     "error_saving": "Error saving",
-    "aet": "AET"
+    "aet": "AET",
+    "add_to_calendar": "Add to Calendar"
   },
   "leagues": {
     "title": "My Leagues",
@@ -632,5 +634,22 @@
     "how_scored": "How are predictions scored?",
     "knockout_title": "Knockout matches: 120-minute score counts",
     "knockout_desc": "Predictions are compared to the score after 90 minutes + extra time. If you predicted 1–1 and the game finishes 1–1 after extra time — even if it goes to a penalty shootout — that counts as an Exact Score. Penalty shootout results do not affect your prediction."
+  },
+  "calendarExport": {
+    "title": "Add to Calendar",
+    "filter_placeholder": "Filter by team…",
+    "select_all": "Select all",
+    "deselect_all": "Deselect all",
+    "shown": "({count} shown)",
+    "count_upcoming": "{count} upcoming",
+    "count_filtered": "{shown} of {total}",
+    "no_matches": "No matches found",
+    "selected_count": "{count, plural, =0 {No matches selected} one {# match selected} other {# matches selected}}",
+    "download": "Download .ics",
+    "email_btn": "Send to Email",
+    "email_sending": "Sending…",
+    "email_sent": "Email sent!",
+    "email_error": "Failed to send — try again",
+    "import_hint": "Open the file to import. Google Calendar: Settings → Import."
   }
 }

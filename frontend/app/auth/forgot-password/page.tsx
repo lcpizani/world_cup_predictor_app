@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -39,6 +39,7 @@ function AuthInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 
 export default function ForgotPasswordPage() {
   const t = useTranslations('auth')
+  const locale = useLocale()
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
@@ -59,7 +60,7 @@ export default function ForgotPasswordPage() {
       await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, locale }),
       })
     } finally {
       setLoading(false)

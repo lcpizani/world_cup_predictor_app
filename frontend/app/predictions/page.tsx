@@ -12,6 +12,7 @@ import { useOnboardingGuard } from '@/lib/hooks'
 import { useLocale, useTranslations } from 'next-intl'
 import { formatMatchDateTime } from '@/lib/date'
 import ScoringExplanationModal from '@/components/ScoringExplanationModal'
+import CalendarExportModal from '@/components/CalendarExportModal'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -529,6 +530,7 @@ export default function PredictionsPage() {
   const [tab, setTab] = useState<'upcoming' | 'finished'>('upcoming')
   const [refreshing, setRefreshing] = useState(false)
   const [showScoringHelp, setShowScoringHelp] = useState(false)
+  const [showCalendarModal, setShowCalendarModal] = useState(false)
 
   // view mode state (tasks 1.1–1.4)
   const [viewMode, setViewMode] = useState<'chronological' | 'stage-group'>('chronological')
@@ -688,6 +690,25 @@ export default function PredictionsPage() {
                   <path d="M12 8h.01" />
                 </svg>
                 {tScoring('how_scored')}
+              </button>
+
+              {/* Add to Calendar chip */}
+              <button
+                onClick={() => setShowCalendarModal(true)}
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full transition-all duration-200"
+                style={{ background: 'rgba(90,140,220,0.07)', border: '1px solid rgba(90,140,220,0.2)', color: '#5a7090' }}
+                onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(90,140,220,0.14)', borderColor: 'rgba(90,140,220,0.4)', color: '#8aabdf' })}
+                onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(90,140,220,0.07)', borderColor: 'rgba(90,140,220,0.2)', color: '#5a7090' })}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                  <line x1="12" y1="14" x2="12" y2="18" />
+                  <line x1="10" y1="16" x2="14" y2="16" />
+                </svg>
+                {t('add_to_calendar')}
               </button>
             </div>
           </div>
@@ -910,6 +931,15 @@ export default function PredictionsPage() {
       )}
 
       <ScoringExplanationModal open={showScoringHelp} onClose={() => setShowScoringHelp(false)} />
+
+      {showCalendarModal && (
+        <CalendarExportModal
+          matches={matches.filter(m => m.status === 'scheduled')}
+          timezone={me?.timezone}
+          userEmail={me?.email}
+          onClose={() => setShowCalendarModal(false)}
+        />
+      )}
     </div>
   )
 }

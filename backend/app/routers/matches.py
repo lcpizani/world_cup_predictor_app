@@ -1,17 +1,84 @@
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
+from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_admin_user, get_current_user
 from app.logger import logger
+from app.models.match import Match
 from app.services import match as match_service
 from app.services import scoring as scoring_service
+from app.services import calendar as calendar_service
+from app.services import email as email_service
 from app.schemas.match import MatchCreate, MatchResponse, MatchResultUpdate
 
+
+_SUPPORTED_LOCALES = {"en", "pt"}
+
+
+class CalendarEmailRequest(BaseModel):
+    match_ids: List[str]
+    locale: str = "en"
+
+    @field_validator("locale")
+    @classmethod
+    def validate_locale(cls, v: str) -> str:
+        return v if v in _SUPPORTED_LOCALES else "en"
+
 router = APIRouter()
+
+
+@router.get("/calendar.ics")
+def download_calendar(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+    matches = (
+        db.query(Match)
+        .filter(Match.kickoff_at > now, Match.status == "scheduled")
+        .order_by(Match.kickoff_at.asc())
+        .all()
+    )
+    ics_bytes = calendar_service.generate_fixtures_ics(matches)
+    return Response(
+        content=ics_bytes,
+        media_type="text/calendar",
+        headers={"Content-Disposition": 'attachment; filename="wc2026-fixtures.ics"'},
+    )
+
+
+@router.post("/calendar/email", status_code=status.HTTP_204_NO_CONTENT)
+def email_calendar(
+    data: CalendarEmailRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    if not data.match_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No match IDs provided")
+
+    try:
+        ids_as_uuid = [UUID(mid) for mid in data.match_ids]
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid match ID format")
+
+    matches = (
+        db.query(Match)
+        .filter(Match.id.in_(ids_as_uuid))
+        .order_by(Match.kickoff_at.asc())
+        .all()
+    )
+    if not matches:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No matches found")
+
+    ics_bytes = calendar_service.generate_fixtures_ics(matches, locale=data.locale)
+    try:
+        email_service.send_calendar_email(current_user.email, matches, ics_bytes, locale=data.locale)
+    except Exception as exc:
+        logger.error("Calendar email failed", user_id=str(current_user.id), error=str(exc))
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Failed to send email")
 
 
 @router.post("", response_model=MatchResponse, status_code=status.HTTP_201_CREATED)
