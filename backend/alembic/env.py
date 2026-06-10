@@ -16,6 +16,7 @@ import app.models.match  # noqa: E402, F401
 import app.models.prediction  # noqa: E402, F401
 import app.models.point_event  # noqa: E402, F401
 import app.models.group_standing  # noqa: E402, F401
+import app.models.password_reset_token  # noqa: E402, F401
 
 config = context.config
 fileConfig(config.config_file_name)

@@ -8,7 +8,7 @@ from app.logger import logger
 from app.limiter import limiter
 from app.services import auth as auth_service
 from app.schemas.user import UserCreate, UserResponse
-from app.schemas.auth import TokenResponse
+from app.schemas.auth import TokenResponse, ForgotPasswordRequest, ResetPasswordRequest, MessageResponse
 from app.dependencies import get_current_user
 
 router = APIRouter()
@@ -49,3 +49,28 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db
 @router.get("/me", response_model=UserResponse)
 def me(current_user=Depends(get_current_user)):
     return current_user
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+@limiter.limit("5/hour")
+def forgot_password(request: Request, data: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        auth_service.create_reset_token(db, data.email)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Unexpected error in forgot_password", error=str(exc))
+    return {"message": "If that email is registered, a reset link has been sent."}
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+@limiter.limit("10/minute")
+def reset_password(request: Request, data: ResetPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        auth_service.reset_password(db, data.token, data.new_password)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Unexpected error in reset_password", error=str(exc))
+        raise HTTPException(status_code=500, detail="An unexpected error occurred.")
+    return {"message": "Password updated successfully."}

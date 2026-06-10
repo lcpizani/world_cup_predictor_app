@@ -140,7 +140,15 @@ function LoginForm() {
               />
             </div>
             <div>
-              <FieldLabel>{t('password')}</FieldLabel>
+              <div className="flex items-center justify-between mb-1.5">
+                <FieldLabel>{t('password')}</FieldLabel>
+                <Link href="/auth/forgot-password" className="text-[0.65rem] font-medium transition-colors" style={{ color: '#5a6a82' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#f0b429')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#5a6a82')}
+                >
+                  {t('forgot_password_link')}
+                </Link>
+              </div>
               <AuthInput
                 name="password"
                 type="password"
