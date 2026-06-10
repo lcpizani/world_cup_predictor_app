@@ -118,6 +118,12 @@ export const api = {
     return request<Match[]>(`/matches${qs ? `?${qs}` : ''}`)
   },
 
+  emailCalendar: (matchIds: string[], locale: string) =>
+    request<void>('/matches/calendar/email', {
+      method: 'POST',
+      body: JSON.stringify({ match_ids: matchIds, locale }),
+    }),
+
   // ── Predictions ───────────────────────────────────────────────────────────
   listPredictions: (tournament_id?: string) =>
     request<Prediction[]>(tournament_id ? `/predictions?tournament_id=${tournament_id}` : '/predictions'),

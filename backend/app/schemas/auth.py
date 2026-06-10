@@ -1,4 +1,6 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+_SUPPORTED_LOCALES = {"en", "pt"}
 
 
 class TokenResponse(BaseModel):
@@ -8,6 +10,12 @@ class TokenResponse(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+    locale: str = "en"
+
+    @field_validator("locale")
+    @classmethod
+    def validate_locale(cls, v: str) -> str:
+        return v if v in _SUPPORTED_LOCALES else "en"
 
 
 class ResetPasswordRequest(BaseModel):

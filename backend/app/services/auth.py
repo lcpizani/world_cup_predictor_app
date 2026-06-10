@@ -58,7 +58,7 @@ def register_user(db: Session, data: UserCreate) -> User:
     return user
 
 
-def create_reset_token(db: Session, email: str) -> None:
+def create_reset_token(db: Session, email: str, locale: str = "en") -> None:
     user = db.query(User).filter(User.email == email).first()
     if user is None:
         return
@@ -84,7 +84,7 @@ def create_reset_token(db: Session, email: str) -> None:
 
     reset_url = f"{settings.APP_URL.rstrip('/')}/auth/reset-password?token={token}"
     try:
-        send_password_reset_email(user.email, reset_url)
+        send_password_reset_email(user.email, reset_url, locale=locale)
     except Exception as exc:
         # Token is already committed; log loudly so ops can investigate.
         # The user can request a new link — the committed token will be

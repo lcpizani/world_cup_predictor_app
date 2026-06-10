@@ -55,7 +55,7 @@ def me(current_user=Depends(get_current_user)):
 @limiter.limit("5/hour")
 def forgot_password(request: Request, data: ForgotPasswordRequest, db: Session = Depends(get_db)):
     try:
-        auth_service.create_reset_token(db, data.email)
+        auth_service.create_reset_token(db, data.email, locale=data.locale)
     except HTTPException:
         raise
     except Exception as exc:
