@@ -1,14 +1,21 @@
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.schemas.user import UserResponse
+
+class LeaderboardUserResponse(BaseModel):
+    id: UUID
+    username: str
+    display_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+    model_config = {"from_attributes": True}
 
 
 class LeaderboardEntry(BaseModel):
     rank: int
-    user: UserResponse
+    user: LeaderboardUserResponse
     total_points: int
     provisional_points: int
     live_total: int
@@ -26,7 +33,7 @@ class LeaderboardResponse(BaseModel):
 
 class LiveLeaderboardEntry(BaseModel):
     rank: int
-    user: UserResponse
+    user: LeaderboardUserResponse
     total_points: int
     provisional_points: int
     live_total: int
