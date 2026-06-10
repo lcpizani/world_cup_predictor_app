@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     ALLOWED_HOSTS: str = ""  # leave empty to disable; set to comma-separated hostnames in prod
     # Leave empty to allow open registration (local dev). Set in Cloud Run to gate signups.
     INVITE_CODE: str = ""
+    RESEND_API_KEY: str = ""
+    APP_URL: str = "http://localhost:3000"
 
     model_config = {
         "env_file": ".env",
