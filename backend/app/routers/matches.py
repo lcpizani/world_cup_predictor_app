@@ -2,13 +2,14 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import Response
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_admin_user, get_current_user
+from app.limiter import limiter
 from app.logger import logger
 from app.models.match import Match
 from app.services import match as match_service
@@ -22,7 +23,7 @@ _SUPPORTED_LOCALES = {"en", "pt"}
 
 
 class CalendarEmailRequest(BaseModel):
-    match_ids: List[str]
+    match_ids: List[str] = Field(max_length=200)
     locale: str = "en"
 
     @field_validator("locale")
@@ -51,7 +52,9 @@ def download_calendar(db: Session = Depends(get_db), current_user=Depends(get_cu
 
 
 @router.post("/calendar/email", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("5/hour")
 def email_calendar(
+    request: Request,
     data: CalendarEmailRequest,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
