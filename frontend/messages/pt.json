@@ -320,7 +320,8 @@
     "double_stage_final": "Final",
     "edit": "Editar",
     "double_active": "Pontos em dobro a partir de {stage}",
-    "aet": "AET"
+    "aet": "AET",
+    "live_now": "Ao vivo agora"
   },
   "leagueSettings": {
     "back": "← Voltar à liga",
@@ -377,6 +378,8 @@
   },
   "compare": {
     "back_matches": "← Jogos",
+    "all_games": "Todos os jogos",
+    "match_not_found": "Jogo não encontrado",
     "compare_predictions": "Comparar Palpites",
     "no_predictions_title": "Nenhum palpite ainda",
     "no_predictions_desc": "Os membros ainda não enviaram palpites.",

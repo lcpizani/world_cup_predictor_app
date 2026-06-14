@@ -1,6 +1,7 @@
 'use client'
 
-import { useParams } from 'next/navigation'
+import { useEffect } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -11,17 +12,29 @@ import type { Match, TournamentComparePrediction, TournamentCompareMatch, Scorin
 import { useOnboardingGuard } from '@/lib/hooks'
 import { useLocale, useTranslations } from 'next-intl'
 
+const STAGE_ORDER = ['group_stage', 'round_of_32', 'round_of_16', 'quarter_finals', 'semi_finals', 'third_place', 'final']
+
+function getPointsMultiplier(matchStage: string, doubleFromStage: string | null): number {
+  if (!doubleFromStage) return 1
+  const matchIdx = STAGE_ORDER.indexOf(matchStage)
+  const threshIdx = STAGE_ORDER.indexOf(doubleFromStage)
+  if (matchIdx === -1 || threshIdx === -1) return 1
+  return matchIdx >= threshIdx ? 2 : 1
+}
+
 function computeProvisionalPoints(
   predictedHome: number, predictedAway: number,
   actualHome: number, actualAway: number,
   s: ScoringRules,
+  matchStage: string,
 ): number {
+  const multiplier = getPointsMultiplier(matchStage, s.double_points_from_stage ?? null)
   const outcome = (h: number, a: number) => h > a ? 1 : h < a ? -1 : 0
-  if (predictedHome === actualHome && predictedAway === actualAway) return s.correct_result_pts
+  if (predictedHome === actualHome && predictedAway === actualAway) return s.correct_result_pts * multiplier
   let total = 0
-  if (outcome(predictedHome, predictedAway) === outcome(actualHome, actualAway)) total += s.correct_winner_pts
-  if ((predictedHome - predictedAway) === (actualHome - actualAway)) total += s.correct_goal_diff_pts
-  if (predictedHome === actualHome || predictedAway === actualAway) total += s.correct_goals_one_team_pts
+  if (outcome(predictedHome, predictedAway) === outcome(actualHome, actualAway)) total += s.correct_winner_pts * multiplier
+  if ((predictedHome - predictedAway) === (actualHome - actualAway)) total += s.correct_goal_diff_pts * multiplier
+  if (predictedHome === actualHome || predictedAway === actualAway) total += s.correct_goals_one_team_pts * multiplier
   return total
 }
 
@@ -78,11 +91,12 @@ function ParticipantRow({ match, pred, isMe, scoring }: { match: Match; pred: To
   const hidden = pred.predicted_home === null && pred.predicted_away === null
   const colors = hidden ? { home: '' as ScoreColor, away: '' as ScoreColor } : getScoreColors(match, pred)
   const isExact = colors.home === 'green' && colors.away === 'green'
+  const outcome = (h: number, a: number) => h > a ? 1 : h < a ? -1 : 0
   const isWinner = !isExact && (match.status === 'finished' || match.status === 'live') &&
     pred.predicted_home !== null && pred.predicted_away !== null &&
     match.home_score !== null && match.away_score !== null &&
-    (pred.predicted_home - pred.predicted_away > 0) === (match.home_score - match.away_score > 0) &&
-    (pred.predicted_home - pred.predicted_away < 0) === (match.home_score - match.away_score < 0)
+    outcome(pred.predicted_home, pred.predicted_away) === outcome(match.home_score, match.away_score) &&
+    outcome(pred.predicted_home, pred.predicted_away) !== 0
 
   return (
     <div
@@ -140,7 +154,7 @@ function ParticipantRow({ match, pred, isMe, scoring }: { match: Match; pred: To
           <span className="text-[10px] font-medium" style={{ color: '#3f5068' }}>pts</span>
         </div>
       ) : match.status === 'live' && scoring && pred.predicted_home !== null && pred.predicted_away !== null && match.home_score !== null && match.away_score !== null ? (() => {
-        const pts = computeProvisionalPoints(pred.predicted_home, pred.predicted_away, match.home_score, match.away_score, scoring)
+        const pts = computeProvisionalPoints(pred.predicted_home, pred.predicted_away, match.home_score, match.away_score, scoring, match.stage)
         return pts > 0 ? (
           <div className="shrink-0 w-14 text-right flex items-baseline justify-end gap-0.5">
             <span className="font-[family-name:var(--font-oswald)] font-bold text-sm" style={{ color: '#22c55e' }}>+{pts}</span>
@@ -162,6 +176,7 @@ function CompareMatchCard({ entry, myUserId, timezone, scoring }: { entry: Tourn
 
   return (
     <div
+      id={`match-${match.id}`}
       className="rounded-2xl p-5 transition-all duration-200"
       style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)' }}
@@ -224,6 +239,8 @@ function CompareMatchCard({ entry, myUserId, timezone, scoring }: { entry: Tourn
 export default function ComparePage() {
   const t = useTranslations('compare')
   const { code } = useParams<{ code: string }>()
+  const searchParams = useSearchParams()
+  const targetMatchId = searchParams.get('match')
 
   const { data: tournament } = useQuery({
     queryKey: ['tournament', code],
@@ -243,24 +260,54 @@ export default function ComparePage() {
   })
 
   const myUserId = me?.id ?? ''
-  const hasAnyPredictions = compareData.some((e) =>
+
+  const visibleData = targetMatchId
+    ? compareData.filter((e) => String(e.match.id) === targetMatchId)
+    : compareData
+
+  const hasAnyPredictions = visibleData.some((e) =>
     e.predictions.some((p) => p.predicted_home !== null || p.predicted_away !== null)
   )
+
+  useEffect(() => {
+    if (isLoading) return
+    const hash = window.location.hash
+    if (!hash) return
+    const el = document.getElementById(hash.slice(1))
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [isLoading])
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-10">
 
       {/* Header */}
       <div className="mb-8">
-        <Link
-          href={`/tournaments/${code}`}
-          className="inline-flex items-center gap-1 text-sm mb-3 transition-colors font-medium"
-          style={{ color: '#3f5068' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'white' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3f5068' }}
-        >
-          {t('back_matches')}
-        </Link>
+        <div className="flex items-center justify-between mb-3">
+          <Link
+            href={`/tournaments/${code}`}
+            className="inline-flex items-center gap-1 text-sm transition-colors font-medium"
+            style={{ color: '#3f5068' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'white' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#3f5068' }}
+          >
+            {t('back_matches')}
+          </Link>
+          {targetMatchId && (
+            <Link
+              href={`/tournaments/${code}/compare#match-${targetMatchId}`}
+              className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide px-3 py-1.5 rounded-lg transition-all duration-200"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#8496af' }}
+              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.18)', color: 'white' })}
+              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#8496af' })}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+                <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+              </svg>
+              {t('all_games')}
+            </Link>
+          )}
+        </div>
         <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
           {tournament?.name ?? '…'}
         </h1>
@@ -278,7 +325,7 @@ export default function ComparePage() {
         </div>
       )}
 
-      {!isLoading && compareData.length > 0 && !hasAnyPredictions && (
+      {!isLoading && visibleData.length > 0 && !hasAnyPredictions && (
         <div className="text-center py-20 rounded-2xl" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
           <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide mb-2" style={{ color: '#2d3e52' }}>
             {t('no_predictions_title')}
@@ -292,7 +339,7 @@ export default function ComparePage() {
         </div>
       )}
 
-      {!isLoading && compareData.length === 0 && (
+      {!isLoading && visibleData.length === 0 && !targetMatchId && (
         <div className="text-center py-20 rounded-2xl" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
           <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide mb-2" style={{ color: '#2d3e52' }}>
             {t('no_matches_title')}
@@ -301,9 +348,20 @@ export default function ComparePage() {
         </div>
       )}
 
-      {compareData.length > 0 && hasAnyPredictions && (
+      {!isLoading && visibleData.length === 0 && !!targetMatchId && (
+        <div className="text-center py-20 rounded-2xl" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide mb-2" style={{ color: '#2d3e52' }}>
+            {t('match_not_found')}
+          </p>
+          <Link href={`/tournaments/${code}/compare`} className="text-sm text-[#f0b429] hover:text-white transition-colors font-medium">
+            {t('all_games')}
+          </Link>
+        </div>
+      )}
+
+      {visibleData.length > 0 && hasAnyPredictions && (
         <div className="space-y-3">
-          {compareData.map((entry) => (
+          {visibleData.map((entry) => (
             <CompareMatchCard key={entry.match.id} entry={entry} myUserId={myUserId} timezone={me?.timezone} scoring={tournament?.scoring_rules} />
           ))}
         </div>

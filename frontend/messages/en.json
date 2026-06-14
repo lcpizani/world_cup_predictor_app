@@ -320,7 +320,8 @@
     "double_stage_final": "Final",
     "edit": "Edit",
     "double_active": "Points double from {stage}",
-    "aet": "AET"
+    "aet": "AET",
+    "live_now": "Live now"
   },
   "leagueSettings": {
     "back": "← Back to league",
@@ -377,6 +378,8 @@
   },
   "compare": {
     "back_matches": "← Matches",
+    "all_games": "All games",
+    "match_not_found": "Match not found",
     "compare_predictions": "Compare Predictions",
     "no_predictions_title": "No predictions yet",
     "no_predictions_desc": "Members haven't submitted picks yet.",

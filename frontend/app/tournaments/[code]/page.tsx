@@ -85,7 +85,7 @@ function StatusBadge({ status, kickoff_at, timezone, minute, duration }: { statu
   )
 }
 
-function MatchCard({ match, prediction, timezone, scoring }: { match: Match; prediction?: Prediction; timezone?: string | null; scoring?: ScoringRules }) {
+function MatchCard({ match, prediction, timezone, scoring, code }: { match: Match; prediction?: Prediction; timezone?: string | null; scoring?: ScoringRules; code: string }) {
   const t = useTranslations('tournament')
   const locale = useLocale()
   const minutesLeft = useMinutesUntil(match.kickoff_at)
@@ -121,6 +121,7 @@ function MatchCard({ match, prediction, timezone, scoring }: { match: Match; pre
 
   return (
     <div
+      id={`match-${match.id}`}
       className="rounded-2xl p-3.5 sm:p-5 transition-all duration-200 overflow-hidden relative"
       style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)' }}
@@ -226,13 +227,30 @@ function MatchCard({ match, prediction, timezone, scoring }: { match: Match; pre
 
       {/* Bottom row */}
       <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-        {noPredictionYet && minutesLeft > 0 ? (
-          <Link href="/predictions" className="text-xs text-[#f0b429] hover:text-white transition-colors font-semibold">
-            {t('add_pick_my_picks')}
+        <div className="flex items-center gap-3">
+          {noPredictionYet && minutesLeft > 0 ? (
+            <Link href="/predictions" className="text-xs text-[#f0b429] hover:text-white transition-colors font-semibold">
+              {t('add_pick_my_picks')}
+            </Link>
+          ) : (
+            <span />
+          )}
+          <Link
+            href={`/tournaments/${code}/compare?match=${match.id}`}
+            className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide transition-colors"
+            style={{ color: '#2d3e52' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#8496af' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#2d3e52' }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            {t('compare')}
           </Link>
-        ) : (
-          <span />
-        )}
+        </div>
         {(match.status === 'finished' || match.status === 'live') && scoring && prediction &&
           match.home_score !== null && match.away_score !== null && (() => {
             const pts = computeProvisionalPoints(
@@ -326,6 +344,13 @@ export default function TournamentPage() {
   const sorted = [...matches].sort(
     (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
   )
+
+  const liveMatch = sorted.find((m) => m.status === 'live')
+
+  function scrollToLive() {
+    if (!liveMatch) return
+    document.getElementById(`match-${liveMatch.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
@@ -521,6 +546,28 @@ export default function TournamentPage() {
         </div>
       )}
 
+      {/* Live game banner */}
+      {liveMatch && (
+        <button
+          onClick={scrollToLive}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl mb-4 transition-all duration-200"
+          style={{ background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.25)', color: '#22c55e' }}
+          onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(34,197,94,0.13)', borderColor: 'rgba(34,197,94,0.4)' })}
+          onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(34,197,94,0.07)', borderColor: 'rgba(34,197,94,0.25)' })}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse shrink-0" />
+            <span className="font-[family-name:var(--font-oswald)] font-bold text-sm uppercase tracking-wide truncate">
+              {t('live_now')} · {liveMatch.home_team} {liveMatch.home_score ?? '?'}–{liveMatch.away_score ?? '?'} {liveMatch.away_team}
+              {liveMatch.minute != null && <span className="ml-2 text-xs font-normal opacity-70">{liveMatch.minute}&apos;</span>}
+            </span>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+            <path d="M12 5v14M5 12l7 7 7-7" />
+          </svg>
+        </button>
+      )}
+
       {/* Matches */}
       {matchesLoading && (
         <div className="space-y-3">
@@ -541,7 +588,7 @@ export default function TournamentPage() {
 
       <div className="space-y-3">
         {sorted.map((match) => (
-          <MatchCard key={match.id} match={match} prediction={predByMatch[match.id]} timezone={me?.timezone} scoring={tournament?.scoring_rules} />
+          <MatchCard key={match.id} match={match} prediction={predByMatch[match.id]} timezone={me?.timezone} scoring={tournament?.scoring_rules} code={code} />
         ))}
       </div>
 

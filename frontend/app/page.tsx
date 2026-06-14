@@ -131,8 +131,8 @@ export default async function LandingPage() {
             {/* Stats row */}
             <div className="mt-12 flex gap-8 animate-fade-up-delay2">
               {[
-                { value: '32', label: t('stat_nations') },
-                { value: '64', label: t('stat_matches') },
+                { value: '48', label: t('stat_nations') },
+                { value: '104', label: t('stat_matches') },
                 { value: '∞', label: t('stat_bragging') },
               ].map(({ value, label }) => (
                 <div key={label} className="group">
