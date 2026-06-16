@@ -27,7 +27,7 @@ _ALLOWED_COMPETITION_CODES = {"WC", "EC", "PL", "PD", "BL1", "SA", "FL1", "CL", 
 def _headers() -> dict:
     if not settings.FOOTBALL_API_KEY:
         raise HTTPException(status_code=503, detail="FOOTBALL_API_KEY not configured")
-    return {"X-Auth-Token": settings.FOOTBALL_API_KEY}
+    return {"X-Auth-Token": settings.FOOTBALL_API_KEY, "X-Api-Version": "v4.1"}
 
 
 def _validate_competition_code(code: str) -> None:
