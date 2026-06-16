@@ -74,7 +74,7 @@ function StatusBadge({ status, kickoff_at, timezone, minute, injuryTime }: { sta
 type ScoreColor = 'green' | 'yellow' | ''
 
 function getScoreColors(match: Match, pred: TournamentComparePrediction): { home: ScoreColor; away: ScoreColor } {
-  if ((match.status !== 'finished' && match.status !== 'live') || pred.predicted_home === null || pred.predicted_away === null || match.home_score === null || match.away_score === null) {
+  if ((match.status !== 'finished' && match.status !== 'live' && match.status !== 'halftime') || pred.predicted_home === null || pred.predicted_away === null || match.home_score === null || match.away_score === null) {
     return { home: '', away: '' }
   }
   const ph = pred.predicted_home, pa = pred.predicted_away
@@ -208,7 +208,7 @@ function CompareMatchCard({ entry, myUserId, timezone, scoring }: { entry: Tourn
         </div>
 
         <div className="shrink-0 w-20 text-center">
-          {match.status === 'finished' ? (
+          {(match.status === 'finished' || match.status === 'live' || match.status === 'halftime') && match.home_score !== null ? (
             <span className="font-[family-name:var(--font-oswald)] font-bold text-xl" style={{ color: '#5a6a82' }}>
               {match.home_score}–{match.away_score}
             </span>
