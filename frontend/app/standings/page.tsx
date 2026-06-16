@@ -9,6 +9,7 @@ import { useOnboardingGuard } from '@/lib/hooks'
 import { getTeamFlagCode, getFlagUrl, translateTeamName, translateBracketLabel } from '@/lib/flags'
 import type { GroupData, GroupStandingRow, BracketSlot, LiveMatchBadge } from '@/types/api'
 import { formatMatchDate, formatMatchTime } from '@/lib/date'
+import { formatMinute } from '@/lib/formatMinute'
 
 // ── Group accent palette ──────────────────────────────────────────────────────
 
@@ -454,7 +455,8 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
   const locale     = useLocale()
   const t          = useTranslations('standings')
   const match      = slot.match
-  const isLive     = match?.status === 'live'
+  const isLive     = match?.status === 'live' || match?.status === 'halftime'
+  const isHalftime = match?.status === 'halftime'
   const isFinished = match?.status === 'finished'
   const hasBoth    = !!match
   const isAet      = match?.duration === 'EXTRA_TIME' || match?.duration === 'PENALTY_SHOOTOUT'
@@ -532,7 +534,7 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
             <>
               <span className="animate-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
               <span style={{ fontSize: 9, fontWeight: 800, color: '#f0b429', letterSpacing: '.06em' }}>
-                {match?.minute != null ? `${match.minute}'` : 'LIVE'}
+                {isHalftime ? t('ht') : match?.minute != null ? formatMinute(match.minute, match.injury_time ?? null) : 'LIVE'}
               </span>
             </>
           )}

@@ -8,6 +8,7 @@ import Image from 'next/image'
 import { api } from '@/lib/api'
 import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
 import { formatMatchDateTime } from '@/lib/date'
+import { formatMinute } from '@/lib/formatMinute'
 import type { Match, TournamentComparePrediction, TournamentCompareMatch, ScoringRules } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { useLocale, useTranslations } from 'next-intl'
@@ -48,13 +49,13 @@ function TeamFlag({ name }: { name: string }) {
   )
 }
 
-function StatusBadge({ status, kickoff_at, timezone, minute }: { status: string; kickoff_at: string; timezone?: string | null; minute?: number | null }) {
+function StatusBadge({ status, kickoff_at, timezone, minute, injuryTime }: { status: string; kickoff_at: string; timezone?: string | null; minute?: number | null; injuryTime?: number | null }) {
   const t = useTranslations('compare')
   const locale = useLocale()
-  if (status === 'live') return (
+  if (status === 'live' || status === 'halftime') return (
     <span className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-      {minute != null ? `${minute}'` : t('live')}
+      {status === 'halftime' ? t('ht') : minute != null ? formatMinute(minute, injuryTime ?? null) : t('live')}
     </span>
   )
   if (status === 'finished') return (
@@ -92,7 +93,7 @@ function ParticipantRow({ match, pred, isMe, scoring }: { match: Match; pred: To
   const colors = hidden ? { home: '' as ScoreColor, away: '' as ScoreColor } : getScoreColors(match, pred)
   const isExact = colors.home === 'green' && colors.away === 'green'
   const outcome = (h: number, a: number) => h > a ? 1 : h < a ? -1 : 0
-  const isWinner = !isExact && (match.status === 'finished' || match.status === 'live') &&
+  const isWinner = !isExact && (match.status === 'finished' || match.status === 'live' || match.status === 'halftime') &&
     pred.predicted_home !== null && pred.predicted_away !== null &&
     match.home_score !== null && match.away_score !== null &&
     outcome(pred.predicted_home, pred.predicted_away) === outcome(match.home_score, match.away_score) &&
@@ -130,7 +131,7 @@ function ParticipantRow({ match, pred, isMe, scoring }: { match: Match; pred: To
         }
       >
         {hidden ? (
-          (match.status === 'live' || match.status === 'finished')
+          (match.status === 'live' || match.status === 'halftime' || match.status === 'finished')
             ? <span className="text-xs w-10 text-center" style={{ color: '#1e2d40' }}>{t('no_pick')}</span>
             : <span className="font-[family-name:var(--font-oswald)] text-sm w-10 text-center" style={{ color: '#1e2d40' }}>?–?</span>
         ) : pred.predicted_home === null ? (
@@ -153,7 +154,7 @@ function ParticipantRow({ match, pred, isMe, scoring }: { match: Match; pred: To
           <span className="font-[family-name:var(--font-oswald)] font-bold text-[#f0b429] text-sm">+{pred.points_awarded}</span>
           <span className="text-[10px] font-medium" style={{ color: '#3f5068' }}>pts</span>
         </div>
-      ) : match.status === 'live' && scoring && pred.predicted_home !== null && pred.predicted_away !== null && match.home_score !== null && match.away_score !== null ? (() => {
+      ) : (match.status === 'live' || match.status === 'halftime') && scoring && pred.predicted_home !== null && pred.predicted_away !== null && match.home_score !== null && match.away_score !== null ? (() => {
         const pts = computeProvisionalPoints(pred.predicted_home, pred.predicted_away, match.home_score, match.away_score, scoring, match.stage)
         return pts > 0 ? (
           <div className="shrink-0 w-14 text-right flex items-baseline justify-end gap-0.5">
@@ -194,7 +195,7 @@ function CompareMatchCard({ entry, myUserId, timezone, scoring }: { entry: Tourn
             </span>
           )}
         </div>
-        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} minute={match.minute} />
+        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} minute={match.minute} injuryTime={match.injury_time} />
       </div>
 
       {/* Teams + actual score */}

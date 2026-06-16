@@ -74,6 +74,7 @@ export interface Match {
   away_score_penalties: number | null
   duration: string | null
   minute: number | null
+  injury_time: number | null
   created_at: string
 }
 

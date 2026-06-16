@@ -11,6 +11,7 @@ import type { Match, Prediction, LeaderboardEntry, Tournament } from '@/types/ap
 import { useOnboardingGuard } from '@/lib/hooks'
 import { useLocale, useTranslations } from 'next-intl'
 import { formatMatchDate, formatMatchTime } from '@/lib/date'
+import { formatMinute } from '@/lib/formatMinute'
 import CalendarExportModal from '@/components/CalendarExportModal'
 
 // ── Primitives ────────────────────────────────────────────────────────────────
@@ -390,7 +391,8 @@ function MyLeaguesScroll({ tournaments, leaderboards, currentUserId, loading }: 
 function MatchRailCard({ match, prediction, timezone }: { match: Match; prediction?: Prediction; timezone?: string | null }) {
   const t = useTranslations('dashboard')
   const locale = useLocale()
-  const isLive = match.status === 'live'
+  const isLive = match.status === 'live' || match.status === 'halftime'
+  const isHalftime = match.status === 'halftime'
   const isFinished = match.status === 'finished'
   const isUpcoming = !isLive && !isFinished
 
@@ -407,7 +409,7 @@ function MatchRailCard({ match, prediction, timezone }: { match: Match; predicti
     <span className="flex items-center gap-1.5" style={{ color: '#3a2200' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-700 animate-pulse-live" />
       <span className="text-[0.65rem] sm:text-xs font-bold uppercase tracking-wider">
-        {match.minute != null ? `${match.minute}'` : 'LIVE'}
+        {isHalftime ? t('ht') : match.minute != null ? formatMinute(match.minute, match.injury_time) : 'LIVE'}
       </span>
     </span>
   ) : isFinished ? (
@@ -568,7 +570,7 @@ function MatchRail({ matches, predictions, loading, timezone }: {
   useEffect(() => {
     if (!loading && total > 0 && !anchoredRef.current) {
       anchoredRef.current = true
-      const liveIdx = sorted.findIndex(m => m.status === 'live')
+      const liveIdx = sorted.findIndex(m => m.status === 'live' || m.status === 'halftime')
       const scheduledIdx = sorted.findIndex(m => m.status === 'scheduled')
       const anchor = liveIdx !== -1 ? liveIdx : scheduledIdx !== -1 ? scheduledIdx : 0
       setStartIndex(Math.min(anchor, Math.max(0, total - N)))
@@ -587,7 +589,7 @@ function MatchRail({ matches, predictions, loading, timezone }: {
   const visibleMatches = sorted.slice(startIndex, startIndex + N)
 
   // Anchor index — first live, else first scheduled, else 0 (clamped to last page)
-  const liveIdx = sorted.findIndex(m => m.status === 'live')
+  const liveIdx = sorted.findIndex(m => m.status === 'live' || m.status === 'halftime')
   const scheduledIdx = sorted.findIndex(m => m.status === 'scheduled')
   const anchorRaw = liveIdx !== -1 ? liveIdx : scheduledIdx !== -1 ? scheduledIdx : 0
   const anchorIndex = Math.min(anchorRaw, Math.max(0, total - N))

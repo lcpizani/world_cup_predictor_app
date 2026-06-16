@@ -28,6 +28,7 @@ class MatchResponse(BaseModel):
     away_score_penalties: Optional[int] = None
     duration: Optional[str] = None
     minute: Optional[int] = None
+    injury_time: Optional[int] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

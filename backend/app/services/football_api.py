@@ -19,7 +19,8 @@ from app.services.standings import recalculate_standings_from_matches
 
 FOOTBALL_API_BASE = "https://api.football-data.org/v4"
 
-_LIVE_STATUSES = {"IN_PLAY", "PAUSED"}
+_LIVE_STATUSES = {"IN_PLAY"}
+_HALFTIME_STATUSES = {"PAUSED"}
 _EDGE_STATUSES = {"CANCELLED", "POSTPONED", "SUSPENDED", "AWARDED"}
 _ALLOWED_COMPETITION_CODES = {"WC", "EC", "PL", "PD", "BL1", "SA", "FL1", "CL", "EL"}
 
@@ -40,6 +41,8 @@ def _map_api_status(api_status: str) -> str:
         return "scheduled"
     if api_status in _LIVE_STATUSES:
         return "live"
+    if api_status in _HALFTIME_STATUSES:
+        return "halftime"
     if api_status == "FINISHED":
         return "finished"
     return "suspended"
@@ -187,7 +190,7 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
                 )
             continue
 
-        if internal_status == "live":
+        if internal_status in ("live", "halftime"):
             score_obj = fixture.get("score", {})
             api_duration = score_obj.get("duration", "REGULAR")
             # During ET/penalties use the running extraTime total; fall back to fullTime
@@ -205,10 +208,11 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
                 home_score = ht.get("home")
                 away_score = ht.get("away")
             if home_score is not None and away_score is not None:
-                match.status = "live"
+                match.status = internal_status
                 match.home_score = home_score
                 match.away_score = away_score
                 match.minute = fixture.get("minute")
+                match.injury_time = fixture.get("injuryTime")
                 db.add(match)
                 live_updated += 1
             continue
@@ -241,6 +245,7 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
                     away_score_penalties=pen_away,
                 )
                 match.minute = None
+                match.injury_time = None
                 scored += 1
             except HTTPException as exc:
                 logger.warning("Skipped scoring match", ext_id=ext_id, detail=exc.detail)
