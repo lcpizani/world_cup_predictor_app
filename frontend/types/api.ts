@@ -131,7 +131,7 @@ export interface LiveLeaderboardResponse {
   entries: LiveLeaderboardEntry[]
 }
 
-export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'suspended'
+export type MatchStatus = 'scheduled' | 'live' | 'halftime' | 'finished' | 'suspended'
 
 export interface LiveMatchBadge {
   team_score: number
