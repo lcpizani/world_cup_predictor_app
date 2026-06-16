@@ -8,6 +8,7 @@ import Image from 'next/image'
 import { api } from '@/lib/api'
 import { getTeamFlagCode, getFlagUrl, translateTeamName, translateGroupName, getTeamAbbr } from '@/lib/flags'
 import { formatMatchDateTime } from '@/lib/date'
+import { formatMinute } from '@/lib/formatMinute'
 import type { Match, Prediction, ScoringRules } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { encodeInviteCode } from '@/lib/invite'
@@ -60,13 +61,13 @@ function TeamFlag({ name }: { name: string }) {
   )
 }
 
-function StatusBadge({ status, kickoff_at, timezone, minute, duration }: { status: string; kickoff_at: string; timezone?: string | null; minute?: number | null; duration?: string | null }) {
+function StatusBadge({ status, kickoff_at, timezone, minute, injuryTime, duration }: { status: string; kickoff_at: string; timezone?: string | null; minute?: number | null; injuryTime?: number | null; duration?: string | null }) {
   const t = useTranslations('tournament')
   const locale = useLocale()
-  if (status === 'live') return (
+  if (status === 'live' || status === 'halftime') return (
     <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider text-green-400" style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-      {minute != null ? `${minute}'` : t('live')}
+      {status === 'halftime' ? t('ht') : minute != null ? formatMinute(minute, injuryTime ?? null) : t('live')}
     </span>
   )
   if (status === 'finished') {
@@ -92,7 +93,7 @@ function MatchCard({ match, prediction, timezone, scoring, code }: { match: Matc
   const isScheduled = match.status === 'scheduled'
   const noPredictionYet = isScheduled && !prediction
 
-  const hasScores = (match.status === 'finished' || match.status === 'live') && match.home_score !== null && match.away_score !== null
+  const hasScores = (match.status === 'finished' || match.status === 'live' || match.status === 'halftime') && match.home_score !== null && match.away_score !== null
 
   const scoreColors = (() => {
     if (!hasScores || !prediction || match.home_score === null || match.away_score === null) {
@@ -146,7 +147,7 @@ function MatchCard({ match, prediction, timezone, scoring, code }: { match: Matc
             </span>
           )}
         </div>
-        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} minute={match.minute} duration={match.duration} />
+        <StatusBadge status={match.status} kickoff_at={match.kickoff_at} timezone={timezone} minute={match.minute} injuryTime={match.injury_time} duration={match.duration} />
       </div>
 
       {/* Teams + scores */}
@@ -251,13 +252,13 @@ function MatchCard({ match, prediction, timezone, scoring, code }: { match: Matc
             {t('compare')}
           </Link>
         </div>
-        {(match.status === 'finished' || match.status === 'live') && scoring && prediction &&
+        {(match.status === 'finished' || match.status === 'live' || match.status === 'halftime') && scoring && prediction &&
           match.home_score !== null && match.away_score !== null && (() => {
             const pts = computeProvisionalPoints(
               prediction.predicted_home, prediction.predicted_away,
               match.home_score, match.away_score, scoring, match.stage,
             )
-            const isLive = match.status === 'live'
+            const isLive = match.status === 'live' || match.status === 'halftime'
             return pts > 0 ? (
               <div className="ml-auto flex items-baseline gap-1">
                 <span
@@ -345,7 +346,7 @@ export default function TournamentPage() {
     (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
   )
 
-  const liveMatch = sorted.find((m) => m.status === 'live')
+  const liveMatch = sorted.find((m) => m.status === 'live' || m.status === 'halftime')
 
   function scrollToLive() {
     if (!liveMatch) return
@@ -559,7 +560,9 @@ export default function TournamentPage() {
             <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse shrink-0" />
             <span className="font-[family-name:var(--font-oswald)] font-bold text-sm uppercase tracking-wide truncate">
               {t('live_now')} · {liveMatch.home_team} {liveMatch.home_score ?? '?'}–{liveMatch.away_score ?? '?'} {liveMatch.away_team}
-              {liveMatch.minute != null && <span className="ml-2 text-xs font-normal opacity-70">{liveMatch.minute}&apos;</span>}
+              {liveMatch.status === 'halftime'
+                ? <span className="ml-2 text-xs font-normal opacity-70">{t('ht')}</span>
+                : liveMatch.minute != null && <span className="ml-2 text-xs font-normal opacity-70">{formatMinute(liveMatch.minute, liveMatch.injury_time)}</span>}
             </span>
           </div>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
