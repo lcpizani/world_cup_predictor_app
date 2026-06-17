@@ -133,7 +133,7 @@ def _world_cup_started(db: Session) -> bool:
     """True once any match has kicked off (gone live or finished)."""
     return (
         db.query(Match.id)
-        .filter(Match.status.in_(("live", "finished")))
+        .filter(Match.status.in_(("live", "halftime", "finished")))
         .first()
     ) is not None
 
@@ -315,6 +315,35 @@ def _compute_session_points(
     return {user_id: total for user_id, total in rows}, last_event_time
 
 
+def _compute_exact_scores(db: Session, tournament_id: UUID, member_user_ids: list) -> dict:
+    """Return {user_id: exact_score_count} for finished matches the user was eligible for.
+
+    Eligibility mirrors get_compare: predictions for matches that kicked off before
+    the user joined this tournament don't count.
+    """
+    if not member_user_ids:
+        return {}
+    rows = (
+        db.query(Prediction.user_id, func.count().label("cnt"))
+        .join(Match, Prediction.match_id == Match.id)
+        .join(
+            TournamentMember,
+            (TournamentMember.user_id == Prediction.user_id)
+            & (TournamentMember.tournament_id == tournament_id),
+        )
+        .filter(
+            Prediction.user_id.in_(member_user_ids),
+            Match.status == "finished",
+            Prediction.predicted_home == Match.home_score,
+            Prediction.predicted_away == Match.away_score,
+            TournamentMember.joined_at <= Match.kickoff_at,
+        )
+        .group_by(Prediction.user_id)
+        .all()
+    )
+    return {user_id: cnt for user_id, cnt in rows}
+
+
 def _dense_rank(members_sorted_by_score: list, score_fn) -> dict:
     """Return {member: rank} using dense ranking (ties share the same rank)."""
     ranks = {}
@@ -347,7 +376,7 @@ def get_leaderboard(db: Session, tournament_id: UUID, user: User) -> Leaderboard
     if membership is None:
         raise HTTPException(status_code=403, detail="Not a member of tournament")
 
-    has_live = db.query(MatchModel).filter(MatchModel.status == "live").first() is not None
+    has_live = db.query(MatchModel).filter(MatchModel.status.in_(("live", "halftime"))).first() is not None
 
     members = (
         db.query(TournamentMember)
@@ -356,7 +385,6 @@ def get_leaderboard(db: Session, tournament_id: UUID, user: User) -> Leaderboard
         .all()
     )
 
-    # Rank delta: compute session points from recent PointEvents
     session_pts, last_event_time = _compute_session_points(db, tournament_id)
     now = datetime.now(timezone.utc)
     if last_event_time is not None and last_event_time.tzinfo is None:
@@ -366,29 +394,32 @@ def get_leaderboard(db: Session, tournament_id: UUID, user: User) -> Leaderboard
         and (now - last_event_time) < timedelta(minutes=RANK_DELTA_WINDOW_MINUTES)
     )
 
-    # Pre-session points per member (what they had before the current session)
-    pre_pts: dict = {
-        m.user_id: (m.total_points - session_pts.get(m.user_id, 0))
-        for m in members
-    }
+    user_ids = [m.user_id for m in members]
+    exact_scores = _compute_exact_scores(db, tournament_id, user_ids)
 
-    # Pre-rank: dense rank by pre_pts descending
-    members_by_pre = sorted(members, key=lambda m: pre_pts[m.user_id], reverse=True)
-    pre_ranks = _dense_rank(members_by_pre, lambda m: pre_pts[m.user_id])
-
-    # Current rank: sort by live_total desc
-    members_sorted = sorted(
+    pre_pts: dict = {m.user_id: (m.total_points - session_pts.get(m.user_id, 0)) for m in members}
+    members_by_pre = sorted(
         members,
-        key=lambda m: m.total_points + m.provisional_points,
+        key=lambda m: (pre_pts[m.user_id], exact_scores.get(m.user_id, 0)),
         reverse=True,
     )
-    current_ranks = _dense_rank(members_sorted, lambda m: m.total_points + m.provisional_points)
+    pre_positions = {m.user_id: i for i, m in enumerate(members_by_pre, start=1)}
+
+    members_sorted = sorted(
+        members,
+        key=lambda m: (m.total_points + m.provisional_points, exact_scores.get(m.user_id, 0)),
+        reverse=True,
+    )
+    current_ranks = _dense_rank(
+        members_sorted,
+        lambda m: (m.total_points + m.provisional_points, exact_scores.get(m.user_id, 0)),
+    )
 
     entries = []
-    for m in members_sorted:
+    for i, m in enumerate(members_sorted, start=1):
         live_total = m.total_points + m.provisional_points
         rank = current_ranks[m]
-        rank_delta = pre_ranks[m] - rank
+        rank_delta = pre_positions[m.user_id] - i
         entries.append(LeaderboardEntry(
             rank=rank,
             user=m.user,
@@ -396,6 +427,7 @@ def get_leaderboard(db: Session, tournament_id: UUID, user: User) -> Leaderboard
             provisional_points=m.provisional_points,
             live_total=live_total,
             rank_delta=rank_delta,
+            exact_scores=exact_scores.get(m.user_id, 0),
         ))
 
     return LeaderboardResponse(
@@ -416,7 +448,7 @@ def get_live_leaderboard(db: Session, invite_code: str, user: User) -> LiveLeade
     if membership is None:
         raise HTTPException(status_code=403, detail="Not a member of tournament")
 
-    has_live = db.query(MatchModel).filter(MatchModel.status == "live").first() is not None
+    has_live = db.query(MatchModel).filter(MatchModel.status.in_(("live", "halftime"))).first() is not None
 
     members = (
         db.query(TournamentMember)
@@ -434,22 +466,32 @@ def get_live_leaderboard(db: Session, invite_code: str, user: User) -> LiveLeade
         and (now - last_event_time) < timedelta(minutes=RANK_DELTA_WINDOW_MINUTES)
     )
 
+    user_ids = [m.user_id for m in members]
+    exact_scores = _compute_exact_scores(db, tournament.id, user_ids)
+
     pre_pts = {m.user_id: (m.total_points - session_pts.get(m.user_id, 0)) for m in members}
-    members_by_pre = sorted(members, key=lambda m: pre_pts[m.user_id], reverse=True)
-    pre_ranks = _dense_rank(members_by_pre, lambda m: pre_pts[m.user_id])
+    members_by_pre = sorted(
+        members,
+        key=lambda m: (pre_pts[m.user_id], exact_scores.get(m.user_id, 0)),
+        reverse=True,
+    )
+    pre_positions = {m.user_id: i for i, m in enumerate(members_by_pre, start=1)}
 
     members_sorted = sorted(
         members,
-        key=lambda m: m.total_points + m.provisional_points,
+        key=lambda m: (m.total_points + m.provisional_points, exact_scores.get(m.user_id, 0)),
         reverse=True,
     )
-    current_ranks = _dense_rank(members_sorted, lambda m: m.total_points + m.provisional_points)
+    current_ranks = _dense_rank(
+        members_sorted,
+        lambda m: (m.total_points + m.provisional_points, exact_scores.get(m.user_id, 0)),
+    )
 
     entries = []
-    for m in members_sorted:
+    for i, m in enumerate(members_sorted, start=1):
         live_total = m.total_points + m.provisional_points
         rank = current_ranks[m]
-        rank_delta = pre_ranks[m] - rank
+        rank_delta = pre_positions[m.user_id] - i
         entries.append(LiveLeaderboardEntry(
             rank=rank,
             user=m.user,
@@ -457,6 +499,7 @@ def get_live_leaderboard(db: Session, invite_code: str, user: User) -> LiveLeade
             provisional_points=m.provisional_points,
             live_total=live_total,
             rank_delta=rank_delta,
+            exact_scores=exact_scores.get(m.user_id, 0),
         ))
 
     return LiveLeaderboardResponse(
@@ -506,7 +549,7 @@ def get_compare(db: Session, invite_code: str, current_user: User) -> List[Tourn
     result = []
     for match in matches:
         is_finished = match.status == "finished"
-        is_live = match.status == "live"
+        is_live = match.status in ("live", "halftime")
         entries = []
         for member in members:
             # Snapshot-at-join: predictions for matches that kicked off before

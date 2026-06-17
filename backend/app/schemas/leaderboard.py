@@ -20,6 +20,7 @@ class LeaderboardEntry(BaseModel):
     provisional_points: int
     live_total: int
     rank_delta: int = 0
+    exact_scores: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -40,6 +41,7 @@ class LiveLeaderboardEntry(BaseModel):
     provisional_points: int
     live_total: int
     rank_delta: int = 0
+    exact_scores: int = 0
 
     model_config = {"from_attributes": True}
 

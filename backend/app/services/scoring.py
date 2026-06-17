@@ -191,7 +191,7 @@ def update_provisional_points(db: Session) -> None:
     exist (so stale values don't linger after games end).
     """
     live_matches = db.query(Match).filter(
-        Match.status == "live",
+        Match.status.in_(("live", "halftime")),
         Match.home_score.isnot(None),
         Match.away_score.isnot(None),
     ).all()
