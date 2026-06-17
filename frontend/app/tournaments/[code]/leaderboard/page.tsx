@@ -7,6 +7,56 @@ import { api } from '@/lib/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { useTranslations } from 'next-intl'
 
+function RankDelta({ delta }: { delta: number }) {
+  if (delta > 0) {
+    return (
+      <span
+        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-[family-name:var(--font-oswald)] text-[10px] font-bold tabular-nums shrink-0 leading-none"
+        style={{
+          background: 'rgba(34,197,94,0.12)',
+          color: '#22c55e',
+          border: '1px solid rgba(34,197,94,0.25)',
+        }}
+      >
+        <svg width="6" height="6" viewBox="0 0 6 6" fill="none" aria-hidden="true">
+          <path d="M3 0.5L5.5 4.5H0.5L3 0.5Z" fill="#22c55e" />
+        </svg>
+        {delta}
+      </span>
+    )
+  }
+  if (delta < 0) {
+    return (
+      <span
+        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-[family-name:var(--font-oswald)] text-[10px] font-bold tabular-nums shrink-0 leading-none"
+        style={{
+          background: 'rgba(248,113,113,0.12)',
+          color: '#f87171',
+          border: '1px solid rgba(248,113,113,0.25)',
+        }}
+      >
+        <svg width="6" height="6" viewBox="0 0 6 6" fill="none" aria-hidden="true">
+          <path d="M3 5.5L0.5 1.5H5.5L3 5.5Z" fill="#f87171" />
+        </svg>
+        {Math.abs(delta)}
+      </span>
+    )
+  }
+  return (
+    <span
+      className="inline-flex items-center justify-center w-5 h-5 rounded-full shrink-0"
+      style={{
+        background: 'rgba(45,62,82,0.35)',
+        border: '1px solid rgba(45,62,82,0.5)',
+      }}
+    >
+      <svg width="8" height="2" viewBox="0 0 8 2" fill="none" aria-hidden="true">
+        <rect x="0" y="0.5" width="8" height="1" rx="0.5" fill="#3f5068" />
+      </svg>
+    </span>
+  )
+}
+
 export default function LeaderboardPage() {
   const t = useTranslations('leaderboard')
   const { code } = useParams<{ code: string }>()
@@ -27,6 +77,7 @@ export default function LeaderboardPage() {
 
   const entries = lb?.entries ?? []
   const hasLive = lb?.has_live_matches ?? false
+  const showRankChange = lb?.show_rank_change ?? false
 
   function rankDisplay(rank: number): string {
     if (rank === 1) return t('rank_1st')
@@ -102,14 +153,15 @@ export default function LeaderboardPage() {
                   : { background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }
                 }
               >
-                {/* Rank */}
-                <div className="w-10 shrink-0 text-center">
+                {/* Rank + delta */}
+                <div className="flex items-center gap-1.5 shrink-0">
                   <span
-                    className="font-[family-name:var(--font-oswald)] font-bold text-sm tabular-nums"
+                    className="font-[family-name:var(--font-oswald)] font-bold text-sm tabular-nums w-10 text-center"
                     style={{ color: isFirst ? '#f0b429' : isTop3 ? '#8496af' : '#3f5068' }}
                   >
                     {rankDisplay(entry.rank)}
                   </span>
+                  {showRankChange && <RankDelta delta={entry.rank_delta} />}
                 </div>
 
                 {/* Username */}

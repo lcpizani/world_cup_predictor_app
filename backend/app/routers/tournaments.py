@@ -94,34 +94,47 @@ def live_leaderboard(invite_code: str, db: Session = Depends(get_db), current_us
         .all()
     )
 
+    session_pts, last_event_time = tournament_service._compute_session_points(db, tournament.id)
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    if last_event_time is not None and last_event_time.tzinfo is None:
+        last_event_time = last_event_time.replace(tzinfo=timezone.utc)
+    show_rank_change = has_live or (
+        last_event_time is not None
+        and (now - last_event_time) < timedelta(minutes=tournament_service.RANK_DELTA_WINDOW_MINUTES)
+    )
+
+    pre_pts = {m.user_id: (m.total_points - session_pts.get(m.user_id, 0)) for m in members}
+    members_by_pre = sorted(members, key=lambda m: pre_pts[m.user_id], reverse=True)
+    pre_ranks = tournament_service._dense_rank(members_by_pre, lambda m: pre_pts[m.user_id])
+
     members_sorted = sorted(
         members,
         key=lambda m: m.total_points + m.provisional_points,
         reverse=True,
     )
+    current_ranks = tournament_service._dense_rank(
+        members_sorted, lambda m: m.total_points + m.provisional_points
+    )
 
     entries = []
-    last_total = None
-    last_rank = 0
-    for idx, m in enumerate(members_sorted, start=1):
+    for m in members_sorted:
         live_total = m.total_points + m.provisional_points
-        if last_total is None or live_total != last_total:
-            rank = idx
-            last_rank = rank
-        else:
-            rank = last_rank
-        last_total = live_total
+        rank = current_ranks[m]
+        rank_delta = pre_ranks[m] - rank
         entries.append(LiveLeaderboardEntry(
             rank=rank,
             user=m.user,
             total_points=m.total_points,
             provisional_points=m.provisional_points,
             live_total=live_total,
+            rank_delta=rank_delta,
         ))
 
     return LiveLeaderboardResponse(
         tournament_id=tournament.id,
         has_live_matches=has_live,
+        show_rank_change=show_rank_change,
         entries=entries,
     )
 

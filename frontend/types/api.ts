@@ -109,11 +109,13 @@ export interface LeaderboardEntry {
   total_points: number
   provisional_points: number
   live_total: number
+  rank_delta: number
 }
 
 export interface LeaderboardResponse {
   tournament_id: string
   has_live_matches: boolean
+  show_rank_change: boolean
   entries: LeaderboardEntry[]
 }
 
@@ -123,11 +125,13 @@ export interface LiveLeaderboardEntry {
   total_points: number
   provisional_points: number
   live_total: number
+  rank_delta: number
 }
 
 export interface LiveLeaderboardResponse {
   tournament_id: string
   has_live_matches: boolean
+  show_rank_change: boolean
   entries: LiveLeaderboardEntry[]
 }
 

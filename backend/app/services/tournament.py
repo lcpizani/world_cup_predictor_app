@@ -1,8 +1,10 @@
 import secrets
 import string
-from typing import List
+from datetime import datetime, timezone, timedelta
+from typing import List, Optional, Tuple
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
@@ -16,6 +18,9 @@ from app.schemas.match import MatchResponse
 from app.schemas.tournament import TournamentCreate, TournamentComparePrediction, TournamentCompareMatch
 from app.schemas.leaderboard import LeaderboardResponse, LeaderboardEntry
 from app.models.match import Match as MatchModel
+
+RANK_DELTA_WINDOW_MINUTES = 30
+SESSION_LOOKBACK_HOURS = 2
 
 
 def _apply_spoiler(is_finished: bool, is_own: bool, predicted_home: int, predicted_away: int, is_live: bool = False):
@@ -280,6 +285,50 @@ def transfer_ownership(db: Session, invite_code: str, new_owner_user_id: UUID, u
     return tournament
 
 
+def _compute_session_points(
+    db: Session, tournament_id: UUID
+) -> Tuple[dict, Optional[datetime]]:
+    """Return (session_pts_by_user_id, last_event_time) for the most recent scoring session.
+
+    A session is all PointEvents within SESSION_LOOKBACK_HOURS of the most recent event.
+    Returns empty dict and None if no PointEvents exist for this tournament.
+    """
+    last_event_time = db.query(func.max(PointEvent.created_at)).filter(
+        PointEvent.tournament_id == tournament_id
+    ).scalar()
+
+    if last_event_time is None:
+        return {}, None
+
+    session_start = last_event_time - timedelta(hours=SESSION_LOOKBACK_HOURS)
+
+    rows = (
+        db.query(PointEvent.user_id, func.sum(PointEvent.points))
+        .filter(
+            PointEvent.tournament_id == tournament_id,
+            PointEvent.created_at >= session_start,
+        )
+        .group_by(PointEvent.user_id)
+        .all()
+    )
+
+    return {user_id: total for user_id, total in rows}, last_event_time
+
+
+def _dense_rank(members_sorted_by_score: list, score_fn) -> dict:
+    """Return {member: rank} using dense ranking (ties share the same rank)."""
+    ranks = {}
+    last_score = None
+    last_rank = 0
+    for idx, m in enumerate(members_sorted_by_score, start=1):
+        score = score_fn(m)
+        if last_score is None or score != last_score:
+            last_rank = idx
+        ranks[m] = last_rank
+        last_score = score
+    return ranks
+
+
 def get_leaderboard_by_code(db: Session, invite_code: str, user: User) -> LeaderboardResponse:
     tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
     if tournament is None:
@@ -307,33 +356,54 @@ def get_leaderboard(db: Session, tournament_id: UUID, user: User) -> Leaderboard
         .all()
     )
 
-    # sort by live_total desc
+    # Rank delta: compute session points from recent PointEvents
+    session_pts, last_event_time = _compute_session_points(db, tournament_id)
+    now = datetime.now(timezone.utc)
+    if last_event_time is not None and last_event_time.tzinfo is None:
+        last_event_time = last_event_time.replace(tzinfo=timezone.utc)
+    show_rank_change = has_live or (
+        last_event_time is not None
+        and (now - last_event_time) < timedelta(minutes=RANK_DELTA_WINDOW_MINUTES)
+    )
+
+    # Pre-session points per member (what they had before the current session)
+    pre_pts: dict = {
+        m.user_id: (m.total_points - session_pts.get(m.user_id, 0))
+        for m in members
+    }
+
+    # Pre-rank: dense rank by pre_pts descending
+    members_by_pre = sorted(members, key=lambda m: pre_pts[m.user_id], reverse=True)
+    pre_ranks = _dense_rank(members_by_pre, lambda m: pre_pts[m.user_id])
+
+    # Current rank: sort by live_total desc
     members_sorted = sorted(
         members,
         key=lambda m: m.total_points + m.provisional_points,
         reverse=True,
     )
+    current_ranks = _dense_rank(members_sorted, lambda m: m.total_points + m.provisional_points)
 
     entries = []
-    last_total = None
-    last_rank = 0
-    for idx, m in enumerate(members_sorted, start=1):
+    for m in members_sorted:
         live_total = m.total_points + m.provisional_points
-        if last_total is None or live_total != last_total:
-            rank = idx
-            last_rank = rank
-        else:
-            rank = last_rank
-        last_total = live_total
+        rank = current_ranks[m]
+        rank_delta = pre_ranks[m] - rank
         entries.append(LeaderboardEntry(
             rank=rank,
             user=m.user,
             total_points=m.total_points,
             provisional_points=m.provisional_points,
             live_total=live_total,
+            rank_delta=rank_delta,
         ))
 
-    return LeaderboardResponse(tournament_id=tournament.id, has_live_matches=has_live, entries=entries)
+    return LeaderboardResponse(
+        tournament_id=tournament.id,
+        has_live_matches=has_live,
+        show_rank_change=show_rank_change,
+        entries=entries,
+    )
 
 
 def get_compare(db: Session, invite_code: str, current_user: User) -> List[TournamentCompareMatch]:

@@ -19,6 +19,7 @@ class LeaderboardEntry(BaseModel):
     total_points: int
     provisional_points: int
     live_total: int
+    rank_delta: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -26,6 +27,7 @@ class LeaderboardEntry(BaseModel):
 class LeaderboardResponse(BaseModel):
     tournament_id: UUID
     has_live_matches: bool
+    show_rank_change: bool = False
     entries: List[LeaderboardEntry]
 
     model_config = {"from_attributes": True}
@@ -37,6 +39,7 @@ class LiveLeaderboardEntry(BaseModel):
     total_points: int
     provisional_points: int
     live_total: int
+    rank_delta: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -44,6 +47,7 @@ class LiveLeaderboardEntry(BaseModel):
 class LiveLeaderboardResponse(BaseModel):
     tournament_id: UUID
     has_live_matches: bool
+    show_rank_change: bool = False
     entries: List[LiveLeaderboardEntry]
 
     model_config = {"from_attributes": True}
