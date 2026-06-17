@@ -106,8 +106,9 @@ export function BracketMatch({
   kickoffAt,
   venue,
 }: BracketMatchProps) {
+  const locale = useLocale()
   const bothAbsent = !home && !away
-  const formatted = kickoffAt ? formatKickoff(kickoffAt) : null
+  const formatted = kickoffAt ? formatKickoff(kickoffAt, locale) : null
 
   return (
     <div style={{
@@ -130,14 +131,15 @@ export function BracketMatch({
             display: 'flex',
             flexDirection: 'column',
             gap: 0,
+            background: 'linear-gradient(135deg, #c8900a 0%, #f0b429 55%, #f5c842 100%)',
           }}>
-            <span style={{ fontSize: 9, fontWeight: 600, color: '#6a8fa8', whiteSpace: 'nowrap', lineHeight: '13px' }}>
+            <span style={{ fontSize: 9, fontWeight: 600, color: '#3a2200', whiteSpace: 'nowrap', lineHeight: '13px' }}>
               {formatted.date} · {formatted.time}
             </span>
             {venue && (
               <span style={{
                 fontSize: 8.5,
-                color: '#4a6a82',
+                color: '#5a3800',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -147,7 +149,6 @@ export function BracketMatch({
               </span>
             )}
           </div>
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', flexShrink: 0 }} />
         </>
       )}
       <TeamRow

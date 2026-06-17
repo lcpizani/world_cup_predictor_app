@@ -588,10 +588,10 @@ export const KNOCKOUT_SCHEDULE: Record<string, KnockoutSlotInfo> = {
   "F_1":     { kickoffAt: "2026-07-19T19:00:00Z", venue: "MetLife Stadium" },
 }
 
-export function formatKickoff(kickoffAt: string): { date: string; time: string } {
+export function formatKickoff(kickoffAt: string, locale?: string): { date: string; time: string } {
   const d = new Date(kickoffAt)
-  const date = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(d)
-  const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(d)
+  const date = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(d)
+  const time = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(d)
   return { date, time }
 }
 
@@ -671,7 +671,7 @@ export function computeGroupStandings(
     }
 
     const teamList = Array.from(stats.values())
-    const ranked = rankTeams(teamList, gMatches, predMap)
+    const ranked = rankTeams(teamList, gMatches, predMap, useRealScores)
 
     groups.push({ group, letter: groupLetter(group), standings: ranked })
   }
@@ -686,7 +686,8 @@ export function computeGroupStandings(
 function rankTeams(
   teams: TeamStats[],
   groupMatches: Match[],
-  predMap: Map<string, Prediction>
+  predMap: Map<string, Prediction>,
+  useRealScores = false
 ): TeamStats[] {
   // Primary sort by overall stats
   const sorted = [...teams].sort((a, b) => {
@@ -712,7 +713,7 @@ function rankTeams(
     if (j - i === 1) {
       result.push(sorted[i])
     } else {
-      result.push(...resolveH2HTied(sorted.slice(i, j), groupMatches, predMap))
+      result.push(...resolveH2HTied(sorted.slice(i, j), groupMatches, predMap, useRealScores))
     }
     i = j
   }
@@ -722,7 +723,8 @@ function rankTeams(
 function resolveH2HTied(
   tied: TeamStats[],
   groupMatches: Match[],
-  predMap: Map<string, Prediction>
+  predMap: Map<string, Prediction>,
+  useRealScores = false
 ): TeamStats[] {
   const names = tied.map(t => t.team)
   const pts: Record<string, number> = Object.fromEntries(names.map(n => [n, 0]))
@@ -732,8 +734,9 @@ function resolveH2HTied(
   for (const m of groupMatches) {
     if (!names.includes(m.home_team) || !names.includes(m.away_team)) continue
     const pred = predMap.get(m.id)
-    const hg = pred?.predicted_home ?? 0
-    const ag = pred?.predicted_away ?? 0
+    const useReal = useRealScores && (m.status === 'finished' || m.status === 'live') && m.home_score != null && m.away_score != null
+    const hg = useReal ? m.home_score! : (pred?.predicted_home ?? 0)
+    const ag = useReal ? m.away_score! : (pred?.predicted_away ?? 0)
     gf[m.home_team] += hg; gf[m.away_team] += ag
     gd[m.home_team] += hg - ag; gd[m.away_team] += ag - hg
     if (hg > ag)      pts[m.home_team] += 3

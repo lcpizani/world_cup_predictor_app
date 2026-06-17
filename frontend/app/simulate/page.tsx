@@ -360,7 +360,7 @@ export default function SimulatePage() {
         </button>
       </div>
 
-      <BracketTree r32={r32Matchups} username={user?.display_name ?? user?.username ?? 'My'} schedule={KNOCKOUT_SCHEDULE} />
+      <BracketTree key={mode} r32={r32Matchups} username={user?.display_name ?? user?.username ?? 'My'} schedule={KNOCKOUT_SCHEDULE} />
     </main>
   )
 }
