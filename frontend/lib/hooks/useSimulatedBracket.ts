@@ -10,6 +10,8 @@ import {
   type SimulatedGroup,
 } from '@/lib/simulation'
 
+export type SimulateMode = 'real' | 'predictions'
+
 export interface SimulatedBracketResult {
   r32Matchups: R32Matchup[]
   groups: SimulatedGroup[]
@@ -21,10 +23,11 @@ export interface SimulatedBracketResult {
   isError: boolean
 }
 
-export function useSimulatedBracket(): SimulatedBracketResult {
+export function useSimulatedBracket(mode: SimulateMode = 'real'): SimulatedBracketResult {
   const { data: matches = [], isLoading: loadingMatches, isError: errMatches } = useQuery({
     queryKey: ['matches', { stage: 'group_stage' }],
     queryFn: () => api.listMatches({ stage: 'group_stage' }),
+    refetchInterval: mode === 'real' ? 30_000 : false,
   })
 
   const { data: predictions = [], isLoading: loadingPreds, isError: errPreds } = useQuery({
@@ -36,9 +39,9 @@ export function useSimulatedBracket(): SimulatedBracketResult {
   const isError = errMatches || errPreds
 
   const groups = useMemo(
-    () => computeGroupStandings(matches, predictions),
+    () => computeGroupStandings(matches, predictions, mode === 'real'),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [matches, predictions]
+    [matches, predictions, mode]
   )
 
   const { matchups: r32Matchups, slotAssignmentValid } = useMemo(
