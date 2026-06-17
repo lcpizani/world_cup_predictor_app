@@ -16,7 +16,7 @@ from app.models.tournament import Tournament, TournamentScoringRules, Tournament
 from app.models.user import User
 from app.schemas.match import MatchResponse
 from app.schemas.tournament import TournamentCreate, TournamentComparePrediction, TournamentCompareMatch
-from app.schemas.leaderboard import LeaderboardResponse, LeaderboardEntry
+from app.schemas.leaderboard import LeaderboardResponse, LeaderboardEntry, LiveLeaderboardResponse, LiveLeaderboardEntry
 from app.models.match import Match as MatchModel
 
 RANK_DELTA_WINDOW_MINUTES = 30
@@ -399,6 +399,67 @@ def get_leaderboard(db: Session, tournament_id: UUID, user: User) -> Leaderboard
         ))
 
     return LeaderboardResponse(
+        tournament_id=tournament.id,
+        has_live_matches=has_live,
+        show_rank_change=show_rank_change,
+        entries=entries,
+    )
+
+
+def get_live_leaderboard(db: Session, invite_code: str, user: User) -> LiveLeaderboardResponse:
+    tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    membership = db.query(TournamentMember).filter(
+        TournamentMember.tournament_id == tournament.id, TournamentMember.user_id == user.id
+    ).first()
+    if membership is None:
+        raise HTTPException(status_code=403, detail="Not a member of tournament")
+
+    has_live = db.query(MatchModel).filter(MatchModel.status == "live").first() is not None
+
+    members = (
+        db.query(TournamentMember)
+        .filter(TournamentMember.tournament_id == tournament.id)
+        .options(joinedload(TournamentMember.user))
+        .all()
+    )
+
+    session_pts, last_event_time = _compute_session_points(db, tournament.id)
+    now = datetime.now(timezone.utc)
+    if last_event_time is not None and last_event_time.tzinfo is None:
+        last_event_time = last_event_time.replace(tzinfo=timezone.utc)
+    show_rank_change = has_live or (
+        last_event_time is not None
+        and (now - last_event_time) < timedelta(minutes=RANK_DELTA_WINDOW_MINUTES)
+    )
+
+    pre_pts = {m.user_id: (m.total_points - session_pts.get(m.user_id, 0)) for m in members}
+    members_by_pre = sorted(members, key=lambda m: pre_pts[m.user_id], reverse=True)
+    pre_ranks = _dense_rank(members_by_pre, lambda m: pre_pts[m.user_id])
+
+    members_sorted = sorted(
+        members,
+        key=lambda m: m.total_points + m.provisional_points,
+        reverse=True,
+    )
+    current_ranks = _dense_rank(members_sorted, lambda m: m.total_points + m.provisional_points)
+
+    entries = []
+    for m in members_sorted:
+        live_total = m.total_points + m.provisional_points
+        rank = current_ranks[m]
+        rank_delta = pre_ranks[m] - rank
+        entries.append(LiveLeaderboardEntry(
+            rank=rank,
+            user=m.user,
+            total_points=m.total_points,
+            provisional_points=m.provisional_points,
+            live_total=live_total,
+            rank_delta=rank_delta,
+        ))
+
+    return LiveLeaderboardResponse(
         tournament_id=tournament.id,
         has_live_matches=has_live,
         show_rank_change=show_rank_change,
