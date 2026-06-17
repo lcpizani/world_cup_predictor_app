@@ -8,7 +8,8 @@ import { useLocale } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useOnboardingGuard } from '@/lib/hooks'
-import { useSimulatedBracket } from '@/lib/hooks/useSimulatedBracket'
+import { useSimulatedBracket, type SimulateMode } from '@/lib/hooks/useSimulatedBracket'
+import { KNOCKOUT_SCHEDULE } from '@/lib/simulation'
 import { BracketTree } from '@/components/bracket/BracketTree'
 import { getTeamFlagCode, getFlagUrl, translateTeamName, translateGroupName } from '@/lib/flags'
 import { rankThirdPlaceTeams } from '@/lib/simulation'
@@ -35,12 +36,29 @@ function TeamFlag({ name }: { name: string }) {
   )
 }
 
-function GroupStandingsPreview({ groups, qualifiedThirdLetters, predictedCount, totalGroupMatches, isError, onContinue, onBack }: {
+function ModeBadge({ mode }: { mode: SimulateMode }) {
+  return (
+    <div
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest"
+      style={{
+        background: mode === 'real' ? 'rgba(74,200,120,0.08)' : 'rgba(240,180,41,0.08)',
+        border: `1px solid ${mode === 'real' ? 'rgba(74,200,120,0.25)' : 'rgba(240,180,41,0.2)'}`,
+        color: mode === 'real' ? '#4ac878' : '#f0b429',
+      }}
+    >
+      <span>{mode === 'real' ? '⚡' : '🔮'}</span>
+      {mode === 'real' ? 'Real Results' : 'My Predictions'}
+    </div>
+  )
+}
+
+function GroupStandingsPreview({ groups, qualifiedThirdLetters, predictedCount, totalGroupMatches, isError, mode, onContinue, onBack }: {
   groups: SimulatedGroup[]
   qualifiedThirdLetters: Set<string>
   predictedCount: number
   totalGroupMatches: number
   isError: boolean
+  mode: SimulateMode
   onContinue: () => void
   onBack: () => void
 }) {
@@ -54,11 +72,14 @@ function GroupStandingsPreview({ groups, qualifiedThirdLetters, predictedCount, 
         <button onClick={onBack} className="text-[#4a5c70] hover:text-white text-sm transition-colors mb-4 block">
           {t('standings_preview_back')}
         </button>
-        <div
-          className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-3 text-[11px] font-bold uppercase tracking-widest"
-          style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)', color: '#f0b429' }}
-        >
-          {t('standings_preview_badge')}
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest"
+            style={{ background: 'rgba(240,180,41,0.08)', border: '1px solid rgba(240,180,41,0.2)', color: '#f0b429' }}
+          >
+            {t('standings_preview_badge')}
+          </div>
+          <ModeBadge mode={mode} />
         </div>
         <h1 className="font-[family-name:var(--font-oswald)] font-bold text-2xl sm:text-3xl uppercase tracking-widest text-white leading-none mb-1">
           {t('standings_preview_title')}
@@ -165,8 +186,9 @@ export default function SimulatePage() {
   useOnboardingGuard(user, userLoading)
   const t = useTranslations('simulate')
   const [step, setStep] = useState<Step>('entry')
+  const [mode, setMode] = useState<SimulateMode>('real')
 
-  const { r32Matchups, groups, hasPredictions, slotAssignmentValid, predictedCount, totalGroupMatches, isLoading, isError } = useSimulatedBracket()
+  const { r32Matchups, groups, hasPredictions, slotAssignmentValid, predictedCount, totalGroupMatches, isLoading, isError } = useSimulatedBracket(mode)
 
   // ── Loading state ──────────────────────────────────────────────────────────
   if (isLoading) {
@@ -190,6 +212,7 @@ export default function SimulatePage() {
         predictedCount={predictedCount}
         totalGroupMatches={totalGroupMatches}
         isError={isError}
+        mode={mode}
         onContinue={() => setStep('bracket')}
         onBack={() => setStep('entry')}
       />
@@ -216,6 +239,26 @@ export default function SimulatePage() {
           <p className="text-[#6b7f96] text-sm leading-relaxed max-w-sm mx-auto">
             {t('subtitle')}
           </p>
+        </div>
+
+        {/* Mode toggle */}
+        <div
+          className="w-full flex rounded-xl overflow-hidden mb-6"
+          style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}
+        >
+          {(['real', 'predictions'] as SimulateMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className="flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer"
+              style={{
+                background: mode === m ? '#f0b429' : 'transparent',
+                color: mode === m ? '#080c14' : '#4a5c70',
+              }}
+            >
+              {m === 'real' ? `⚡ ${t('mode_real')}` : `🔮 ${t('mode_predictions')}`}
+            </button>
+          ))}
         </div>
 
         {/* Info card */}
@@ -296,7 +339,10 @@ export default function SimulatePage() {
           <h1 className="font-[family-name:var(--font-oswald)] font-bold text-2xl uppercase tracking-widest text-white">
             {t('title')}
           </h1>
-          <p className="text-[#4a5c70] text-xs mt-0.5">{t('bracket_subtitle')}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-[#4a5c70] text-xs">{t('bracket_subtitle')}</p>
+            <ModeBadge mode={mode} />
+          </div>
           {!slotAssignmentValid && (
             <p className="text-[#7a6030] text-xs mt-2">
               ⚠ Third-place seeding is approximate — complete all 12 groups for correct FIFA bracket placement.
@@ -314,7 +360,7 @@ export default function SimulatePage() {
         </button>
       </div>
 
-      <BracketTree r32={r32Matchups} username={user?.display_name ?? user?.username ?? 'My'} />
+      <BracketTree r32={r32Matchups} username={user?.display_name ?? user?.username ?? 'My'} schedule={KNOCKOUT_SCHEDULE} />
     </main>
   )
 }

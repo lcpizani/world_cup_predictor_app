@@ -2,9 +2,10 @@
 
 import Image from 'next/image'
 import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
+import { formatKickoff } from '@/lib/simulation'
 import { useLocale } from 'next-intl'
 
-export const BRACKET_CARD_H = 80  // px — must match BracketTree's CARD_H
+export const BRACKET_CARD_H = 100  // px — must match BracketTree's CARD_H
 
 interface BracketMatchProps {
   matchKey: string
@@ -13,6 +14,8 @@ interface BracketMatchProps {
   pick: string | null
   onPick: (matchKey: string, team: string) => void
   isFinal?: boolean
+  kickoffAt?: string
+  venue?: string
 }
 
 function TeamRow({
@@ -100,8 +103,11 @@ export function BracketMatch({
   pick,
   onPick,
   isFinal = false,
+  kickoffAt,
+  venue,
 }: BracketMatchProps) {
   const bothAbsent = !home && !away
+  const formatted = kickoffAt ? formatKickoff(kickoffAt) : null
 
   return (
     <div style={{
@@ -115,6 +121,35 @@ export function BracketMatch({
       overflow: 'hidden',
       opacity: bothAbsent ? 0.35 : 1,
     }}>
+      {/* Date / venue header */}
+      {formatted && (
+        <>
+          <div style={{
+            flexShrink: 0,
+            padding: '3px 8px 2px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0,
+          }}>
+            <span style={{ fontSize: 9, fontWeight: 600, color: '#6a8fa8', whiteSpace: 'nowrap', lineHeight: '13px' }}>
+              {formatted.date} · {formatted.time}
+            </span>
+            {venue && (
+              <span style={{
+                fontSize: 8.5,
+                color: '#4a6a82',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                lineHeight: '12px',
+              }}>
+                {venue}
+              </span>
+            )}
+          </div>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', flexShrink: 0 }} />
+        </>
+      )}
       <TeamRow
         team={home}
         isPicked={pick === home && !!home}

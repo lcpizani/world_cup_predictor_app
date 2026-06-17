@@ -584,6 +584,8 @@
     "go_to_picks": "Go to My Picks →",
     "start_cta": "Start Simulation →",
     "load_error": "Failed to load matches or predictions.",
+    "mode_real": "Real Results",
+    "mode_predictions": "My Predictions",
     "standings_preview_badge": "Step 1 of 2",
     "standings_preview_title": "Predicted Group Standings",
     "standings_preview_subtitle": "Based on your picks — review before entering the bracket.",

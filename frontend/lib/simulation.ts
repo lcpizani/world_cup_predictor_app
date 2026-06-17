@@ -542,6 +542,59 @@ const COMBINATIONS: ReadonlyMap<string, readonly [string,string,string,string,st
   ["A,B,C,D,E,F,G,H",["C","F","H","E","B","A","G","D"]],
 ])
 
+// ── Knockout match schedule (FIFA WC 2026, all times UTC) ────────────────────
+
+export interface KnockoutSlotInfo {
+  kickoffAt: string  // UTC ISO 8601
+  venue: string
+}
+
+export const KNOCKOUT_SCHEDULE: Record<string, KnockoutSlotInfo> = {
+  // Round of 32
+  "R32_M73": { kickoffAt: "2026-06-28T19:00:00Z", venue: "SoFi Stadium" },
+  "R32_M74": { kickoffAt: "2026-06-29T20:30:00Z", venue: "Gillette Stadium" },
+  "R32_M75": { kickoffAt: "2026-06-30T01:00:00Z", venue: "Estadio BBVA" },
+  "R32_M76": { kickoffAt: "2026-06-29T17:00:00Z", venue: "NRG Stadium" },
+  "R32_M77": { kickoffAt: "2026-06-30T21:00:00Z", venue: "MetLife Stadium" },
+  "R32_M78": { kickoffAt: "2026-06-30T17:00:00Z", venue: "AT&T Stadium" },
+  "R32_M79": { kickoffAt: "2026-07-01T01:00:00Z", venue: "Estadio Azteca" },
+  "R32_M80": { kickoffAt: "2026-07-01T16:00:00Z", venue: "Mercedes-Benz Stadium" },
+  "R32_M81": { kickoffAt: "2026-07-02T00:00:00Z", venue: "Levi's Stadium" },
+  "R32_M82": { kickoffAt: "2026-07-01T20:00:00Z", venue: "Lumen Field" },
+  "R32_M83": { kickoffAt: "2026-07-02T23:00:00Z", venue: "BMO Field" },
+  "R32_M84": { kickoffAt: "2026-07-02T19:00:00Z", venue: "SoFi Stadium" },
+  "R32_M85": { kickoffAt: "2026-07-03T03:00:00Z", venue: "BC Place" },
+  "R32_M86": { kickoffAt: "2026-07-03T22:00:00Z", venue: "Hard Rock Stadium" },
+  "R32_M87": { kickoffAt: "2026-07-04T01:30:00Z", venue: "Arrowhead Stadium" },
+  "R32_M88": { kickoffAt: "2026-07-03T18:00:00Z", venue: "AT&T Stadium" },
+  // Round of 16
+  "R16_1":   { kickoffAt: "2026-07-04T21:00:00Z", venue: "Lincoln Financial Field" },
+  "R16_2":   { kickoffAt: "2026-07-04T17:00:00Z", venue: "NRG Stadium" },
+  "R16_3":   { kickoffAt: "2026-07-06T19:00:00Z", venue: "AT&T Stadium" },
+  "R16_4":   { kickoffAt: "2026-07-07T00:00:00Z", venue: "Lumen Field" },
+  "R16_5":   { kickoffAt: "2026-07-05T20:00:00Z", venue: "MetLife Stadium" },
+  "R16_6":   { kickoffAt: "2026-07-06T00:00:00Z", venue: "Estadio Azteca" },
+  "R16_7":   { kickoffAt: "2026-07-07T16:00:00Z", venue: "Mercedes-Benz Stadium" },
+  "R16_8":   { kickoffAt: "2026-07-07T20:00:00Z", venue: "BC Place" },
+  // Quarter-finals
+  "QF_1":    { kickoffAt: "2026-07-09T20:00:00Z", venue: "Gillette Stadium" },
+  "QF_2":    { kickoffAt: "2026-07-10T19:00:00Z", venue: "SoFi Stadium" },
+  "QF_3":    { kickoffAt: "2026-07-11T21:00:00Z", venue: "Hard Rock Stadium" },
+  "QF_4":    { kickoffAt: "2026-07-12T01:00:00Z", venue: "Arrowhead Stadium" },
+  // Semi-finals
+  "SF_1":    { kickoffAt: "2026-07-14T19:00:00Z", venue: "AT&T Stadium" },
+  "SF_2":    { kickoffAt: "2026-07-15T19:00:00Z", venue: "Mercedes-Benz Stadium" },
+  // Final
+  "F_1":     { kickoffAt: "2026-07-19T19:00:00Z", venue: "MetLife Stadium" },
+}
+
+export function formatKickoff(kickoffAt: string): { date: string; time: string } {
+  const d = new Date(kickoffAt)
+  const date = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(d)
+  const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(d)
+  return { date, time }
+}
+
 // ── Group letter helpers ───────────────────────────────────────────────────────
 
 // Matches stored as "Group A"; standings endpoint converts to "GROUP_A".
@@ -556,7 +609,8 @@ function groupLetter(g: string): string {
 
 export function computeGroupStandings(
   matches: Match[],
-  predictions: Prediction[]
+  predictions: Prediction[],
+  useRealScores = false
 ): SimulatedGroup[] {
   const predMap = new Map<string, Prediction>()
   for (const p of predictions) predMap.set(p.match_id, p)
@@ -591,11 +645,12 @@ export function computeGroupStandings(
       })
     }
 
-    // Apply predicted (or 0-0 default) results
+    // Apply real or predicted (or 0-0 default) results
     for (const m of gMatches) {
       const pred = predMap.get(m.id)
-      const hg = pred?.predicted_home ?? 0
-      const ag = pred?.predicted_away ?? 0
+      const useReal = useRealScores && (m.status === 'finished' || m.status === 'live') && m.home_score != null && m.away_score != null
+      const hg = useReal ? m.home_score! : (pred?.predicted_home ?? 0)
+      const ag = useReal ? m.away_score! : (pred?.predicted_away ?? 0)
 
       const hs = stats.get(m.home_team)!
       const as_ = stats.get(m.away_team)!
@@ -737,8 +792,8 @@ const R32_STRUCTURE: Record<string, [string, string]> = {
   "78": ["2E", "2I"],
   "83": ["2K", "2L"],
   "84": ["1H", "2J"],
-  "86": ["2G", "2H"],
-  "88": ["1J", "2D"],
+  "86": ["1J", "2H"],
+  "88": ["2D", "2G"],
 }
 
 // Ordered R32 matchups for bracket display (left half then right half)

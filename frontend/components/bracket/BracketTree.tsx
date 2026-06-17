@@ -8,6 +8,7 @@ import {
   getSeededTeams,
   getDownstreamKeys,
   type R32Matchup,
+  type KnockoutSlotInfo,
 } from '@/lib/simulation'
 import { exportBracketCanvas } from '@/lib/exportBracket'
 import { getTeamFlagCode, getFlagUrl, translateTeamName } from '@/lib/flags'
@@ -312,11 +313,12 @@ function ChampionBanner({
 // ── BracketTree ───────────────────────────────────────────────────────────────
 
 interface BracketTreeProps {
-  r32:      R32Matchup[]
-  username: string
+  r32:       R32Matchup[]
+  username:  string
+  schedule?: Record<string, KnockoutSlotInfo>
 }
 
-export function BracketTree({ r32, username }: BracketTreeProps) {
+export function BracketTree({ r32, username, schedule }: BracketTreeProps) {
   const t      = useTranslations('simulate')
   const locale = useLocale()
   const [picks, setPicks] = useState<Record<string, string>>({})
@@ -374,6 +376,7 @@ export function BracketTree({ r32, username }: BracketTreeProps) {
 
   const renderMatch = (matchKey: string) => {
     const [home, away] = getSeededTeams(matchKey, r32, picks)
+    const slot = schedule?.[matchKey]
     return (
       <BracketMatch
         key={matchKey}
@@ -383,6 +386,8 @@ export function BracketTree({ r32, username }: BracketTreeProps) {
         pick={picks[matchKey] ?? null}
         onPick={handlePick}
         isFinal={matchKey === 'F_1'}
+        kickoffAt={slot?.kickoffAt}
+        venue={slot?.venue}
       />
     )
   }

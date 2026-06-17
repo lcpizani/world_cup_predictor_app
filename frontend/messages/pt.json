@@ -584,6 +584,8 @@
     "go_to_picks": "Ir para Meus Palpites →",
     "start_cta": "Iniciar Simulação →",
     "load_error": "Falha ao carregar partidas ou palpites.",
+    "mode_real": "Resultados Reais",
+    "mode_predictions": "Minhas Previsões",
     "standings_preview_badge": "Etapa 1 de 2",
     "standings_preview_title": "Classificação Prevista dos Grupos",
     "standings_preview_subtitle": "Com base nos seus palpites — revise antes de entrar no chaveamento.",
