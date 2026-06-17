@@ -246,7 +246,7 @@ def _attach_live_badges(groups: dict[str, list[GroupStandingRow]], db: Session) 
     live_matches = (
         db.query(Match)
         .filter(
-            Match.status == "live",
+            Match.status.in_(("live", "halftime")),
             Match.stage == "group_stage",
             Match.home_score.isnot(None),
             Match.away_score.isnot(None),

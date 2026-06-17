@@ -164,13 +164,16 @@ export default function LeaderboardPage() {
                   {showRankChange && <RankDelta delta={entry.rank_delta} />}
                 </div>
 
-                {/* Username */}
+                {/* Username + exact scores */}
                 <div className="flex-1 min-w-0">
                   <p
                     className="font-[family-name:var(--font-oswald)] font-semibold uppercase tracking-wide truncate"
                     style={{ color: isFirst ? '#f0b429' : 'white' }}
                   >
                     {entry.user.username}
+                  </p>
+                  <p className="font-[family-name:var(--font-oswald)] text-[10px] font-bold uppercase tracking-widest mt-0.5" style={{ color: '#3f5068' }}>
+                    🎯 {entry.exact_scores}
                   </p>
                 </div>
 

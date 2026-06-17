@@ -110,6 +110,7 @@ export interface LeaderboardEntry {
   provisional_points: number
   live_total: number
   rank_delta: number
+  exact_scores: number
 }
 
 export interface LeaderboardResponse {
@@ -126,6 +127,7 @@ export interface LiveLeaderboardEntry {
   provisional_points: number
   live_total: number
   rank_delta: number
+  exact_scores: number
 }
 
 export interface LiveLeaderboardResponse {

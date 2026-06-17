@@ -66,7 +66,7 @@ def start_scheduler() -> None:
 def _compute_next_results_interval(db: Session) -> int:
     """Return seconds until the next results sync based on current match state."""
     now = datetime.now(timezone.utc)
-    has_live = db.query(Match).filter(Match.status == "live").first() is not None
+    has_live = db.query(Match).filter(Match.status.in_(("live", "halftime"))).first() is not None
     if has_live:
         return 60
     imminent = (

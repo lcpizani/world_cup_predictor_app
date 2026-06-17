@@ -104,7 +104,7 @@ def recalculate_standings_from_matches(db: Session, group: Optional[str] = None)
 
     # Step 2: Overlay real stats from finished/live matches.
     results_query = db.query(Match).filter(
-        Match.status.in_(["finished", "live"]),
+        Match.status.in_(["finished", "live", "halftime"]),
         Match.stage == "group_stage",
         Match.home_score.isnot(None),
         Match.away_score.isnot(None),
