@@ -6,6 +6,7 @@ import type {
   Match,
   Prediction,
   PredictionHistoryItem,
+  RankingHistoryResponse,
   Tournament,
   TournamentCompareMatch,
   TournamentMember,
@@ -97,6 +98,8 @@ export const api = {
     request<LeaderboardResponse>(`/tournaments/${code}/leaderboard`),
   getLiveLeaderboard: (code: string) =>
     request<LiveLeaderboardResponse>(`/tournaments/${code}/leaderboard/live`),
+  getRankingHistory: (code: string) =>
+    request<RankingHistoryResponse>(`/tournaments/${code}/ranking-history`),
   listCompare: (code: string) =>
     request<TournamentCompareMatch[]>(`/tournaments/${code}/compare`),
 

@@ -378,7 +378,17 @@
     "rank_1st": "1st",
     "rank_2nd": "2nd",
     "rank_3rd": "3rd",
-    "rank_nth": "{n}th"
+    "rank_nth": "{n}th",
+    "tab_table": "Table",
+    "tab_graph": "Graph",
+    "graph_no_days": "No match days yet",
+    "graph_no_days_desc": "Rankings will appear after the first match is scored.",
+    "graph_max_users": "Max 10 users selected",
+    "graph_your_rank": "Your rank",
+    "graph_pts_behind": "{pts} pts behind {name}",
+    "graph_leading": "You're leading",
+    "graph_axis_points": "POINTS",
+    "graph_axis_match_day": "MATCH DAY"
   },
   "compare": {
     "back_matches": "← Matches",

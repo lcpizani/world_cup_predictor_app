@@ -19,7 +19,7 @@ from app.schemas.tournament import (
     TournamentUpdate,
     TransferOwnershipRequest,
 )
-from app.schemas.leaderboard import LeaderboardResponse, LiveLeaderboardResponse
+from app.schemas.leaderboard import LeaderboardResponse, LiveLeaderboardResponse, RankingHistoryResponse
 
 router = APIRouter()
 
@@ -72,6 +72,11 @@ def leaderboard(invite_code: str, db: Session = Depends(get_db), current_user=De
 @router.get("/{invite_code}/leaderboard/live", response_model=LiveLeaderboardResponse)
 def live_leaderboard(invite_code: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return tournament_service.get_live_leaderboard(db, invite_code, current_user)
+
+
+@router.get("/{invite_code}/ranking-history", response_model=RankingHistoryResponse)
+def ranking_history(invite_code: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    return tournament_service.get_ranking_history(db, invite_code, current_user)
 
 
 @router.get("/{invite_code}/compare", response_model=List[TournamentCompareMatch])
