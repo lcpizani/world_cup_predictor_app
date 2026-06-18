@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useRef, useCallback } from 'react'
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import type { RankingHistorySeries } from '@/types/api'
 import { RANKING_PALETTE } from '@/lib/ranking-colors'
@@ -34,8 +34,24 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
   const t = useTranslations('leaderboard')
   const [hoverIdx, setHoverIdx] = useState<number | null>(null)
   const [hoverPct, setHoverPct] = useState(0)
+  const [clipW, setClipW] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const n = matchDays.length
+
+  useEffect(() => {
+    setClipW(0)
+    const start = performance.now()
+    const total = CW + MR
+    let raf: number
+    function tick(now: number) {
+      const t = Math.min(1, (now - start) / 1400)
+      const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+      setClipW(ease * total)
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [matchDays, series])
 
   const sel = useMemo(
     () => series.filter(s => selectedUserIds.has(s.user.id)),
@@ -148,20 +164,9 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
               )
             })}
 
-          {/* Animated clip — reveals lines left-to-right */}
+          {/* Animated clip — reveals lines left-to-right via React RAF */}
           <clipPath id="rc">
-            <rect x={ML} y={0} width="0" height={VH}>
-              <animate
-                attributeName="width"
-                from="0"
-                to={String(CW + MR)}
-                dur="1.5s"
-                fill="freeze"
-                calcMode="spline"
-                keySplines="0.4 0 0.2 1"
-                keyTimes="0;1"
-              />
-            </rect>
+            <rect x={ML} y={0} width={clipW} height={VH} />
           </clipPath>
         </defs>
 
