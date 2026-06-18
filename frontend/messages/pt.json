@@ -388,7 +388,10 @@
     "graph_pts_behind": "{pts} pts atrás de {name}",
     "graph_leading": "Você está na frente",
     "graph_axis_points": "PONTOS",
-    "graph_axis_match_day": "DIA DE JOGOS"
+    "graph_axis_rank": "POSIÇÃO",
+    "graph_axis_match_day": "DIA DE JOGOS",
+    "graph_view_points": "Pontos",
+    "graph_view_rank": "Posição"
   },
   "compare": {
     "back_matches": "← Jogos",
