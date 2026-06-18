@@ -533,16 +533,17 @@ def get_ranking_history(db: Session, invite_code: str, user: User) -> RankingHis
         .all()
     )
 
-    # Per-day point deltas: {user_id: {date: points}}
+    # Per-day point deltas grouped by match kickoff date (not scoring date)
     rows = (
         db.query(
             PointEvent.user_id,
-            func.date(PointEvent.created_at).label("match_day"),
+            func.date(Match.kickoff_at).label("match_day"),
             func.sum(PointEvent.points).label("day_points"),
         )
+        .join(Match, PointEvent.match_id == Match.id)
         .filter(PointEvent.tournament_id == tournament.id)
-        .group_by(PointEvent.user_id, func.date(PointEvent.created_at))
-        .order_by(func.date(PointEvent.created_at))
+        .group_by(PointEvent.user_id, func.date(Match.kickoff_at))
+        .order_by(func.date(Match.kickoff_at))
         .all()
     )
 
