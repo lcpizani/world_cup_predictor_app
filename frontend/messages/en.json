@@ -388,7 +388,10 @@
     "graph_pts_behind": "{pts} pts behind {name}",
     "graph_leading": "You're leading",
     "graph_axis_points": "POINTS",
-    "graph_axis_match_day": "MATCH DAY"
+    "graph_axis_rank": "RANK",
+    "graph_axis_match_day": "MATCH DAY",
+    "graph_view_points": "Points",
+    "graph_view_rank": "Rank"
   },
   "compare": {
     "back_matches": "← Matches",

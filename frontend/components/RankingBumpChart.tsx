@@ -35,6 +35,7 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
   const [hoverIdx, setHoverIdx] = useState<number | null>(null)
   const [hoverPct, setHoverPct] = useState(0)
   const [clipW, setClipW] = useState(0)
+  const [viewMode, setViewMode] = useState<'points' | 'rank'>('points')
   const containerRef = useRef<HTMLDivElement>(null)
   const n = matchDays.length
 
@@ -67,18 +68,49 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
     () => (sel.length === 0 ? 10 : Math.max(...sel.flatMap(s => s.points), 1)),
     [sel]
   )
-  const yMax = useMemo(() => Math.max(Math.ceil(maxPts * 1.2 / 10) * 10, 10), [maxPts])
-  const gridVals = useMemo(() => [1, 2, 3, 4, 5].map(i => (yMax / 5) * i), [yMax])
+  const maxRank = useMemo(
+    () => (sel.length === 0 ? 1 : Math.max(...sel.flatMap(s => s.ranks), 1)),
+    [sel]
+  )
+
+  const yMax = useMemo(() => {
+    if (viewMode === 'rank') return Math.max(maxRank, 2)
+    return Math.max(Math.ceil(maxPts * 1.2 / 10) * 10, 10)
+  }, [viewMode, maxPts, maxRank])
+
+  const gridVals = useMemo(() => {
+    if (viewMode === 'rank') {
+      const step = Math.max(1, Math.ceil(yMax / 5))
+      const vals: number[] = []
+      for (let v = 1; v <= yMax; v += step) vals.push(v)
+      if (vals[vals.length - 1] !== yMax) vals.push(yMax)
+      return vals
+    }
+    return [1, 2, 3, 4, 5].map(i => (yMax / 5) * i)
+  }, [viewMode, yMax])
 
   const xPx = useCallback((i: number) => (n <= 1 ? ML + CW / 2 : ML + (i / (n - 1)) * CW), [n])
-  const yPx = useCallback((pts: number) => MT + CH - Math.min(1, Math.max(0, pts / yMax)) * CH, [yMax])
+  const yPx = useCallback((val: number) => {
+    if (viewMode === 'rank') {
+      // rank 1 at top; rank yMax at bottom
+      if (yMax <= 1) return MT
+      return MT + ((val - 1) / (yMax - 1)) * CH
+    }
+    return MT + CH - Math.min(1, Math.max(0, val / yMax)) * CH
+  }, [viewMode, yMax])
 
-  const buildLine = useCallback((pts: number[]) =>
-    pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${xPx(i).toFixed(1)},${yPx(p).toFixed(1)}`).join(''),
+  // Returns the Y-value array for a series based on current view mode
+  const getVals = useCallback(
+    (s: RankingHistorySeries) => viewMode === 'points' ? s.points : s.ranks,
+    [viewMode]
+  )
+
+  const buildLine = useCallback((vals: number[]) =>
+    vals.map((v, i) => `${i === 0 ? 'M' : 'L'}${xPx(i).toFixed(1)},${yPx(v).toFixed(1)}`).join(''),
     [xPx, yPx]
   )
-  const buildArea = useCallback((pts: number[]) =>
-    `${buildLine(pts)}L${xPx(n - 1).toFixed(1)},${(MT + CH).toFixed(1)}L${xPx(0).toFixed(1)},${(MT + CH).toFixed(1)}Z`,
+  const buildArea = useCallback((vals: number[]) =>
+    `${buildLine(vals)}L${xPx(n - 1).toFixed(1)},${(MT + CH).toFixed(1)}L${xPx(0).toFixed(1)},${(MT + CH).toFixed(1)}Z`,
     [buildLine, xPx, n]
   )
 
@@ -92,8 +124,8 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
 
   const labelY = useMemo(() => {
     if (!n) return new Map<string, number>()
-    return avoidCollisions(drawn.map(s => ({ id: s.user.id, y: yPx(s.points[n - 1] ?? 0) })))
-  }, [drawn, yPx, n])
+    return avoidCollisions(drawn.map(s => ({ id: s.user.id, y: yPx(getVals(s)[n - 1] ?? (viewMode === 'rank' ? 1 : 0)) })))
+  }, [drawn, yPx, n, getVals, viewMode])
 
   const xStep = Math.max(1, Math.ceil(n / 8))
 
@@ -127,9 +159,10 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
           user: s.user,
           color: colorOf.get(s.user.id) ?? RANKING_PALETTE[0],
           pts: s.points[hoverIdx] ?? 0,
+          rank: s.ranks[hoverIdx] ?? 0,
           isCurrent: s.user.id === currentUserId,
         }))
-        .sort((a, b) => b.pts - a.pts)
+        .sort((a, b) => viewMode === 'rank' ? a.rank - b.rank : b.pts - a.pts)
     : []
 
   const tipOnRight = hoverPct < 0.6
@@ -144,6 +177,43 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
         border: '1px solid rgba(255,255,255,0.07)',
       }}
     >
+      {/* View mode toggle */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 14px 0' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: '2px',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            borderRadius: '8px',
+            padding: '2px',
+          }}
+        >
+          {(['points', 'rank'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              style={{
+                padding: '4px 12px',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                background: viewMode === mode ? 'rgba(240,180,41,0.12)' : 'transparent',
+                color: viewMode === mode ? '#f0b429' : 'rgba(90,106,130,0.7)',
+                outline: viewMode === mode ? '1px solid rgba(240,180,41,0.25)' : '1px solid transparent',
+              }}
+            >
+              {mode === 'points' ? t('graph_view_points') : t('graph_view_rank')}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <svg
         viewBox={`0 0 ${VW} ${VH}`}
         style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '16px' }}
@@ -198,7 +268,7 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
           fontFamily="inherit"
           transform={`rotate(-90, 14, ${MT + CH / 2})`}
         >
-          {t('graph_axis_points')}
+          {viewMode === 'points' ? t('graph_axis_points') : t('graph_axis_rank')}
         </text>
 
         {/* Baseline */}
@@ -230,11 +300,11 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
 
         {/* --- Animated chart content --- */}
         <g clipPath="url(#rc)">
-          {/* Area fills */}
-          {drawn
+          {/* Area fills — points mode only */}
+          {viewMode === 'points' && drawn
             .filter(s => s.user.id === currentUserId)
             .map(s => (
-              <path key={s.user.id} d={buildArea(s.points)} fill={`url(#ag-${s.user.id})`} />
+              <path key={s.user.id} d={buildArea(getVals(s))} fill={`url(#ag-${s.user.id})`} />
             ))}
 
           {/* Lines */}
@@ -244,7 +314,7 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
             return (
               <path
                 key={s.user.id}
-                d={buildLine(s.points)}
+                d={buildLine(getVals(s))}
                 fill="none"
                 stroke={c}
                 strokeWidth={ic ? 2.5 : 1.5}
@@ -260,10 +330,10 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
           {drawn.map(s => {
             const ic = s.user.id === currentUserId
             const c = colorOf.get(s.user.id) ?? RANKING_PALETTE[0]
-            return s.points.map((pts, i) => (
+            return getVals(s).map((v, i) => (
               <circle
                 key={`${s.user.id}-${i}`}
-                cx={xPx(i)} cy={yPx(pts)}
+                cx={xPx(i)} cy={yPx(v)}
                 r={ic ? 3.5 : 2}
                 fill={c}
                 fillOpacity={ic ? 1 : 0.4}
@@ -278,9 +348,9 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
         {drawn.map(s => {
           const ic = s.user.id === currentUserId
           const c = colorOf.get(s.user.id) ?? RANKING_PALETTE[0]
-          const lastPts = s.points[n - 1] ?? 0
+          const lastVal = getVals(s)[n - 1] ?? (viewMode === 'rank' ? 1 : 0)
           const lastRank = s.ranks[n - 1] ?? 0
-          const lineY = yPx(lastPts)
+          const lineY = yPx(lastVal)
           const ly = labelY.get(s.user.id) ?? lineY
           const ex = xPx(n - 1)
 
@@ -356,7 +426,7 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
               return (
                 <circle
                   key={s.user.id}
-                  cx={xPx(hoverIdx)} cy={yPx(s.points[hoverIdx] ?? 0)}
+                  cx={xPx(hoverIdx)} cy={yPx(getVals(s)[hoverIdx] ?? (viewMode === 'rank' ? 1 : 0))}
                   r={ic ? 6 : 4}
                   fill={c}
                   fillOpacity={ic ? 1 : 0.55}
@@ -404,7 +474,7 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
             >
               {fmtDay(matchDays[hoverIdx], locale)}
             </p>
-            {tip.map(({ user, color, pts, isCurrent }) => (
+            {tip.map(({ user, color, pts, rank, isCurrent }) => (
               <div
                 key={user.id}
                 style={{
@@ -444,7 +514,7 @@ export default function RankingBumpChart({ matchDays, series, currentUserId, sel
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
-                  {pts}
+                  {viewMode === 'rank' ? `#${rank}` : `${pts} pts`}
                 </span>
               </div>
             ))}
