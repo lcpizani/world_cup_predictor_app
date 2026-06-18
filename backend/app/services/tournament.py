@@ -16,7 +16,11 @@ from app.models.tournament import Tournament, TournamentScoringRules, Tournament
 from app.models.user import User
 from app.schemas.match import MatchResponse
 from app.schemas.tournament import TournamentCreate, TournamentComparePrediction, TournamentCompareMatch
-from app.schemas.leaderboard import LeaderboardResponse, LeaderboardEntry, LiveLeaderboardResponse, LiveLeaderboardEntry
+from app.schemas.leaderboard import (
+    LeaderboardResponse, LeaderboardEntry,
+    LiveLeaderboardResponse, LiveLeaderboardEntry,
+    RankingHistoryResponse, RankingHistorySeries, RankingHistoryUser,
+)
 from app.models.match import Match as MatchModel
 
 RANK_DELTA_WINDOW_MINUTES = 30
@@ -507,6 +511,98 @@ def get_live_leaderboard(db: Session, invite_code: str, user: User) -> LiveLeade
         has_live_matches=has_live,
         show_rank_change=show_rank_change,
         entries=entries,
+    )
+
+
+def get_ranking_history(db: Session, invite_code: str, user: User) -> RankingHistoryResponse:
+    tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    membership = db.query(TournamentMember).filter(
+        TournamentMember.tournament_id == tournament.id,
+        TournamentMember.user_id == user.id,
+    ).first()
+    if membership is None:
+        raise HTTPException(status_code=403, detail="Not a member of tournament")
+
+    members = (
+        db.query(TournamentMember)
+        .filter(TournamentMember.tournament_id == tournament.id)
+        .options(joinedload(TournamentMember.user))
+        .order_by(TournamentMember.joined_at)
+        .all()
+    )
+
+    # Per-day point deltas: {user_id: {date: points}}
+    rows = (
+        db.query(
+            PointEvent.user_id,
+            func.date(PointEvent.created_at).label("match_day"),
+            func.sum(PointEvent.points).label("day_points"),
+        )
+        .filter(PointEvent.tournament_id == tournament.id)
+        .group_by(PointEvent.user_id, func.date(PointEvent.created_at))
+        .order_by(func.date(PointEvent.created_at))
+        .all()
+    )
+
+    if not rows:
+        return RankingHistoryResponse(match_days=[], series=[])
+
+    all_days = sorted({row.match_day for row in rows})
+
+    user_day_deltas: dict = {m.user_id: {} for m in members}
+    for row in rows:
+        if row.user_id in user_day_deltas:
+            user_day_deltas[row.user_id][row.match_day] = int(row.day_points)
+
+    # Cumulative points per user per day (carry-forward for days with no events)
+    cumulative: dict = {}
+    for uid, day_map in user_day_deltas.items():
+        running = 0
+        cumulative[uid] = {}
+        for day in all_days:
+            running += day_map.get(day, 0)
+            cumulative[uid][day] = running
+
+    # Dense rank all users on each match day; also collect cumulative points
+    series_ranks: dict = {m.user_id: [] for m in members}
+    series_points: dict = {m.user_id: [] for m in members}
+    for day in all_days:
+        day_scores = sorted(
+            [(uid, cumulative[uid][day]) for uid in cumulative],
+            key=lambda x: x[1],
+            reverse=True,
+        )
+        last_score: int | None = None
+        last_rank = 0
+        ranks: dict = {}
+        for idx, (uid, score) in enumerate(day_scores, start=1):
+            if score != last_score:
+                last_rank = idx
+            ranks[uid] = last_rank
+            last_score = score
+        for uid in series_ranks:
+            series_ranks[uid].append(ranks[uid])
+            series_points[uid].append(cumulative[uid][day])
+
+    series = [
+        RankingHistorySeries(
+            user=RankingHistoryUser(
+                id=m.user.id,
+                username=m.user.username,
+                display_name=m.user.display_name,
+            ),
+            ranks=series_ranks[m.user_id],
+            points=series_points[m.user_id],
+            is_current_user=(m.user_id == user.id),
+        )
+        for m in members
+    ]
+
+    return RankingHistoryResponse(
+        match_days=[str(d) for d in all_days],
+        series=series,
     )
 
 

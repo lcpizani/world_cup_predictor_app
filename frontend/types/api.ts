@@ -172,3 +172,21 @@ export interface BracketSlot {
   away_label: string
   match: Match | null
 }
+
+export interface RankingHistoryUser {
+  id: string
+  username: string
+  display_name: string | null
+}
+
+export interface RankingHistorySeries {
+  user: RankingHistoryUser
+  ranks: number[]
+  points: number[]
+  is_current_user: boolean
+}
+
+export interface RankingHistoryResponse {
+  match_days: string[]
+  series: RankingHistorySeries[]
+}

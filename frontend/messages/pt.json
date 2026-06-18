@@ -378,7 +378,17 @@
     "rank_1st": "1°",
     "rank_2nd": "2°",
     "rank_3rd": "3°",
-    "rank_nth": "{n}°"
+    "rank_nth": "{n}°",
+    "tab_table": "Tabela",
+    "tab_graph": "Gráfico",
+    "graph_no_days": "Nenhum dia de jogos ainda",
+    "graph_no_days_desc": "Os rankings aparecerão após o primeiro jogo ser pontuado.",
+    "graph_max_users": "Máximo 10 usuários selecionados",
+    "graph_your_rank": "Sua posição",
+    "graph_pts_behind": "{pts} pts atrás de {name}",
+    "graph_leading": "Você está na frente",
+    "graph_axis_points": "PONTOS",
+    "graph_axis_match_day": "DIA DE JOGOS"
   },
   "compare": {
     "back_matches": "← Jogos",

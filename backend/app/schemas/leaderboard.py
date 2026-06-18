@@ -2,6 +2,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
+import datetime
 
 
 class LeaderboardUserResponse(BaseModel):
@@ -53,3 +54,23 @@ class LiveLeaderboardResponse(BaseModel):
     entries: List[LiveLeaderboardEntry]
 
     model_config = {"from_attributes": True}
+
+
+class RankingHistoryUser(BaseModel):
+    id: UUID
+    username: str
+    display_name: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class RankingHistorySeries(BaseModel):
+    user: RankingHistoryUser
+    ranks: List[int]
+    points: List[int]
+    is_current_user: bool = False
+
+
+class RankingHistoryResponse(BaseModel):
+    match_days: List[str]
+    series: List[RankingHistorySeries]
