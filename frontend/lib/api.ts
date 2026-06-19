@@ -112,7 +112,7 @@ export const api = {
     stage: string
   }) => request<Match>('/matches', { method: 'POST', body: JSON.stringify(data) }),
 
-  getCrowdWisdom: (matchId: string) => request<CrowdWisdom>(`/matches/${matchId}/crowd-wisdom`),
+  getCrowdWisdom: (matchId: string, tournamentId: string) => request<CrowdWisdom>(`/matches/${matchId}/crowd-wisdom?tournament_id=${tournamentId}`),
 
   listMatches: (filters?: { stage?: string; match_status?: string }) => {
     const params = new URLSearchParams(
