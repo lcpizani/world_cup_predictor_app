@@ -5,6 +5,21 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+class CrowdWisdomTopScore(BaseModel):
+    home: int
+    away: int
+    pct: float
+
+
+class CrowdWisdom(BaseModel):
+    total_predictors: int
+    home_pct: float
+    draw_pct: float
+    away_pct: float
+    top_score: Optional[CrowdWisdomTopScore]
+    your_score_pct: Optional[float]
+
+
 class MatchCreate(BaseModel):
     home_team: str
     away_team: str
