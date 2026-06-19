@@ -173,41 +173,53 @@ const BAR_GAP = 2
 
 function CrowdWisdomSkeleton() {
   return (
-    <div className="animate-pulse rounded-2xl mb-3 px-4 py-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-      <div className="flex justify-between mb-3">
+    <div className="animate-pulse rounded-2xl mb-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      {/* header */}
+      <div className="flex justify-between items-center px-4 pt-3 pb-3">
         <div className="h-2 w-16 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />
         <div className="h-4 w-20 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
       </div>
-      <div className="flex overflow-hidden mb-3" style={{ height: 12, borderRadius: 6, gap: BAR_GAP }}>
+      {/* tie label zone */}
+      <div className="mx-4 flex justify-center mb-2">
+        <div className="flex flex-col items-center gap-1">
+          <div className="h-2 w-6 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
+          <div className="h-1.5 w-4 rounded-full" style={{ background: 'rgba(255,255,255,0.03)' }} />
+          <div className="w-px h-4" style={{ background: 'rgba(255,255,255,0.04)' }} />
+        </div>
+      </div>
+      {/* bar */}
+      <div className="mx-4 flex overflow-hidden mb-2" style={{ height: 10, borderRadius: 5, gap: BAR_GAP }}>
         <div style={{ width: '55%', background: 'rgba(255,255,255,0.07)', flexShrink: 0 }} />
         <div style={{ width: '20%', background: 'rgba(255,255,255,0.04)', flexShrink: 0 }} />
         <div style={{ width: '25%', background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />
       </div>
-      <div className="flex" style={{ gap: BAR_GAP }}>
-        <div style={{ width: '55%', flexShrink: 0 }}>
-          <div className="h-2.5 w-8 rounded-full mb-1" style={{ background: 'rgba(255,255,255,0.07)' }} />
-          <div className="h-1.5 w-12 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
-        </div>
-        <div style={{ width: '20%', flexShrink: 0 }} className="flex flex-col items-center">
-          <div className="h-2.5 w-6 rounded-full mb-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
-          <div className="h-1.5 w-5 rounded-full" style={{ background: 'rgba(255,255,255,0.03)' }} />
-        </div>
-        <div style={{ width: '25%', flexShrink: 0 }} className="flex flex-col items-end">
-          <div className="h-2.5 w-8 rounded-full mb-1" style={{ background: 'rgba(255,255,255,0.07)' }} />
+      {/* home/away labels */}
+      <div className="mx-4 flex justify-between pb-3">
+        <div>
+          <div className="h-2.5 w-7 rounded-full mb-1" style={{ background: 'rgba(255,255,255,0.07)' }} />
           <div className="h-1.5 w-10 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
         </div>
+        <div className="flex flex-col items-end">
+          <div className="h-2.5 w-7 rounded-full mb-1" style={{ background: 'rgba(255,255,255,0.07)' }} />
+          <div className="h-1.5 w-12 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
+        </div>
+      </div>
+      {/* footer */}
+      <div className="px-4 py-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+        <div className="h-2 w-40 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
       </div>
     </div>
   )
 }
 
-function CrowdWisdomBar({ data, homeTeam, awayTeam, homeTeamRaw, awayTeamRaw, yourScore }: {
+function CrowdWisdomBar({ data, homeTeam, awayTeam, homeTeamRaw, awayTeamRaw, yourScore, noPickCount }: {
   data: CrowdWisdom
   homeTeam: string
   awayTeam: string
   homeTeamRaw: string
   awayTeamRaw: string
   yourScore?: { home: number; away: number }
+  noPickCount?: number
 }) {
   const homeColor = getTeamColor(homeTeamRaw)
   const awayColor = getTeamColor(awayTeamRaw)
@@ -217,7 +229,7 @@ function CrowdWisdomBar({ data, homeTeam, awayTeam, homeTeamRaw, awayTeamRaw, yo
   const d = data.draw_pct
   const a = data.away_pct
 
-  if (data.total_predictors === 0) {
+  if (data.total_predictors === 0 && !noPickCount) {
     return (
       <div className="rounded-2xl px-4 py-3 mb-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
         <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#1e2d40' }}>No predictions yet</p>
@@ -225,14 +237,13 @@ function CrowdWisdomBar({ data, homeTeam, awayTeam, homeTeamRaw, awayTeamRaw, yo
     )
   }
 
-  // Threshold below which we hide the team name (only show %) to avoid cramped labels
-  const NAME_THRESHOLD = 14
+  const hasFooter = data.your_score_pct !== null || (noPickCount != null && noPickCount > 0)
 
   return (
     <div className="rounded-2xl mb-3" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-3">
+      {/* ── TOP: header row ── */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2">
         <div className="flex items-center gap-2">
           <span className="font-[family-name:var(--font-oswald)] text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: '#3f5068' }}>
             Crowd
@@ -251,98 +262,108 @@ function CrowdWisdomBar({ data, homeTeam, awayTeam, homeTeamRaw, awayTeamRaw, yo
         )}
       </div>
 
-      {/* Segmented flag-color bar */}
-      <div className="mx-4 flex overflow-hidden" style={{ height: 12, borderRadius: 6, gap: BAR_GAP }}>
-        {h > 0 && (
-          <div style={{ width: `${h}%`, background: homeColor, opacity: 0.9, flexShrink: 0, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} />
-        )}
-        {d > 0 && (
-          <div style={{ width: `${d}%`, background: drawColor, flexShrink: 0, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} />
-        )}
-        {a > 0 && (
-          <div style={{ width: `${a}%`, background: awayColor, opacity: 0.9, flexShrink: 0, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} />
-        )}
-      </div>
+      {/* ── MIDDLE: tie above · bar · home+away below ── */}
+      <div className="mx-4 pb-3">
 
-      {/* Segment-aligned labels — widths mirror the bar exactly */}
-      <div className="mx-4 mt-2 pb-3 flex" style={{ gap: BAR_GAP }}>
-        {h > 0 && (
-          <div style={{ width: `${h}%`, flexShrink: 0, overflow: 'visible' }}>
+        {/* Tie label floats above its segment via absolute positioning */}
+        <div className="relative" style={{ height: d > 0 ? 36 : 6 }}>
+          {d > 0 && (
             <div
-              className="font-[family-name:var(--font-oswald)] font-bold tabular-nums leading-none"
-              style={{ fontSize: 13, color: homeColor }}
+              className="absolute bottom-0 flex flex-col items-center"
+              style={{ left: `${h + d / 2}%`, transform: 'translateX(-50%)' }}
             >
-              {h}%
-            </div>
-            {h >= NAME_THRESHOLD && (
               <div
-                className="text-[9px] font-semibold uppercase tracking-wide truncate mt-0.5"
-                style={{ color: homeColor, opacity: 0.6 }}
+                className="font-[family-name:var(--font-oswald)] font-bold tabular-nums leading-none whitespace-nowrap"
+                style={{ fontSize: 12, color: '#8496af' }}
               >
-                {homeTeam}
+                {d}%
               </div>
-            )}
-          </div>
-        )}
-        {d > 0 && (
-          <div style={{ width: `${d}%`, flexShrink: 0, overflow: 'visible' }} className="flex flex-col items-center">
-            <div
-              className="font-[family-name:var(--font-oswald)] font-bold tabular-nums leading-none"
-              style={{ fontSize: 13, color: '#8496af' }}
-            >
-              {d}%
-            </div>
-            {d >= NAME_THRESHOLD && (
               <div
-                className="text-[9px] font-semibold uppercase tracking-wide mt-0.5"
+                className="text-[8px] font-bold uppercase tracking-widest whitespace-nowrap mt-0.5"
                 style={{ color: '#3f5068' }}
               >
                 Tie
               </div>
-            )}
-          </div>
-        )}
-        {a > 0 && (
-          <div style={{ width: `${a}%`, flexShrink: 0, overflow: 'visible' }} className="flex flex-col items-end">
-            <div
-              className="font-[family-name:var(--font-oswald)] font-bold tabular-nums leading-none"
-              style={{ fontSize: 13, color: awayColor }}
-            >
-              {a}%
+              {/* connector line to bar */}
+              <div style={{ width: 1, height: 8, background: 'rgba(63,80,104,0.4)', marginTop: 3 }} />
             </div>
-            {a >= NAME_THRESHOLD && (
+          )}
+        </div>
+
+        {/* Segmented bar */}
+        <div className="flex overflow-hidden" style={{ height: 10, borderRadius: 5, gap: BAR_GAP }}>
+          {h > 0 && <div style={{ width: `${h}%`, background: homeColor, opacity: 0.9, flexShrink: 0, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} />}
+          {d > 0 && <div style={{ width: `${d}%`, background: drawColor, flexShrink: 0, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} />}
+          {a > 0 && <div style={{ width: `${a}%`, background: awayColor, opacity: 0.9, flexShrink: 0, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} />}
+        </div>
+
+        {/* Home + Away labels below bar — draw segment is an empty spacer */}
+        <div className="flex mt-2" style={{ gap: BAR_GAP }}>
+          {h > 0 && (
+            <div style={{ width: `${h}%`, flexShrink: 0, overflow: 'visible' }}>
               <div
-                className="text-[9px] font-semibold uppercase tracking-wide truncate mt-0.5"
-                style={{ color: awayColor, opacity: 0.6 }}
+                className="font-[family-name:var(--font-oswald)] font-bold tabular-nums leading-none whitespace-nowrap"
+                style={{ fontSize: 13, color: homeColor }}
               >
+                {h}%
+              </div>
+              <div className="text-[9px] font-semibold uppercase tracking-wide mt-0.5 whitespace-nowrap" style={{ color: homeColor, opacity: 0.6 }}>
+                {homeTeam}
+              </div>
+            </div>
+          )}
+          {/* draw spacer — keeps home/away in the right positions */}
+          {d > 0 && <div style={{ width: `${d}%`, flexShrink: 0 }} />}
+          {a > 0 && (
+            <div style={{ width: `${a}%`, flexShrink: 0, overflow: 'visible' }} className="flex flex-col items-end">
+              <div
+                className="font-[family-name:var(--font-oswald)] font-bold tabular-nums leading-none whitespace-nowrap"
+                style={{ fontSize: 13, color: awayColor }}
+              >
+                {a}%
+              </div>
+              <div className="text-[9px] font-semibold uppercase tracking-wide mt-0.5 whitespace-nowrap" style={{ color: awayColor, opacity: 0.6 }}>
                 {awayTeam}
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Personal alignment */}
-      {data.your_score_pct !== null && (
-        <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-          <span style={{ color: '#f0b429', fontSize: 7, lineHeight: 1 }}>◆</span>
-          <p className="text-[10px]" style={{ color: '#3f5068' }}>
-            You're in the{' '}
-            <span className="font-bold" style={{ color: '#f0b429' }}>{data.your_score_pct}%</span>
-            {' '}who picked  {' '}
-            {yourScore != null && (
-              <span className="font-[family-name:var(--font-oswald)] font-bold" style={{ color: 'white', fontSize: 11 }}>
-                {yourScore.home}–{yourScore.away}
-              </span>
-            )}
-          </p>
+      {/* ── BOTTOM: personal stats ── */}
+      {hasFooter && (
+        <div className="px-4 py-2.5 flex flex-col gap-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+          {data.your_score_pct !== null && (
+            <div className="flex items-center gap-2">
+              <span style={{ color: '#f0b429', fontSize: 7, lineHeight: 1, flexShrink: 0 }}>◆</span>
+              <p className="text-[10px]" style={{ color: '#3f5068' }}>
+                You're in the{' '}
+                <span className="font-bold" style={{ color: '#f0b429' }}>{data.your_score_pct}%</span>
+                {' '}who picked{' '}
+                {yourScore != null && (
+                  <span className="font-[family-name:var(--font-oswald)] font-bold" style={{ color: 'white', fontSize: 11 }}>
+                    {yourScore.home}–{yourScore.away}
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
+          {noPickCount != null && noPickCount > 0 && (
+            <div className="flex items-center gap-2">
+              <span style={{ color: '#1e2d40', fontSize: 7, lineHeight: 1, flexShrink: 0 }}>◆</span>
+              <p className="text-[10px]" style={{ color: '#2d3e52' }}>
+                <span className="font-[family-name:var(--font-oswald)] font-bold" style={{ color: '#3f5068', fontSize: 11 }}>{noPickCount}</span>
+                {' '}{noPickCount === 1 ? 'player' : 'players'} had no pick
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
   )
 }
 
-function CompareMatchCard({ entry, myUserId, timezone, scoring }: { entry: TournamentCompareMatch; myUserId: string; timezone?: string | null; scoring?: ScoringRules }) {
+function CompareMatchCard({ entry, myUserId, timezone, scoring, tournamentId }: { entry: TournamentCompareMatch; myUserId: string; timezone?: string | null; scoring?: ScoringRules; tournamentId?: string }) {
   const locale = useLocale()
   const { match, predictions } = entry
   const homeTeam = translateTeamName(match.home_team, locale)
@@ -351,11 +372,15 @@ function CompareMatchCard({ entry, myUserId, timezone, scoring }: { entry: Tourn
   const myPred = predictions.find(p => p.user_id === myUserId)
   const isRevealed = match.status !== 'scheduled' && match.status !== 'suspended'
   const { data: crowdData, isLoading: crowdLoading, isError: crowdError } = useQuery({
-    queryKey: ['crowd-wisdom', match.id],
-    queryFn: () => api.getCrowdWisdom(match.id),
-    enabled: isRevealed,
+    queryKey: ['crowd-wisdom', match.id, tournamentId],
+    queryFn: () => api.getCrowdWisdom(match.id, tournamentId!),
+    enabled: isRevealed && !!tournamentId,
     staleTime: 30_000,
   })
+  // Prefer crowd wisdom source (single authoritative denominator) over counting nulls in the compare list
+  const noPickCount = crowdData?.total_members != null
+    ? crowdData.total_members - crowdData.total_predictors
+    : predictions.filter(p => p.predicted_home === null && p.predicted_away === null).length
 
   return (
     <div
@@ -413,7 +438,7 @@ function CompareMatchCard({ entry, myUserId, timezone, scoring }: { entry: Tourn
           {crowdLoading
             ? <CrowdWisdomSkeleton />
             : crowdData
-              ? <CrowdWisdomBar data={crowdData} homeTeam={homeTeam} awayTeam={awayTeam} homeTeamRaw={match.home_team} awayTeamRaw={match.away_team} yourScore={myPred?.predicted_home != null && myPred?.predicted_away != null ? { home: myPred.predicted_home, away: myPred.predicted_away } : undefined} />
+              ? <CrowdWisdomBar data={crowdData} homeTeam={homeTeam} awayTeam={awayTeam} homeTeamRaw={match.home_team} awayTeamRaw={match.away_team} yourScore={myPred?.predicted_home != null && myPred?.predicted_away != null ? { home: myPred.predicted_home, away: myPred.predicted_away } : undefined} noPickCount={noPickCount} />
               : null
           }
         </div>
@@ -557,7 +582,7 @@ export default function ComparePage() {
       {visibleData.length > 0 && hasAnyPredictions && (
         <div className="space-y-3">
           {visibleData.map((entry) => (
-            <CompareMatchCard key={entry.match.id} entry={entry} myUserId={myUserId} timezone={me?.timezone} scoring={tournament?.scoring_rules} />
+            <CompareMatchCard key={entry.match.id} entry={entry} myUserId={myUserId} timezone={me?.timezone} scoring={tournament?.scoring_rules} tournamentId={tournament?.id} />
           ))}
         </div>
       )}

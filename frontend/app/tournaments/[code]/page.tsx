@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import type { ReactNode } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -277,15 +278,216 @@ function MatchCard({ match, prediction, timezone, scoring, code }: { match: Matc
   )
 }
 
+// ── Accordion helpers ──────────────────────────────────────────────────────────
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+      className={`transition-transform duration-200 shrink-0 ${open ? 'rotate-180' : ''}`}
+      style={{ color: '#3f5068' }}
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+}
+
+function AccordionSection({
+  sectionKey, header, isOpen, onToggle, children,
+}: {
+  sectionKey: string
+  header: ReactNode
+  isOpen: boolean
+  onToggle: (key: string) => void
+  children: ReactNode
+}) {
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.07)' }}>
+      <button
+        onClick={() => onToggle(sectionKey)}
+        className="w-full flex items-center justify-between gap-3 p-3 sm:p-4 text-left transition-colors duration-150"
+        style={{ background: '#0d1520' }}
+        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = '#111e2e')}
+        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = '#0d1520')}
+      >
+        {header}
+        <Chevron open={isOpen} />
+      </button>
+      {isOpen && (
+        <div className="px-3 pb-3 pt-2 space-y-3" style={{ background: '#080c14', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── TournamentGroupStageView ───────────────────────────────────────────────────
+
+function TournamentGroupStageView({
+  matches, predByMatch, openSections, onToggle, timezone, scoring, code,
+}: {
+  matches: Match[]
+  predByMatch: Record<string, Prediction>
+  openSections: Set<string>
+  onToggle: (key: string) => void
+  timezone?: string | null
+  scoring?: ScoringRules
+  code: string
+}) {
+  const tP = useTranslations('predictions')
+  const locale = useLocale()
+
+  const groups = useMemo(() => {
+    const groupSet = new Set<string>()
+    matches
+      .filter(m => m.stage === 'group_stage' && m.group)
+      .forEach(m => groupSet.add(m.group!))
+    return Array.from(groupSet).sort()
+  }, [matches])
+
+  const groupMatches = useMemo(() => {
+    const map: Record<string, Match[]> = {}
+    for (const g of groups) {
+      map[g] = matches
+        .filter(m => m.group === g)
+        .sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime())
+    }
+    return map
+  }, [matches, groups])
+
+  if (groups.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52]">
+          {tP('stage_not_yet_seeded')}
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {groups.map(group => {
+        const gMatches = groupMatches[group] ?? []
+        const isOpen = openSections.has(group)
+
+        const header = (
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <span className="font-[family-name:var(--font-oswald)] font-bold text-sm sm:text-base uppercase tracking-wider text-white truncate">
+              {translateGroupName(group, locale)}
+            </span>
+          </div>
+        )
+
+        return (
+          <AccordionSection
+            key={group}
+            sectionKey={group}
+            header={header}
+            isOpen={isOpen}
+            onToggle={onToggle}
+          >
+            {gMatches.map(m => (
+              <MatchCard key={m.id} match={m} prediction={predByMatch[m.id]} timezone={timezone} scoring={scoring} code={code} />
+            ))}
+          </AccordionSection>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── TournamentKnockoutStageView ────────────────────────────────────────────────
+
+function TournamentKnockoutStageView({
+  matches, predByMatch, openSections, onToggle, timezone, scoring, code,
+}: {
+  matches: Match[]
+  predByMatch: Record<string, Prediction>
+  openSections: Set<string>
+  onToggle: (key: string) => void
+  timezone?: string | null
+  scoring?: ScoringRules
+  code: string
+}) {
+  const tP = useTranslations('predictions')
+  const locale = useLocale()
+
+  const sortedMatches = useMemo(
+    () => [...matches].sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()),
+    [matches]
+  )
+
+  if (sortedMatches.length === 0) {
+    return (
+      <div className="rounded-2xl p-8 text-center" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+        <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-1">
+          {tP('stage_not_yet_seeded')}
+        </p>
+        <p className="text-sm text-[#3f5068]">{tP('stage_seeded_later')}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {sortedMatches.map(m => {
+        const isOpen = openSections.has(m.id)
+        const home = translateTeamName(m.home_team, locale)
+        const away = translateTeamName(m.away_team, locale)
+
+        const header = (
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="flex items-center gap-1 min-w-0 flex-1">
+              <span className="font-[family-name:var(--font-oswald)] font-semibold text-sm sm:text-base text-white uppercase tracking-wide truncate">
+                {home}
+              </span>
+              <span className="text-[#3f5068] text-xs font-bold shrink-0 mx-1">vs</span>
+              <span className="font-[family-name:var(--font-oswald)] font-semibold text-sm sm:text-base text-white uppercase tracking-wide truncate">
+                {away}
+              </span>
+            </div>
+            <StatusBadge status={m.status} kickoff_at={m.kickoff_at} timezone={timezone} minute={m.minute} injuryTime={m.injury_time} />
+          </div>
+        )
+
+        return (
+          <AccordionSection
+            key={m.id}
+            sectionKey={m.id}
+            header={header}
+            isOpen={isOpen}
+            onToggle={onToggle}
+          >
+            <MatchCard match={m} prediction={predByMatch[m.id]} timezone={timezone} scoring={scoring} code={code} />
+          </AccordionSection>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TournamentPage() {
   const t = useTranslations('tournament')
+  const tP = useTranslations('predictions')
   const { code } = useParams<{ code: string }>()
+  const locale = useLocale()
   const [copied, setCopied] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showScoringHelp, setShowScoringHelp] = useState(false)
   const qc = useQueryClient()
+
+  // View mode state
+  const [viewMode, setViewMode] = useState<'chronological' | 'stage-group'>('chronological')
+  const [tab, setTab] = useState<'upcoming' | 'finished'>('upcoming')
+  const [teamSearch, setTeamSearch] = useState('')
+  const [groupFilter, setGroupFilter] = useState('')
+  const [activeStage, setActiveStage] = useState('')
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set())
 
   const { data: tournament } = useQuery({
     queryKey: ['tournament', code],
@@ -342,8 +544,73 @@ export default function TournamentPage() {
 
   const predByMatch = Object.fromEntries(predictions.map((p) => [p.match_id, p]))
 
-  const sorted = [...matches].sort(
-    (a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()
+  const sorted = useMemo(
+    () => [...matches].sort((a, b) => new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime()),
+    [matches]
+  )
+
+  // Available stages in fixed priority order
+  const availableStages = useMemo(() => {
+    const stageSet = new Set(matches.map(m => m.stage))
+    return STAGE_ORDER.filter(s => stageSet.has(s))
+  }, [matches])
+
+  // If the user switched to stage-group view before matches loaded, set a valid stage once they arrive
+  useEffect(() => {
+    if (viewMode === 'stage-group' && activeStage === '' && availableStages.length > 0) {
+      setActiveStage(availableStages[0])
+    }
+  }, [availableStages, viewMode, activeStage])
+
+  // Available groups sorted alphabetically
+  const availableGroups = useMemo(() => {
+    const groupSet = new Set<string>()
+    matches.forEach(m => { if (m.group) groupSet.add(m.group) })
+    return Array.from(groupSet).sort()
+  }, [matches])
+
+  // Filtered matches for chronological mode (team search + group filter)
+  const filteredMatches = useMemo(() => {
+    return sorted.filter(m => {
+      if (teamSearch) {
+        const s = teamSearch.toLowerCase()
+        const homeRaw = m.home_team.toLowerCase()
+        const awayRaw = m.away_team.toLowerCase()
+        const homeTranslated = translateTeamName(m.home_team, locale).toLowerCase()
+        const awayTranslated = translateTeamName(m.away_team, locale).toLowerCase()
+        if (
+          !homeRaw.includes(s) && !awayRaw.includes(s) &&
+          !homeTranslated.includes(s) && !awayTranslated.includes(s)
+        ) return false
+      }
+      if (groupFilter && m.group !== groupFilter) return false
+      return true
+    })
+  }, [sorted, teamSearch, groupFilter, locale])
+
+  const upcoming = filteredMatches.filter(m => m.status === 'scheduled' || m.status === 'live' || m.status === 'halftime')
+  const finished = filteredMatches.filter(m => m.status === 'finished').reverse()
+
+  const upcomingMissing = upcoming.filter(m => !predByMatch[m.id]).length
+  const finishedWithPred = finished.filter(m => !!predByMatch[m.id]).length
+
+  const hasActiveFilters = teamSearch !== '' || groupFilter !== ''
+
+  // Stage label lookup
+  const stageLabels: Record<string, string> = {
+    group_stage: tP('stage_group_stage'),
+    round_of_32: tP('stage_round_of_32'),
+    round_of_16: tP('stage_round_of_16'),
+    quarter_finals: tP('stage_quarter_finals'),
+    semi_finals: tP('stage_semi_finals'),
+    third_place: tP('stage_third_place'),
+    final: tP('stage_final'),
+  }
+
+  // Matches for the active knockout stage
+  const stageMatches = useMemo(
+    () => matches.filter(m => m.stage === activeStage),
+    [matches, activeStage]
   )
 
   const liveMatch = sorted.find((m) => m.status === 'live' || m.status === 'halftime')
@@ -351,6 +618,21 @@ export default function TournamentPage() {
   function scrollToLive() {
     if (!liveMatch) return
     document.getElementById(`match-${liveMatch.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
+  function toggleSection(key: string) {
+    setOpenSections(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function enterStageGroupMode() {
+    setViewMode('stage-group')
+    setActiveStage(availableStages[0] ?? '')
+    setOpenSections(new Set())
   }
 
   return (
@@ -527,7 +809,6 @@ export default function TournamentPage() {
             ))}
           </div>
 
-          {/* Double points rule — visible to all members when active */}
           {tournament.scoring_rules.double_points_from_stage && (
             <div
               className="mt-3 pt-3 flex items-center gap-2.5"
@@ -547,53 +828,231 @@ export default function TournamentPage() {
         </div>
       )}
 
-      {/* Live game banner */}
-      {liveMatch && (
+      {/* View mode toggle */}
+      <div className="flex gap-1 rounded-xl p-1 mb-5 w-fit" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
         <button
-          onClick={scrollToLive}
-          className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl mb-4 transition-all duration-200"
-          style={{ background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.25)', color: '#22c55e' }}
-          onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(34,197,94,0.13)', borderColor: 'rgba(34,197,94,0.4)' })}
-          onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(34,197,94,0.07)', borderColor: 'rgba(34,197,94,0.25)' })}
+          onClick={() => setViewMode('chronological')}
+          className={`px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all duration-200 ${
+            viewMode === 'chronological' ? 'bg-[#f0b429] text-[#080c14]' : 'text-[#5a6a82] hover:text-white'
+          }`}
         >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse shrink-0" />
-            <span className="font-[family-name:var(--font-oswald)] font-bold text-sm uppercase tracking-wide truncate">
-              {t('live_now')} · {liveMatch.home_team} {liveMatch.home_score ?? '?'}–{liveMatch.away_score ?? '?'} {liveMatch.away_team}
-              {liveMatch.status === 'halftime'
-                ? <span className="ml-2 text-xs font-normal opacity-70">{t('ht')}</span>
-                : liveMatch.minute != null && <span className="ml-2 text-xs font-normal opacity-70">{formatMinute(liveMatch.minute, liveMatch.injury_time)}</span>}
-            </span>
-          </div>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-            <path d="M12 5v14M5 12l7 7 7-7" />
-          </svg>
+          {tP('view_chronological')}
         </button>
-      )}
-
-      {/* Matches */}
-      {matchesLoading && (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="animate-pulse h-28 rounded-2xl" style={{ background: '#0d1520' }} />
-          ))}
-        </div>
-      )}
-
-      {!matchesLoading && sorted.length === 0 && (
-        <div className="text-center py-20">
-          <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide mb-2" style={{ color: '#2d3e52' }}>
-            {t('no_matches')}
-          </p>
-          <p className="text-sm" style={{ color: '#3f5068' }}>{t('no_matches_desc')}</p>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        {sorted.map((match) => (
-          <MatchCard key={match.id} match={match} prediction={predByMatch[match.id]} timezone={me?.timezone} scoring={tournament?.scoring_rules} code={code} />
-        ))}
+        <button
+          onClick={enterStageGroupMode}
+          className={`px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all duration-200 ${
+            viewMode === 'stage-group' ? 'bg-[#f0b429] text-[#080c14]' : 'text-[#5a6a82] hover:text-white'
+          }`}
+        >
+          {tP('view_by_stage')}
+        </button>
       </div>
+
+      {/* ── CHRONOLOGICAL MODE ──────────────────────────────────────────────── */}
+      {viewMode === 'chronological' && (
+        <>
+          {/* Live game banner — only in chronological mode */}
+          {liveMatch && (
+            <button
+              onClick={scrollToLive}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl mb-4 transition-all duration-200"
+              style={{ background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.25)', color: '#22c55e' }}
+              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(34,197,94,0.13)', borderColor: 'rgba(34,197,94,0.4)' })}
+              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(34,197,94,0.07)', borderColor: 'rgba(34,197,94,0.25)' })}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse shrink-0" />
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-sm uppercase tracking-wide truncate">
+                  {t('live_now')} · {liveMatch.home_team} {liveMatch.home_score ?? '?'}–{liveMatch.away_score ?? '?'} {liveMatch.away_team}
+                  {liveMatch.status === 'halftime'
+                    ? <span className="ml-2 text-xs font-normal opacity-70">{t('ht')}</span>
+                    : liveMatch.minute != null && <span className="ml-2 text-xs font-normal opacity-70">{formatMinute(liveMatch.minute, liveMatch.injury_time)}</span>}
+                </span>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <path d="M12 5v14M5 12l7 7 7-7" />
+              </svg>
+            </button>
+          )}
+
+          {/* Filter bar */}
+          <div className="flex flex-col sm:flex-row gap-2 mb-5">
+            <div className="relative flex-1">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: '#3f5068' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={teamSearch}
+                onChange={e => setTeamSearch(e.target.value)}
+                placeholder={tP('filter_team_placeholder')}
+                className="w-full pl-9 pr-3 py-2 rounded-xl text-sm text-white transition-all"
+                style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)', outline: 'none' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240,180,41,0.08)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.boxShadow = 'none' }}
+              />
+            </div>
+            <select
+              value={groupFilter}
+              onChange={e => setGroupFilter(e.target.value)}
+              className="px-3 py-2 rounded-xl text-sm font-bold transition-all sm:w-44"
+              style={{
+                background: '#0d1520',
+                border: '1px solid rgba(255,255,255,0.07)',
+                color: groupFilter ? 'white' : '#5a6a82',
+                outline: 'none',
+              }}
+              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(240,180,41,0.5)' }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)' }}
+            >
+              <option value="">{tP('filter_group_all')}</option>
+              {availableGroups.map(g => (
+                <option key={g} value={g}>{translateGroupName(g, locale)}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Upcoming / Finished tabs */}
+          <div className="flex gap-1 rounded-xl p-1 mb-6 w-fit" style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <button
+              onClick={() => setTab('upcoming')}
+              className={`px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all duration-200 flex items-center gap-2 ${
+                tab === 'upcoming' ? 'bg-[#f0b429] text-[#080c14]' : 'text-[#5a6a82] hover:text-white'
+              }`}
+            >
+              {tP('tab_upcoming')}
+              {upcomingMissing > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'upcoming' ? 'bg-[#080c14]/20 text-[#080c14]' : 'bg-red-500 text-white'}`}>
+                  {upcomingMissing}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setTab('finished')}
+              className={`px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition-all duration-200 flex items-center gap-2 ${
+                tab === 'finished' ? 'bg-[#f0b429] text-[#080c14]' : 'text-[#5a6a82] hover:text-white'
+              }`}
+            >
+              {tP('tab_finished')}
+              {finishedWithPred > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${tab === 'finished' ? 'bg-[#080c14]/20 text-[#080c14]' : 'bg-white/10 text-[#5a6a82]'}`}>
+                  {finishedWithPred}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {matchesLoading && (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="animate-pulse h-28 rounded-2xl" style={{ background: '#0d1520' }} />
+              ))}
+            </div>
+          )}
+
+          {!matchesLoading && tab === 'upcoming' && (
+            <div className="space-y-3">
+              {upcoming.length === 0 && (
+                <div className="text-center py-16">
+                  <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-2">
+                    {hasActiveFilters ? tP('filter_no_results') : tP('no_upcoming_title')}
+                  </p>
+                  {!hasActiveFilters && <p className="text-sm text-[#3f5068]">{tP('no_upcoming_desc')}</p>}
+                </div>
+              )}
+              {upcoming.map(m => (
+                <MatchCard key={m.id} match={m} prediction={predByMatch[m.id]} timezone={me?.timezone} scoring={tournament?.scoring_rules} code={code} />
+              ))}
+            </div>
+          )}
+
+          {!matchesLoading && tab === 'finished' && (
+            <div className="space-y-3">
+              {finished.length === 0 && (
+                <div className="text-center py-16">
+                  <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52] mb-2">
+                    {hasActiveFilters ? tP('filter_no_results') : tP('no_finished_title')}
+                  </p>
+                  {!hasActiveFilters && <p className="text-sm text-[#3f5068]">{tP('no_finished_desc')}</p>}
+                </div>
+              )}
+              {finished.map(m => (
+                <MatchCard key={m.id} match={m} prediction={predByMatch[m.id]} timezone={me?.timezone} scoring={tournament?.scoring_rules} code={code} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── BY STAGE/GROUP MODE ─────────────────────────────────────────────── */}
+      {viewMode === 'stage-group' && (
+        <>
+          {matchesLoading && <p className="text-center text-[#3f5068] py-16">…</p>}
+
+          {!matchesLoading && availableStages.length === 0 && (
+            <div className="text-center py-16">
+              <p className="font-[family-name:var(--font-oswald)] text-xl uppercase tracking-wide text-[#2d3e52]">
+                {tP('no_upcoming_title')}
+              </p>
+              <p className="text-sm text-[#3f5068] mt-2">{tP('no_upcoming_desc')}</p>
+            </div>
+          )}
+
+          {!matchesLoading && availableStages.length > 0 && (
+            <>
+              {/* Stage selector pills */}
+              <div className="flex flex-wrap gap-2 mb-6">
+                {availableStages.map(stage => (
+                  <button
+                    key={stage}
+                    onClick={() => { setActiveStage(stage); setOpenSections(new Set()) }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-200 shrink-0 ${
+                      activeStage === stage
+                        ? 'bg-[#f0b429] text-[#080c14]'
+                        : 'text-[#5a6a82] hover:text-white'
+                    }`}
+                    style={activeStage === stage
+                      ? {}
+                      : { background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }
+                    }
+                  >
+                    {stageLabels[stage] ?? stage}
+                  </button>
+                ))}
+              </div>
+
+              {/* Group stage accordion */}
+              {activeStage === 'group_stage' && (
+                <TournamentGroupStageView
+                  matches={matches}
+                  predByMatch={predByMatch}
+                  openSections={openSections}
+                  onToggle={toggleSection}
+                  timezone={me?.timezone}
+                  scoring={tournament?.scoring_rules}
+                  code={code}
+                />
+              )}
+
+              {/* Knockout stage accordion */}
+              {activeStage !== 'group_stage' && activeStage !== '' && (
+                <TournamentKnockoutStageView
+                  matches={stageMatches}
+                  predByMatch={predByMatch}
+                  openSections={openSections}
+                  onToggle={toggleSection}
+                  timezone={me?.timezone}
+                  scoring={tournament?.scoring_rules}
+                  code={code}
+                />
+              )}
+            </>
+          )}
+        </>
+      )}
 
       <ScoringExplanationModal open={showScoringHelp} onClose={() => setShowScoringHelp(false)} />
     </div>

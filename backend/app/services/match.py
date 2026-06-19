@@ -6,6 +6,7 @@ from fastapi import HTTPException
 
 from app.models.match import Match
 from app.models.prediction import Prediction
+from app.models.tournament import TournamentMember
 from app.schemas.match import MatchCreate, CrowdWisdom, CrowdWisdomTopScore
 
 
@@ -41,17 +42,28 @@ def get_match(db: Session, match_id: UUID) -> Match:
     return match
 
 
-def get_crowd_wisdom(db: Session, match_id: UUID, current_user) -> CrowdWisdom:
+def get_crowd_wisdom(db: Session, match_id: UUID, current_user, tournament_id: Optional[UUID] = None) -> CrowdWisdom:
     match = db.query(Match).filter(Match.id == match_id).first()
     if match is None or match.status in ("scheduled", "suspended"):
         raise HTTPException(status_code=404, detail="Match not found")
 
-    predictions = db.query(Prediction).filter(Prediction.match_id == match_id).all()
+    total_members: Optional[int] = None
+    q = db.query(Prediction).filter(Prediction.match_id == match_id)
+    if tournament_id is not None:
+        total_members = db.query(TournamentMember).filter(
+            TournamentMember.tournament_id == tournament_id
+        ).count()
+        member_user_ids = db.query(TournamentMember.user_id).filter(
+            TournamentMember.tournament_id == tournament_id
+        ).subquery()
+        q = q.filter(Prediction.user_id.in_(member_user_ids))
+    predictions = q.all()
     total = len(predictions)
 
     if total == 0:
         return CrowdWisdom(
             total_predictors=0,
+            total_members=total_members,
             home_pct=0.0,
             draw_pct=0.0,
             away_pct=0.0,
@@ -88,6 +100,7 @@ def get_crowd_wisdom(db: Session, match_id: UUID, current_user) -> CrowdWisdom:
 
     return CrowdWisdom(
         total_predictors=total,
+        total_members=total_members,
         home_pct=home_pct,
         draw_pct=draw_pct,
         away_pct=away_pct,

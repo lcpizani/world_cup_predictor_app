@@ -116,8 +116,8 @@ def get_match(match_id: UUID, db: Session = Depends(get_db), current_user=Depend
 
 
 @router.get("/{match_id}/crowd-wisdom", response_model=CrowdWisdom)
-def get_crowd_wisdom(match_id: UUID, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return match_service.get_crowd_wisdom(db, match_id, current_user)
+def get_crowd_wisdom(match_id: UUID, tournament_id: Optional[UUID] = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    return match_service.get_crowd_wisdom(db, match_id, current_user, tournament_id=tournament_id)
 
 
 @router.put("/{match_id}/result", response_model=MatchResponse)

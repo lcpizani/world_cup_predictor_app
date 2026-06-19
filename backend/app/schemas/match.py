@@ -13,6 +13,7 @@ class CrowdWisdomTopScore(BaseModel):
 
 class CrowdWisdom(BaseModel):
     total_predictors: int
+    total_members: Optional[int] = None
     home_pct: float
     draw_pct: float
     away_pct: float
