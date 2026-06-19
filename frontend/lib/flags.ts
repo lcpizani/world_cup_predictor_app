@@ -278,6 +278,123 @@ export function translateBracketLabel(label: string, locale: string): string {
   return label
 }
 
+/**
+ * Dominant/iconic color for each nation's flag, used in data visualizations.
+ * Chosen for immediate recognizability (e.g. Netherlands → orange, not red/blue).
+ */
+const TEAM_COLORS: Record<string, string> = {
+  // South America
+  Brazil: '#009C3B',
+  Argentina: '#74ACDF',
+  Uruguay: '#001489',
+  Colombia: '#FCD116',
+  Chile: '#D52B1E',
+  Peru: '#D91023',
+  Ecuador: '#FFD100',
+  Paraguay: '#D52B1E',
+  Venezuela: '#CF142B',
+  Bolivia: '#D52B1E',
+
+  // Europe
+  France: '#003189',
+  Germany: '#DD0000',
+  Spain: '#C60B1E',
+  Portugal: '#006600',
+  Netherlands: '#FF6200',
+  England: '#CF091E',
+  Italy: '#0066CC',
+  Croatia: '#FF3D00',
+  Belgium: '#ED2939',
+  Switzerland: '#FF0000',
+  Denmark: '#C60C30',
+  Poland: '#DC143C',
+  Serbia: '#C6363C',
+  Austria: '#ED2939',
+  Sweden: '#006AA7',
+  Norway: '#EF2B2D',
+  Scotland: '#003399',
+  Wales: '#C8102E',
+  Hungary: '#CE2939',
+  'Czech Republic': '#D7141A',
+  Czechia: '#D7141A',
+  Slovakia: '#0B4EA2',
+  Slovenia: '#003DA5',
+  Romania: '#FFD700',
+  Ukraine: '#FFD700',
+  Turkey: '#E30A17',
+  Greece: '#0D5EAF',
+  Russia: '#003DA5',
+  Albania: '#E41E20',
+  'Bosnia-Herzegovina': '#002395',
+  'Bosnia and Herzegovina': '#002395',
+  Bosnia: '#002395',
+
+  // CONCACAF
+  USA: '#3C3B6E',
+  'United States': '#3C3B6E',
+  Mexico: '#006847',
+  Canada: '#FF0000',
+  'Costa Rica': '#002B7F',
+  Panama: '#DA121A',
+  Jamaica: '#009B3A',
+  Honduras: '#0073CF',
+  'El Salvador': '#0F47AF',
+  Haiti: '#00209F',
+  'Curaçao': '#002B7F',
+  Curacao: '#002B7F',
+
+  // Africa
+  Morocco: '#C1272D',
+  Senegal: '#00853F',
+  Nigeria: '#008751',
+  Ghana: '#EF3340',
+  Cameroon: '#007A5E',
+  Egypt: '#CE1126',
+  Tunisia: '#E70013',
+  Algeria: '#006233',
+  'South Africa': '#007A4D',
+  'Ivory Coast': '#F77F00',
+  Mali: '#14B53A',
+  'Burkina Faso': '#EF2B2D',
+  'DR Congo': '#007FFF',
+  'Congo DR': '#007FFF',
+  'Democratic Republic of Congo': '#007FFF',
+  'Cape Verde': '#003893',
+  'Cape Verde Islands': '#003893',
+
+  // Asia
+  Japan: '#BC002D',
+  'South Korea': '#CD2E3A',
+  Australia: '#00008B',
+  Iran: '#239F40',
+  'Saudi Arabia': '#006C35',
+  Qatar: '#8D1B3D',
+  China: '#DE2910',
+  Iraq: '#007A3D',
+  'United Arab Emirates': '#00732F',
+  Jordan: '#007A3D',
+  India: '#FF9933',
+  Indonesia: '#CE1126',
+  Thailand: '#A51931',
+  Vietnam: '#DA251D',
+  'New Zealand': '#00247D',
+  Uzbekistan: '#1EB53A',
+}
+
+/**
+ * Returns the dominant/iconic flag color for a team, or a neutral fallback.
+ */
+export function getTeamColor(teamName: string): string {
+  if (!teamName) return '#334155'
+  if (TEAM_COLORS[teamName]) return TEAM_COLORS[teamName]
+  const lower = teamName.toLowerCase()
+  for (const [key, color] of Object.entries(TEAM_COLORS)) {
+    if (key.toLowerCase() === lower) return color
+    if (lower.startsWith(key.toLowerCase()) || key.toLowerCase().startsWith(lower)) return color
+  }
+  return '#334155'
+}
+
 export function getTeamAbbr(teamName: string): string {
   if (!teamName) return '???'
   if (TEAM_ABBR[teamName]) return TEAM_ABBR[teamName]

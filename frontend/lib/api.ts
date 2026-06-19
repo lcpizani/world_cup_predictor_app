@@ -1,5 +1,6 @@
 import type {
   BracketSlot,
+  CrowdWisdom,
   GroupData,
   LeaderboardResponse,
   LiveLeaderboardResponse,
@@ -110,6 +111,8 @@ export const api = {
     kickoff_at: string
     stage: string
   }) => request<Match>('/matches', { method: 'POST', body: JSON.stringify(data) }),
+
+  getCrowdWisdom: (matchId: string) => request<CrowdWisdom>(`/matches/${matchId}/crowd-wisdom`),
 
   listMatches: (filters?: { stage?: string; match_status?: string }) => {
     const params = new URLSearchParams(

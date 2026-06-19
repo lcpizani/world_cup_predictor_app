@@ -16,7 +16,7 @@ from app.services import match as match_service
 from app.services import scoring as scoring_service
 from app.services import calendar as calendar_service
 from app.services import email as email_service
-from app.schemas.match import MatchCreate, MatchResponse, MatchResultUpdate
+from app.schemas.match import MatchCreate, MatchResponse, MatchResultUpdate, CrowdWisdom
 
 
 _SUPPORTED_LOCALES = {"en", "pt"}
@@ -113,6 +113,11 @@ def get_match(match_id: UUID, db: Session = Depends(get_db), current_user=Depend
         logger.error("Match not found", match_id=str(match_id), detail=exc.detail)
         raise
     return result
+
+
+@router.get("/{match_id}/crowd-wisdom", response_model=CrowdWisdom)
+def get_crowd_wisdom(match_id: UUID, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    return match_service.get_crowd_wisdom(db, match_id, current_user)
 
 
 @router.put("/{match_id}/result", response_model=MatchResponse)

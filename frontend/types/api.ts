@@ -190,3 +190,18 @@ export interface RankingHistoryResponse {
   match_days: string[]
   series: RankingHistorySeries[]
 }
+
+export interface CrowdWisdomTopScore {
+  home: number
+  away: number
+  pct: number
+}
+
+export interface CrowdWisdom {
+  total_predictors: number
+  home_pct: number
+  draw_pct: number
+  away_pct: number
+  top_score: CrowdWisdomTopScore | null
+  your_score_pct: number | null
+}
