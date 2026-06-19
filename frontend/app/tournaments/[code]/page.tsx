@@ -555,6 +555,13 @@ export default function TournamentPage() {
     return STAGE_ORDER.filter(s => stageSet.has(s))
   }, [matches])
 
+  // If the user switched to stage-group view before matches loaded, set a valid stage once they arrive
+  useEffect(() => {
+    if (viewMode === 'stage-group' && activeStage === '' && availableStages.length > 0) {
+      setActiveStage(availableStages[0])
+    }
+  }, [availableStages, viewMode, activeStage])
+
   // Available groups sorted alphabetically
   const availableGroups = useMemo(() => {
     const groupSet = new Set<string>()

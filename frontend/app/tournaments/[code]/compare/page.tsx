@@ -370,7 +370,6 @@ function CompareMatchCard({ entry, myUserId, timezone, scoring, tournamentId }: 
   const awayTeam = translateTeamName(match.away_team, locale)
 
   const myPred = predictions.find(p => p.user_id === myUserId)
-  const noPickCount = predictions.filter(p => p.predicted_home === null && p.predicted_away === null).length
   const isRevealed = match.status !== 'scheduled' && match.status !== 'suspended'
   const { data: crowdData, isLoading: crowdLoading, isError: crowdError } = useQuery({
     queryKey: ['crowd-wisdom', match.id, tournamentId],
@@ -378,6 +377,10 @@ function CompareMatchCard({ entry, myUserId, timezone, scoring, tournamentId }: 
     enabled: isRevealed && !!tournamentId,
     staleTime: 30_000,
   })
+  // Prefer crowd wisdom source (single authoritative denominator) over counting nulls in the compare list
+  const noPickCount = crowdData?.total_members != null
+    ? crowdData.total_members - crowdData.total_predictors
+    : predictions.filter(p => p.predicted_home === null && p.predicted_away === null).length
 
   return (
     <div

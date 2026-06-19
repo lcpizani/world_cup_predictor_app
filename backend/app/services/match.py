@@ -47,8 +47,12 @@ def get_crowd_wisdom(db: Session, match_id: UUID, current_user, tournament_id: O
     if match is None or match.status in ("scheduled", "suspended"):
         raise HTTPException(status_code=404, detail="Match not found")
 
+    total_members: Optional[int] = None
     q = db.query(Prediction).filter(Prediction.match_id == match_id)
     if tournament_id is not None:
+        total_members = db.query(TournamentMember).filter(
+            TournamentMember.tournament_id == tournament_id
+        ).count()
         member_user_ids = db.query(TournamentMember.user_id).filter(
             TournamentMember.tournament_id == tournament_id
         ).subquery()
@@ -59,6 +63,7 @@ def get_crowd_wisdom(db: Session, match_id: UUID, current_user, tournament_id: O
     if total == 0:
         return CrowdWisdom(
             total_predictors=0,
+            total_members=total_members,
             home_pct=0.0,
             draw_pct=0.0,
             away_pct=0.0,
@@ -95,6 +100,7 @@ def get_crowd_wisdom(db: Session, match_id: UUID, current_user, tournament_id: O
 
     return CrowdWisdom(
         total_predictors=total,
+        total_members=total_members,
         home_pct=home_pct,
         draw_pct=draw_pct,
         away_pct=away_pct,

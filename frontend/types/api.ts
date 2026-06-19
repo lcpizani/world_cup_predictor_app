@@ -8,6 +8,7 @@ export interface User {
   language: string | null
   timezone: string | null
   created_at: string
+  username_changed_at: string | null
 }
 
 export interface UserProfile {
@@ -199,6 +200,7 @@ export interface CrowdWisdomTopScore {
 
 export interface CrowdWisdom {
   total_predictors: number
+  total_members?: number
   home_pct: number
   draw_pct: number
   away_pct: number
