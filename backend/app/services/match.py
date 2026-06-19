@@ -1,7 +1,6 @@
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
@@ -44,7 +43,7 @@ def get_match(db: Session, match_id: UUID) -> Match:
 
 def get_crowd_wisdom(db: Session, match_id: UUID, current_user) -> CrowdWisdom:
     match = db.query(Match).filter(Match.id == match_id).first()
-    if match is None or match.status == "scheduled":
+    if match is None or match.status in ("scheduled", "suspended"):
         raise HTTPException(status_code=404, detail="Match not found")
 
     predictions = db.query(Prediction).filter(Prediction.match_id == match_id).all()
@@ -83,11 +82,15 @@ def get_crowd_wisdom(db: Session, match_id: UUID, current_user) -> CrowdWisdom:
         user_key = (user_pred.predicted_home, user_pred.predicted_away)
         your_score_pct = round(score_counts.get(user_key, 0) / total * 100, 1)
 
+    home_pct = round(home_wins / total * 100, 1)
+    draw_pct = round(draws / total * 100, 1)
+    away_pct = round(100.0 - home_pct - draw_pct, 1)
+
     return CrowdWisdom(
         total_predictors=total,
-        home_pct=round(home_wins / total * 100, 1),
-        draw_pct=round(draws / total * 100, 1),
-        away_pct=round(away_wins / total * 100, 1),
+        home_pct=home_pct,
+        draw_pct=draw_pct,
+        away_pct=away_pct,
         top_score=top_score,
         your_score_pct=your_score_pct,
     )
