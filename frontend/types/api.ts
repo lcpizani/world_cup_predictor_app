@@ -8,7 +8,6 @@ export interface User {
   language: string | null
   timezone: string | null
   created_at: string
-  username_changed_at: string | null
 }
 
 export interface UserProfile {
