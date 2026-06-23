@@ -41,7 +41,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   // ── Auth ──────────────────────────────────────────────────────────────────
   getMe: () => request<User>('/auth/me'),
-  updateMe: (data: { username?: string; display_name?: string; language?: string; timezone?: string }) =>
+  updateMe: (data: { username?: string; display_name?: string | null; language?: string; timezone?: string }) =>
     request<User>('/users/me', { method: 'PUT', body: JSON.stringify(data) }),
 
   // ── Users ─────────────────────────────────────────────────────────────────
