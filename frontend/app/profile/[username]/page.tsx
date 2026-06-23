@@ -169,7 +169,8 @@ const ALL_TZ = [...BRAZIL_TZ, ...OTHER_TZ]
 export default function ProfilePage() {
   const t = useTranslations('profile')
   const locale = useLocale()
-  const { username } = useParams<{ username: string }>()
+  const { username: rawUsername } = useParams<{ username: string }>()
+  const username = decodeURIComponent(rawUsername)
   const [editing, setEditing] = useState(false)
 
   const { data: me, isLoading: meLoading } = useQuery({
