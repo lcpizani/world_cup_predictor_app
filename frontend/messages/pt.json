@@ -25,7 +25,8 @@
     "log_in": "Entrar",
     "register": "Registrar",
     "predictor": "Predictor",
-    "simulate": "Simular"
+    "simulate": "Simular",
+    "calendar": "Calendário"
   },
   "landing": {
     "live_badge": "Copa do Mundo 2026 · Palpite Agora",
@@ -677,5 +678,19 @@
     "email_sent": "E-mail enviado!",
     "email_error": "Falha ao enviar — tente novamente",
     "import_hint": "Abra o arquivo para importar. Google Agenda: Configurações → Importar."
+  },
+  "calendar": {
+    "title": "Calendário",
+    "view_month": "Mês",
+    "view_week": "Semana",
+    "all_teams": "Todas as seleções",
+    "more": "+{count} a mais",
+    "stage_group_stage": "Fase de Grupos",
+    "stage_round_of_32": "Rodada de 32",
+    "stage_round_of_16": "Oitavas de Final",
+    "stage_quarter_finals": "Quartas de Final",
+    "stage_semi_finals": "Semifinais",
+    "stage_third_place": "Terceiro Lugar",
+    "stage_final": "Final"
   }
 }

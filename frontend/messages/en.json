@@ -25,7 +25,8 @@
     "log_in": "Log in",
     "register": "Register",
     "predictor": "Predictor",
-    "simulate": "Simulate"
+    "simulate": "Simulate",
+    "calendar": "Calendar"
   },
   "landing": {
     "live_badge": "World Cup 2026 · Predict Now",
@@ -677,5 +678,19 @@
     "email_sent": "Email sent!",
     "email_error": "Failed to send — try again",
     "import_hint": "Open the file to import. Google Calendar: Settings → Import."
+  },
+  "calendar": {
+    "title": "Calendar",
+    "view_month": "Month",
+    "view_week": "Week",
+    "all_teams": "All teams",
+    "more": "+{count} more",
+    "stage_group_stage": "Group Stage",
+    "stage_round_of_32": "Round of 32",
+    "stage_round_of_16": "Round of 16",
+    "stage_quarter_finals": "Quarterfinals",
+    "stage_semi_finals": "Semifinals",
+    "stage_third_place": "Third Place",
+    "stage_final": "Final"
   }
 }
