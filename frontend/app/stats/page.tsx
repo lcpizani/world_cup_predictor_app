@@ -90,7 +90,7 @@ function aggregateStats(matches: Match[]): AggregatedStats {
     if (as_ === 0) home.cleanSheets++
     if (hs === 0) away.cleanSheets++
 
-    const key = `${hs}-${as_}`
+    const key = `${Math.max(hs, as_)}-${Math.min(hs, as_)}`
     scorelineMap.set(key, (scorelineMap.get(key) ?? 0) + 1)
 
     if (total > highestTotal) {
