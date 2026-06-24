@@ -26,7 +26,8 @@
     "register": "Registrar",
     "predictor": "Predictor",
     "simulate": "Simular",
-    "calendar": "Calendário"
+    "calendar": "Calendário",
+    "stats": "Estatísticas"
   },
   "landing": {
     "live_badge": "Copa do Mundo 2026 · Palpite Agora",
@@ -678,6 +679,33 @@
     "email_sent": "E-mail enviado!",
     "email_error": "Falha ao enviar — tente novamente",
     "import_hint": "Abra o arquivo para importar. Google Agenda: Configurações → Importar."
+  },
+  "stats": {
+    "title": "Copa do Mundo",
+    "subtitle": "Estatísticas do torneio · Todas as fases",
+    "played": "Jogos",
+    "goals": "Gols",
+    "goals_per_game": "Por Jogo",
+    "draws": "Empates",
+    "goals_by_stage": "Gols por Fase",
+    "goals_by_group": "Gols por Grupo",
+    "team_rankings": "Classificação por Equipe",
+    "top_attack": "Melhores Ataques",
+    "top_defense": "Melhores Defesas",
+    "score_dist": "Placar mais comuns",
+    "fun_facts": "Curiosidades",
+    "highest_scoring": "Jogo com mais gols",
+    "most_clean_sheets": "Mais jogos sem sofrer gol",
+    "aet_games": "Jogos na prorrogação / pênaltis",
+    "refresh": "Atualizar",
+    "refreshing": "Atualizando…",
+    "error": "Não foi possível carregar as estatísticas. Tente novamente.",
+    "stage_group_stage": "Grupo",
+    "stage_round_of_32": "R32",
+    "stage_round_of_16": "R16",
+    "stage_quarter_finals": "QF",
+    "stage_semi_finals": "SF",
+    "stage_final": "Final"
   },
   "calendar": {
     "title": "Calendário",

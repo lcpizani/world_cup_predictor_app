@@ -26,7 +26,8 @@
     "register": "Register",
     "predictor": "Predictor",
     "simulate": "Simulate",
-    "calendar": "Calendar"
+    "calendar": "Calendar",
+    "stats": "Stats"
   },
   "landing": {
     "live_badge": "World Cup 2026 · Predict Now",
@@ -661,6 +662,33 @@
     "how_scored": "How are predictions scored?",
     "knockout_title": "Knockout matches: 120-minute score counts",
     "knockout_desc": "Predictions are compared to the score after 90 minutes + extra time. If you predicted 1–1 and the game finishes 1–1 after extra time — even if it goes to a penalty shootout — that counts as an Exact Score. Penalty shootout results do not affect your prediction."
+  },
+  "stats": {
+    "title": "World Cup",
+    "subtitle": "Tournament statistics · All stages",
+    "played": "Played",
+    "goals": "Goals",
+    "goals_per_game": "Per Game",
+    "draws": "Draws",
+    "goals_by_stage": "Goals by Stage",
+    "goals_by_group": "Goals by Group",
+    "team_rankings": "Team Rankings",
+    "top_attack": "Top Attack",
+    "top_defense": "Best Defence",
+    "score_dist": "Score Distribution",
+    "fun_facts": "Fun Facts",
+    "highest_scoring": "Highest Scoring Game",
+    "most_clean_sheets": "Most Clean Sheets",
+    "aet_games": "Games to AET / Pens",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "error": "Could not load statistics. Try again.",
+    "stage_group_stage": "Group",
+    "stage_round_of_32": "R32",
+    "stage_round_of_16": "R16",
+    "stage_quarter_finals": "QF",
+    "stage_semi_finals": "SF",
+    "stage_final": "Final"
   },
   "calendarExport": {
     "title": "Add to Calendar",

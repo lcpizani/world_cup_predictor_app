@@ -222,6 +222,7 @@ export function Navbar() {
                 <NavLink href="/predictions" active={isActive('/predictions')}>{t('my_picks')}</NavLink>
                 <NavLink href="/standings" active={isActive('/standings')}>{t('standings')}</NavLink>
                 <NavLink href="/calendar" active={isActive('/calendar')}>{t('calendar')}</NavLink>
+                <NavLink href="/stats" active={isActive('/stats')}>{t('stats')}</NavLink>
                 <NavLink href="/simulate" active={isActive('/simulate')}>{t('simulate')}</NavLink>
                 {user.is_admin && (
                   <NavLink href="/admin" active={isActive('/admin')}>{t('admin')}</NavLink>
@@ -349,6 +350,7 @@ export function Navbar() {
                 <MobileNavLink href="/predictions" active={isActive('/predictions')} onClick={() => setOpen(false)}>{t('my_picks')}</MobileNavLink>
                 <MobileNavLink href="/standings" active={isActive('/standings')} onClick={() => setOpen(false)}>{t('standings')}</MobileNavLink>
                 <MobileNavLink href="/calendar" active={isActive('/calendar')} onClick={() => setOpen(false)}>{t('calendar')}</MobileNavLink>
+                <MobileNavLink href="/stats" active={isActive('/stats')} onClick={() => setOpen(false)}>{t('stats')}</MobileNavLink>
                 <MobileNavLink href="/simulate" active={isActive('/simulate')} onClick={() => setOpen(false)}>{t('simulate')}</MobileNavLink>
                 {user.is_admin && (
                   <MobileNavLink href="/admin" active={isActive('/admin')} onClick={() => setOpen(false)}>{t('admin')}</MobileNavLink>

@@ -22,7 +22,7 @@ const FEATURED: Array<{ name: string; code: string }> = [
   { name: 'Spain', code: 'es' },
   { name: 'Portugal', code: 'pt' },
   { name: 'England', code: 'gb-eng' },
-  { name: 'Italy', code: 'it' },
+  { name: 'Turkey', code: 'tr' },
   { name: 'Netherlands', code: 'nl' },
   { name: 'Croatia', code: 'hr' },
   { name: 'Morocco', code: 'ma' },
