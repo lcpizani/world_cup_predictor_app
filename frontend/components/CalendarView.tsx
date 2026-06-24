@@ -163,12 +163,23 @@ function ExpandedMatchCard({ match, timezone }: { match: Match; timezone?: strin
 
   const style = isLive ? LIVE_STYLE : (STAGE_CONFIG[match.stage] ?? DEFAULT_STAGE)
   const textColor = isFinished ? '#4a5c70' : 'white'
+  const groupLetter = match.stage === 'group_stage' && match.group
+    ? match.group.slice(-1)
+    : null
 
   return (
     <div
-      className="flex flex-col items-center gap-1.5 px-1.5 py-2 rounded-xl w-full overflow-hidden"
+      className="relative flex flex-col items-center gap-1.5 px-1.5 py-2 rounded-xl w-full overflow-hidden"
       style={{ background: style.bg, border: `1px solid ${style.border}` }}
     >
+      {groupLetter && (
+        <span
+          className="absolute top-1 right-1.5 font-[family-name:var(--font-oswald)] font-bold leading-none"
+          style={{ fontSize: 9, color: 'rgba(90,130,170,0.45)' }}
+        >
+          {groupLetter}
+        </span>
+      )}
       {/* Home name */}
       <span
         className="font-[family-name:var(--font-oswald)] font-bold uppercase tracking-wide leading-none"
