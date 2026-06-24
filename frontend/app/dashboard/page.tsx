@@ -28,13 +28,10 @@ function Skeleton({ className }: { className?: string }) {
 
 function SectionLabel({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between mb-5">
-      <div className="flex items-center gap-3">
-        <span className="block w-[3px] h-5 rounded-full bg-[#f0b429]" />
-        <p className="font-[family-name:var(--font-oswald)] text-[1.05rem] font-bold uppercase tracking-[0.2em] text-[#90a0b8]">
-          {title}
-        </p>
-      </div>
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="font-[family-name:var(--font-oswald)] text-[0.7rem] font-bold uppercase tracking-[0.18em] text-[#4a6280]">
+        {title}
+      </h2>
       {action}
     </div>
   )
@@ -726,7 +723,7 @@ export default function DashboardPage() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="font-[family-name:var(--font-oswald)] text-3xl font-bold uppercase tracking-wider text-white leading-none">
             {t('title')}
@@ -777,12 +774,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Tier 1 — Match Rail */}
-      <div className="mb-4">
+      <div className="mb-6">
         <MatchRail matches={matches} predictions={predictions} loading={dataLoading} timezone={me?.timezone} />
       </div>
 
       {/* Tier 2 — Accuracy + My Leagues */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         <AccuracyCard predictions={predictions} matches={matches} />
         <MyLeaguesScroll
           tournaments={tournaments}
@@ -792,52 +789,49 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Tier 3 — Standings + Simulator shortcuts */}
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Tier 3 — Quick navigation */}
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
+      >
         <Link
           href="/standings"
-          className="flex items-center justify-between px-5 py-4 rounded-2xl transition-all duration-200 group"
-          style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(240,180,41,0.2)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
+          className="flex items-center justify-between px-5 py-4 transition-colors duration-200 group"
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.025)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
         >
-          <div className="flex items-center gap-3">
-            <span className="block w-[3px] h-5 rounded-full bg-[#f0b429]" />
-            <div>
-              <p className="font-[family-name:var(--font-oswald)] text-[1.05rem] font-bold uppercase tracking-[0.2em] text-[#90a0b8] group-hover:text-white transition-colors">
-                {t('standings_title')}
-              </p>
-              <p className="text-[#3a5070] text-xs mt-0.5">{t('standings_desc')}</p>
-            </div>
+          <div>
+            <p className="font-[family-name:var(--font-oswald)] text-[1.05rem] font-bold uppercase tracking-[0.15em] text-[#90a0b8] group-hover:text-white transition-colors">
+              {t('standings_title')}
+            </p>
+            <p className="text-[#3a5070] text-xs mt-0.5">{t('standings_desc')}</p>
           </div>
-          <span className="text-[#3f5068] group-hover:text-[#f0b429] transition-colors text-sm font-medium">→</span>
+          <span className="text-[#3f5068] group-hover:text-[#f0b429] transition-colors text-sm font-medium shrink-0 ml-4">→</span>
         </Link>
+
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }} />
 
         <Link
           href="/simulate"
-          className="flex items-center justify-between px-5 py-4 rounded-2xl transition-all duration-200 group"
-          style={{ background: '#0d1520', border: '1px solid rgba(255,255,255,0.07)' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(240,180,41,0.3)' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)' }}
+          className="flex items-center justify-between px-5 py-4 transition-colors duration-200 group"
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.025)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
         >
-          <div className="flex items-center gap-3">
-            <span className="block w-[3px] h-5 rounded-full bg-[#f0b429]" />
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="font-[family-name:var(--font-oswald)] text-[1.05rem] font-bold uppercase tracking-[0.2em] text-[#90a0b8] group-hover:text-white transition-colors">
-                  {t('simulate_title')}
-                </p>
-                <span
-                  className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full leading-none"
-                  style={{ background: 'rgba(240,180,41,0.12)', color: '#f0b429', border: '1px solid rgba(240,180,41,0.22)' }}
-                >
-                  NEW
-                </span>
-              </div>
-              <p className="text-[#3a5070] text-xs mt-0.5">{t('simulate_desc')}</p>
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="font-[family-name:var(--font-oswald)] text-[1.05rem] font-bold uppercase tracking-[0.15em] text-[#90a0b8] group-hover:text-white transition-colors">
+                {t('simulate_title')}
+              </p>
+              <span
+                className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full leading-none"
+                style={{ background: 'rgba(240,180,41,0.12)', color: '#f0b429', border: '1px solid rgba(240,180,41,0.22)' }}
+              >
+                NEW
+              </span>
             </div>
+            <p className="text-[#3a5070] text-xs mt-0.5">{t('simulate_desc')}</p>
           </div>
-          <span className="text-[#3f5068] group-hover:text-[#f0b429] transition-colors text-sm font-medium">→</span>
+          <span className="text-[#3f5068] group-hover:text-[#f0b429] transition-colors text-sm font-medium shrink-0 ml-4">→</span>
         </Link>
       </div>
 
