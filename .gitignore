@@ -232,5 +232,7 @@ prompts
 .opencode
 openspec
 ideas.md
+PRODUCT.md
 
 docker-compose.yml
+.impeccable

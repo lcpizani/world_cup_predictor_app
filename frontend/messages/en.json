@@ -25,7 +25,9 @@
     "log_in": "Log in",
     "register": "Register",
     "predictor": "Predictor",
-    "simulate": "Simulate"
+    "simulate": "Simulate",
+    "calendar": "Calendar",
+    "stats": "Stats"
   },
   "landing": {
     "live_badge": "World Cup 2026 · Predict Now",
@@ -535,7 +537,13 @@
     "live_results_desc": "The leaderboard refreshes every 20 seconds, and the compare view refreshes every 30 seconds during live matches.",
     "close": "Close",
     "knockout_scoring": "Knockout scores count up to 120 minutes",
-    "knockout_scoring_desc": "For knockout matches, your prediction is compared to the score after 90 minutes + extra time. If you predicted 1–1 and the game ends 1–1 after extra time — even if it then goes to a penalty shootout — that counts as an exact score. Penalty shootout results never affect your points."
+    "knockout_scoring_desc": "For knockout matches, your prediction is compared to the score after 90 minutes + extra time. If you predicted 1–1 and the game ends 1–1 after extra time — even if it then goes to a penalty shootout — that counts as an exact score. Penalty shootout results never affect your points.",
+    "calendar_page": "Match calendar",
+    "calendar_page_desc": "The Calendar page shows all World Cup fixtures in month or week view. Use the team filter to track a specific country's schedule. Matches are colour-coded by tournament stage.",
+    "stats_page": "Tournament statistics",
+    "stats_page_desc": "The Stats page shows live tournament numbers — total goals, goals per game, goals by stage and group, top attack and defence rankings, and a score distribution chart.",
+    "export_calendar": "Add matches to your calendar",
+    "export_calendar_desc": "From the Dashboard, tap 'Add to Calendar' to download an .ics file or send it to your email. Kickoff times are adjusted to your timezone."
   },
   "admin": {
     "panel_title": "Admin Panel",
@@ -661,6 +669,33 @@
     "knockout_title": "Knockout matches: 120-minute score counts",
     "knockout_desc": "Predictions are compared to the score after 90 minutes + extra time. If you predicted 1–1 and the game finishes 1–1 after extra time — even if it goes to a penalty shootout — that counts as an Exact Score. Penalty shootout results do not affect your prediction."
   },
+  "stats": {
+    "title": "World Cup",
+    "subtitle": "Tournament statistics · All stages",
+    "played": "Played",
+    "goals": "Goals",
+    "goals_per_game": "Per Game",
+    "draws": "Draws",
+    "goals_by_stage": "Goals by Stage",
+    "goals_by_group": "Goals by Group",
+    "team_rankings": "Team Rankings",
+    "top_attack": "Top Attack",
+    "top_defense": "Best Defence",
+    "score_dist": "Score Distribution",
+    "fun_facts": "Fun Facts",
+    "highest_scoring": "Highest Scoring Game",
+    "most_clean_sheets": "Most Clean Sheets",
+    "aet_games": "Games to AET / Pens",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "error": "Could not load statistics. Try again.",
+    "stage_group_stage": "Group",
+    "stage_round_of_32": "R32",
+    "stage_round_of_16": "R16",
+    "stage_quarter_finals": "QF",
+    "stage_semi_finals": "SF",
+    "stage_final": "Final"
+  },
   "calendarExport": {
     "title": "Add to Calendar",
     "filter_placeholder": "Filter by team…",
@@ -677,5 +712,19 @@
     "email_sent": "Email sent!",
     "email_error": "Failed to send — try again",
     "import_hint": "Open the file to import. Google Calendar: Settings → Import."
+  },
+  "calendar": {
+    "title": "Calendar",
+    "view_month": "Month",
+    "view_week": "Week",
+    "all_teams": "All teams",
+    "more": "+{count} more",
+    "stage_group_stage": "Group Stage",
+    "stage_round_of_32": "Round of 32",
+    "stage_round_of_16": "Round of 16",
+    "stage_quarter_finals": "Quarterfinals",
+    "stage_semi_finals": "Semifinals",
+    "stage_third_place": "Third Place",
+    "stage_final": "Final"
   }
 }

@@ -85,6 +85,9 @@ function HelpModal({ onClose }: { onClose: () => void }) {
     { title: t('knockout_stages'), desc: t('knockout_stages_desc') },
     { title: t('knockout_scoring'), desc: t('knockout_scoring_desc') },
     { title: t('live_results'), desc: t('live_results_desc') },
+    { title: t('calendar_page'), desc: t('calendar_page_desc') },
+    { title: t('stats_page'), desc: t('stats_page_desc') },
+    { title: t('export_calendar'), desc: t('export_calendar_desc') },
   ]
 
   return (
@@ -221,6 +224,8 @@ export function Navbar() {
                 <NavLink href="/leagues" active={isActive('/leagues')}>{t('leagues')}</NavLink>
                 <NavLink href="/predictions" active={isActive('/predictions')}>{t('my_picks')}</NavLink>
                 <NavLink href="/standings" active={isActive('/standings')}>{t('standings')}</NavLink>
+                <NavLink href="/calendar" active={isActive('/calendar')}>{t('calendar')}</NavLink>
+                <NavLink href="/stats" active={isActive('/stats')}>{t('stats')}</NavLink>
                 <NavLink href="/simulate" active={isActive('/simulate')}>{t('simulate')}</NavLink>
                 {user.is_admin && (
                   <NavLink href="/admin" active={isActive('/admin')}>{t('admin')}</NavLink>
@@ -347,6 +352,8 @@ export function Navbar() {
                 <MobileNavLink href="/leagues" active={isActive('/leagues')} onClick={() => setOpen(false)}>{t('leagues')}</MobileNavLink>
                 <MobileNavLink href="/predictions" active={isActive('/predictions')} onClick={() => setOpen(false)}>{t('my_picks')}</MobileNavLink>
                 <MobileNavLink href="/standings" active={isActive('/standings')} onClick={() => setOpen(false)}>{t('standings')}</MobileNavLink>
+                <MobileNavLink href="/calendar" active={isActive('/calendar')} onClick={() => setOpen(false)}>{t('calendar')}</MobileNavLink>
+                <MobileNavLink href="/stats" active={isActive('/stats')} onClick={() => setOpen(false)}>{t('stats')}</MobileNavLink>
                 <MobileNavLink href="/simulate" active={isActive('/simulate')} onClick={() => setOpen(false)}>{t('simulate')}</MobileNavLink>
                 {user.is_admin && (
                   <MobileNavLink href="/admin" active={isActive('/admin')} onClick={() => setOpen(false)}>{t('admin')}</MobileNavLink>

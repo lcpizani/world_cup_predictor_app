@@ -25,7 +25,9 @@
     "log_in": "Entrar",
     "register": "Registrar",
     "predictor": "Predictor",
-    "simulate": "Simular"
+    "simulate": "Simular",
+    "calendar": "Calendário",
+    "stats": "Estatísticas"
   },
   "landing": {
     "live_badge": "Copa do Mundo 2026 · Palpite Agora",
@@ -535,7 +537,13 @@
     "live_results_desc": "O placar geral atualiza a cada 20 segundos e a comparação de palpites atualiza a cada 30 segundos durante as partidas.",
     "close": "Fechar",
     "knockout_scoring": "Placar dos eliminatórios vale até 120 minutos",
-    "knockout_scoring_desc": "Nos jogos eliminatórios, seu palpite é comparado com o placar após 90 minutos + prorrogação. Se você previu 1–1 e o jogo terminar 1–1 após a prorrogação — mesmo indo para os pênaltis — isso conta como placar exato. O resultado dos pênaltis nunca afeta seus pontos."
+    "knockout_scoring_desc": "Nos jogos eliminatórios, seu palpite é comparado com o placar após 90 minutos + prorrogação. Se você previu 1–1 e o jogo terminar 1–1 após a prorrogação — mesmo indo para os pênaltis — isso conta como placar exato. O resultado dos pênaltis nunca afeta seus pontos.",
+    "calendar_page": "Calendário de partidas",
+    "calendar_page_desc": "A página Calendário exibe todos os jogos da Copa em visão mensal ou semanal. Use o filtro por seleção para acompanhar o cronograma de um país específico. As partidas são coloridas por fase do torneio.",
+    "stats_page": "Estatísticas do torneio",
+    "stats_page_desc": "A página Estatísticas mostra os números ao vivo do torneio — total de gols, média por jogo, gols por fase e grupo, ranking de ataque e defesa, e a distribuição de placares.",
+    "export_calendar": "Adicionar partidas ao seu calendário",
+    "export_calendar_desc": "No painel, toque em 'Adicionar ao Calendário' para baixar um arquivo .ics ou enviá-lo por e-mail. Os horários de início são ajustados para o seu fuso horário."
   },
   "admin": {
     "panel_title": "Painel de Admin",
@@ -677,5 +685,46 @@
     "email_sent": "E-mail enviado!",
     "email_error": "Falha ao enviar — tente novamente",
     "import_hint": "Abra o arquivo para importar. Google Agenda: Configurações → Importar."
+  },
+  "stats": {
+    "title": "Copa do Mundo",
+    "subtitle": "Estatísticas do torneio · Todas as fases",
+    "played": "Jogos",
+    "goals": "Gols",
+    "goals_per_game": "Por Jogo",
+    "draws": "Empates",
+    "goals_by_stage": "Gols por Fase",
+    "goals_by_group": "Gols por Grupo",
+    "team_rankings": "Classificação por Equipe",
+    "top_attack": "Melhores Ataques",
+    "top_defense": "Melhores Defesas",
+    "score_dist": "Placar mais comuns",
+    "fun_facts": "Curiosidades",
+    "highest_scoring": "Jogo com mais gols",
+    "most_clean_sheets": "Mais jogos sem sofrer gol",
+    "aet_games": "Jogos na prorrogação / pênaltis",
+    "refresh": "Atualizar",
+    "refreshing": "Atualizando…",
+    "error": "Não foi possível carregar as estatísticas. Tente novamente.",
+    "stage_group_stage": "Grupo",
+    "stage_round_of_32": "R32",
+    "stage_round_of_16": "R16",
+    "stage_quarter_finals": "QF",
+    "stage_semi_finals": "SF",
+    "stage_final": "Final"
+  },
+  "calendar": {
+    "title": "Calendário",
+    "view_month": "Mês",
+    "view_week": "Semana",
+    "all_teams": "Todas as seleções",
+    "more": "+{count} a mais",
+    "stage_group_stage": "Fase de Grupos",
+    "stage_round_of_32": "Rodada de 32",
+    "stage_round_of_16": "Oitavas de Final",
+    "stage_quarter_finals": "Quartas de Final",
+    "stage_semi_finals": "Semifinais",
+    "stage_third_place": "Terceiro Lugar",
+    "stage_final": "Final"
   }
 }

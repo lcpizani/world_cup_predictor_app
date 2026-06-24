@@ -194,6 +194,8 @@ world_cup_predictor_app/
 │   │   │   ├── [code]/leaderboard/page.tsx   # Live leaderboard
 │   │   │   ├── [code]/compare/page.tsx       # Compare predictions with others
 │   │   │   └── [code]/settings/page.tsx      # League settings (admin)
+│   │   ├── calendar/page.tsx                 # Match calendar (month/week view, team filter, stage colours)
+│   │   ├── stats/page.tsx                    # Tournament statistics (goals, rankings, score distribution)
 │   │   ├── profile/
 │   │   │   ├── page.tsx                      # Own profile
 │   │   │   └── [username]/page.tsx           # Public profile
