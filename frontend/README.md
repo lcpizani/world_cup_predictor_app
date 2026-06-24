@@ -60,8 +60,9 @@ frontend/
 │   │   ├── [id]/page.tsx             # League detail + predictions
 │   │   └── [id]/leaderboard/page.tsx # Live leaderboard
 │   ├── predictions/page.tsx          # My picks (all matches, all leagues)
-│   ├── compare/page.tsx              # Compare picks with league mates
 │   ├── standings/page.tsx            # Group standings + bracket
+│   ├── calendar/page.tsx             # Match calendar (month/week view, team filter)
+│   ├── stats/page.tsx                # Tournament statistics
 │   ├── admin/page.tsx                # Admin panel (sync, results, recompute)
 │   └── api/auth/                     # Next.js server-side API routes
 │       ├── login/route.ts            # Proxies login to backend, sets cookie

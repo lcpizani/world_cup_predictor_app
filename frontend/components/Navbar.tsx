@@ -85,6 +85,9 @@ function HelpModal({ onClose }: { onClose: () => void }) {
     { title: t('knockout_stages'), desc: t('knockout_stages_desc') },
     { title: t('knockout_scoring'), desc: t('knockout_scoring_desc') },
     { title: t('live_results'), desc: t('live_results_desc') },
+    { title: t('calendar_page'), desc: t('calendar_page_desc') },
+    { title: t('stats_page'), desc: t('stats_page_desc') },
+    { title: t('export_calendar'), desc: t('export_calendar_desc') },
   ]
 
   return (

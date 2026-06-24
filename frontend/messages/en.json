@@ -537,7 +537,13 @@
     "live_results_desc": "The leaderboard refreshes every 20 seconds, and the compare view refreshes every 30 seconds during live matches.",
     "close": "Close",
     "knockout_scoring": "Knockout scores count up to 120 minutes",
-    "knockout_scoring_desc": "For knockout matches, your prediction is compared to the score after 90 minutes + extra time. If you predicted 1–1 and the game ends 1–1 after extra time — even if it then goes to a penalty shootout — that counts as an exact score. Penalty shootout results never affect your points."
+    "knockout_scoring_desc": "For knockout matches, your prediction is compared to the score after 90 minutes + extra time. If you predicted 1–1 and the game ends 1–1 after extra time — even if it then goes to a penalty shootout — that counts as an exact score. Penalty shootout results never affect your points.",
+    "calendar_page": "Match calendar",
+    "calendar_page_desc": "The Calendar page shows all World Cup fixtures in month or week view. Use the team filter to track a specific country's schedule. Matches are colour-coded by tournament stage.",
+    "stats_page": "Tournament statistics",
+    "stats_page_desc": "The Stats page shows live tournament numbers — total goals, goals per game, goals by stage and group, top attack and defence rankings, and a score distribution chart.",
+    "export_calendar": "Add matches to your calendar",
+    "export_calendar_desc": "From the Dashboard, tap 'Add to Calendar' to download an .ics file or send it to your email. Kickoff times are adjusted to your timezone."
   },
   "admin": {
     "panel_title": "Admin Panel",

@@ -537,7 +537,13 @@
     "live_results_desc": "O placar geral atualiza a cada 20 segundos e a comparação de palpites atualiza a cada 30 segundos durante as partidas.",
     "close": "Fechar",
     "knockout_scoring": "Placar dos eliminatórios vale até 120 minutos",
-    "knockout_scoring_desc": "Nos jogos eliminatórios, seu palpite é comparado com o placar após 90 minutos + prorrogação. Se você previu 1–1 e o jogo terminar 1–1 após a prorrogação — mesmo indo para os pênaltis — isso conta como placar exato. O resultado dos pênaltis nunca afeta seus pontos."
+    "knockout_scoring_desc": "Nos jogos eliminatórios, seu palpite é comparado com o placar após 90 minutos + prorrogação. Se você previu 1–1 e o jogo terminar 1–1 após a prorrogação — mesmo indo para os pênaltis — isso conta como placar exato. O resultado dos pênaltis nunca afeta seus pontos.",
+    "calendar_page": "Calendário de partidas",
+    "calendar_page_desc": "A página Calendário exibe todos os jogos da Copa em visão mensal ou semanal. Use o filtro por seleção para acompanhar o cronograma de um país específico. As partidas são coloridas por fase do torneio.",
+    "stats_page": "Estatísticas do torneio",
+    "stats_page_desc": "A página Estatísticas mostra os números ao vivo do torneio — total de gols, média por jogo, gols por fase e grupo, ranking de ataque e defesa, e a distribuição de placares.",
+    "export_calendar": "Adicionar partidas ao seu calendário",
+    "export_calendar_desc": "No painel, toque em 'Adicionar ao Calendário' para baixar um arquivo .ics ou enviá-lo por e-mail. Os horários de início são ajustados para o seu fuso horário."
   },
   "admin": {
     "panel_title": "Painel de Admin",

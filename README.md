@@ -17,7 +17,10 @@ A private prediction league app for the FIFA World Cup 2026. Friends create leag
 - **Live leaderboard** — points update automatically when results come in, no manual input needed
 - **Customizable scoring** — each league creator sets their own point values per category (exact score, correct winner, goal difference, one correct team)
 - **Prediction comparison** — see what your league mates predicted vs. what you predicted, for any match
-- **Internationalization** — UI available in English and Spanish
+- **Match calendar** — browse all fixtures in month or week view, filter by team, colour-coded by tournament stage
+- **Tournament statistics** — live stats page: goals scored, goals per game, top attack/defence rankings, score distribution, and fun facts
+- **Calendar export** — download an `.ics` file or send it to your email to add World Cup matches to your personal calendar
+- **Internationalization** — UI available in English and Portuguese
 - **Admin panel** — sync fixtures, apply results manually, and recompute scores for any league
 
 ---
