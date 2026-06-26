@@ -122,7 +122,6 @@ function GroupCardHeader({ letter }: { letter: string }) {
       style={{
         background: 'linear-gradient(90deg, #1c1100 0%, #0d0d0d 55%, #080808 100%)',
         borderBottom: '2px solid rgba(240,180,41,0.45)',
-        borderLeft: '3px solid #f0b429',
       }}
     >
       <span style={{
@@ -147,9 +146,9 @@ function EmptyGroupTable({ letter }: { letter: string }) {
         <TableHead t={t} />
         <tbody>
           {[1, 2, 3, 4].map((pos) => {
-            const bl = pos <= 2 ? 'rgba(34,197,94,0.5)' : pos === 3 ? 'rgba(240,180,41,0.4)' : 'transparent'
+            const rowBg = pos <= 2 ? 'rgba(34,197,94,0.03)' : pos === 3 ? 'rgba(240,180,41,0.03)' : 'transparent'
             return (
-              <tr key={pos} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', borderLeft: `3px solid ${bl}` }}>
+              <tr key={pos} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: rowBg }}>
                 <td style={{ paddingLeft: 10, paddingTop: 9, paddingBottom: 9, textAlign: 'center' }}>
                   <PosBadge pos={pos} />
                 </td>
@@ -186,11 +185,11 @@ function GroupTable({ group, qualifyingThirdGroups }: { group: GroupData; qualif
         <TableHead t={t} />
         <tbody>
           {group.standings.map((row) => {
-            const bl =
-              row.position <= 2 ? 'rgba(34,197,94,0.55)' :
-              row.position === 3 && thirdQualifies ? 'rgba(240,180,41,0.45)' : 'transparent'
+            const rowBg =
+              row.position <= 2 ? 'rgba(34,197,94,0.04)' :
+              row.position === 3 && thirdQualifies ? 'rgba(240,180,41,0.04)' : 'transparent'
             return (
-              <tr key={row.position} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', borderLeft: `3px solid ${bl}` }}>
+              <tr key={row.position} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: rowBg }}>
                 <td style={{ paddingLeft: 10, paddingTop: 9, paddingBottom: 9, textAlign: 'center' }}>
                   <PosBadge pos={row.position} thirdQualifies={row.position === 3 ? thirdQualifies : undefined} />
                 </td>
@@ -314,7 +313,7 @@ function BestThirdSection({ groups }: { groups: GroupData[] }) {
                 key={row.group}
                 style={{
                   borderBottom: '1px solid rgba(255,255,255,0.04)',
-                  borderLeft: advances ? '3px solid rgba(34,197,94,0.5)' : '3px solid transparent',
+                  background: advances ? 'rgba(34,197,94,0.04)' : 'transparent',
                 }}
               >
                 <td style={{ paddingLeft: 10, paddingTop: 9, paddingBottom: 9, textAlign: 'center' }}>
@@ -458,7 +457,6 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
   const isLive     = match?.status === 'live' || match?.status === 'halftime'
   const isHalftime = match?.status === 'halftime'
   const isFinished = match?.status === 'finished'
-  const hasBoth    = !!match
   const isAet      = match?.duration === 'EXTRA_TIME' || match?.duration === 'PENALTY_SHOOTOUT'
   // For penalty shootouts the 120-min score is tied — use pen tallies to determine winner
   const homeWins   = isFinished && match && (
@@ -470,8 +468,13 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
     ((match.home_score ?? 0) === (match.away_score ?? 0) && (match.away_score_penalties ?? 0) > (match.home_score_penalties ?? 0))
   )
 
+  // The backend sets home_label/away_label to the real team name when known, or the
+  // topology label ("1st Group E", "Best 3rd …") when the team is still TBD. We use
+  // getTeamFlagCode as the discriminator: a hit means it's a known team, no hit means
+  // it's a bracket placeholder and should be styled/translated differently.
   function Team({ name, score, penScore, winner }: { name: string; score?: number | null; penScore?: number | null; winner?: boolean }) {
-    const code = getTeamFlagCode(name)
+    const code    = getTeamFlagCode(name)
+    const isTeam  = !!code   // true for known nations, false for "1st Group E" etc.
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, height: 22, overflow: 'hidden' }}>
         <div style={{ width: 20, height: 14, flexShrink: 0, borderRadius: 2, overflow: 'hidden', background: 'rgba(255,255,255,0.04)' }}>
@@ -483,11 +486,13 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
         </div>
         <span style={{
           flex: 1, fontSize: 10.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          fontWeight: hasBoth ? (winner ? 700 : 500) : 400,
-          color: hasBoth ? (winner ? '#e2ecff' : '#6a7f9a') : '#3d5070',
-          opacity: hasBoth ? 1 : 0.55,
+          fontWeight: isTeam ? (winner ? 700 : 500) : 400,
+          color: isTeam
+            ? (winner ? '#e2ecff' : '#6a7f9a')
+            : (match ? '#4a6080' : '#3d5070'),
+          opacity: isTeam ? 1 : (match ? 0.75 : 0.55),
         }}>
-          {hasBoth ? translateTeamName(name, locale) : translateBracketLabel(name, locale)}
+          {isTeam ? translateTeamName(name, locale) : translateBracketLabel(name, locale)}
         </span>
         {(isFinished || isLive) && score != null && (
           <span style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
@@ -545,8 +550,8 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
 
       {/* Teams — flex:1 fills the remaining CARD_H - 22px - 1px(border) = 57px */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly', padding: '4px 8px' }}>
-        <Team name={match ? match.home_team : slot.home_label} score={match?.home_score} penScore={match?.home_score_penalties} winner={!!homeWins} />
-        <Team name={match ? match.away_team : slot.away_label} score={match?.away_score} penScore={match?.away_score_penalties} winner={!!awayWins} />
+        <Team name={slot.home_label} score={match?.home_score} penScore={match?.home_score_penalties} winner={!!homeWins} />
+        <Team name={slot.away_label} score={match?.away_score} penScore={match?.away_score_penalties} winner={!!awayWins} />
       </div>
     </div>
   )
@@ -610,7 +615,11 @@ function BracketConnectors({ slotsByRound }: { slotsByRound: Record<string, Brac
 
 function BracketView({ slots }: { slots: BracketSlot[] }) {
   const t = useTranslations('standings')
-  const hasR32Pending = slots.filter(s => s.round === 'round_of_32').some(s => s.match === null)
+  const isUnresolvedLabel = (label: string) =>
+    label.startsWith('1st ') || label.startsWith('2nd ') || label.startsWith('Best ')
+  const hasR32Pending = slots
+    .filter(s => s.round === 'round_of_32')
+    .some(s => isUnresolvedLabel(s.home_label) || isUnresolvedLabel(s.away_label))
 
   // Build per-round arrays in canonical tree order (BRACKET_SLOT_ORDER) so the two
   // feeders of each next-round match sit next to each other and the card lands

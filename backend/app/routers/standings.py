@@ -144,6 +144,12 @@ def _winner_of(match: Match) -> str | None:
         return match.home_team
     if match.away_score > match.home_score:
         return match.away_team
+    # Scores equal after 90/120 min — check penalty shootout
+    if match.home_score_penalties is not None and match.away_score_penalties is not None:
+        if match.home_score_penalties > match.away_score_penalties:
+            return match.home_team
+        if match.away_score_penalties > match.home_score_penalties:
+            return match.away_team
     return None
 
 
@@ -154,6 +160,12 @@ def _loser_of(match: Match) -> str | None:
         return match.away_team
     if match.away_score > match.home_score:
         return match.home_team
+    # Scores equal after 90/120 min — check penalty shootout
+    if match.home_score_penalties is not None and match.away_score_penalties is not None:
+        if match.home_score_penalties > match.away_score_penalties:
+            return match.away_team
+        if match.away_score_penalties > match.home_score_penalties:
+            return match.home_team
     return None
 
 
@@ -370,13 +382,22 @@ def get_bracket(
                             remaining.remove(match)
                             break
                 else:
-                    # Both sides fully deterministic (1st/2nd place): require exact match.
+                    # Both sides fully deterministic (1st/2nd place).
+                    # Primary: require exact match on both known teams.
+                    # Fallback: if one side is "TBD" (team not decided yet by API),
+                    # match by the single known side — each team appears in exactly
+                    # one R32 fixture so this is unambiguous.
                     home = _resolve_r32_label(home_label, standings_by_group)
                     away = _resolve_r32_label(away_label, standings_by_group)
                     if home is None or away is None:
                         continue
                     for match in remaining:
-                        if {match.home_team, match.away_team} == {home, away}:
+                        match_teams = {match.home_team, match.away_team}
+                        if match_teams == {home, away}:
+                            knockout_by_slot[slot_id] = match
+                            remaining.remove(match)
+                            break
+                        if "TBD" in match_teams and (home in match_teams or away in match_teams):
                             knockout_by_slot[slot_id] = match
                             remaining.remove(match)
                             break
@@ -405,8 +426,10 @@ def get_bracket(
         match = knockout_by_slot.get(slot_id)
 
         if match:
-            home_label = match.home_team
-            away_label = match.away_team
+            # Replace "TBD" placeholders with the topology label so the frontend
+            # can show "Germany vs Best 3rd (C/D/F/G/H)" instead of "Germany vs TBD".
+            home_label = match.home_team if match.home_team != "TBD" else entry["home_label"]
+            away_label = match.away_team if match.away_team != "TBD" else entry["away_label"]
         else:
             resolved_home = _resolve_label(slot_id, "home", knockout_by_slot)
             resolved_away = _resolve_label(slot_id, "away", knockout_by_slot)

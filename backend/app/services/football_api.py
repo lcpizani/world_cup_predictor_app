@@ -106,9 +106,11 @@ def sync_matches(db: Session, competition_code: str = "WC") -> dict:
         raw_group = fixture.get("group")
         group = raw_group.replace("GROUP_", "Group ").title() if raw_group else None
 
-        # Skip knockout placeholders where teams aren't decided yet
-        if not home or not away:
+        # Skip fixtures where neither team is known yet (pure placeholders)
+        if not home and not away:
             continue
+        home = home or "TBD"
+        away = away or "TBD"
 
         existing = db.query(Match).filter(Match.external_match_id == ext_id).first()
         if existing:
@@ -117,10 +119,14 @@ def sync_matches(db: Session, competition_code: str = "WC") -> dict:
             # changing teams or kickoff time would silently misalign them.
             if existing.status == "scheduled":
                 existing.kickoff_at = kickoff
-                existing.home_team = home
-                existing.away_team = away
                 existing.stage = stage
                 existing.group = group
+                # Never regress a known team name to "TBD" — only write "TBD"
+                # when the stored value is already "TBD" (forward progress only).
+                if home != "TBD" or existing.home_team == "TBD":
+                    existing.home_team = home
+                if away != "TBD" or existing.away_team == "TBD":
+                    existing.away_team = away
                 db.add(existing)
         else:
             db.add(Match(
