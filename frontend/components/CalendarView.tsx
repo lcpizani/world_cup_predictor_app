@@ -7,11 +7,11 @@ import { isSameMonth } from 'date-fns'
 import type { Match } from '@/types/api'
 import { getTeamFlagCode, getFlagUrl, getTeamAbbr } from '@/lib/flags'
 import { formatMatchTime } from '@/lib/date'
+import { formatInTimeZone } from 'date-fns-tz'
 import {
   groupMatchesByDate,
   getCalendarWeeks,
   getWeekDays,
-  formatDateKey,
 } from '@/lib/calendar'
 
 const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -20,7 +20,8 @@ const DAY_HEADERS_PT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
 // Stage color system — one color per knockout round, blue for group stage
 export const STAGE_CONFIG: Record<string, { label: string; labelPt: string; bg: string; border: string; accent: string }> = {
   group_stage:   { label: 'Group Stage',    labelPt: 'Fase de Grupos', bg: 'rgba(59,130,246,0.07)',  border: 'rgba(59,130,246,0.18)',  accent: '#3b82f6' },
-  round_of_16:   { label: 'Round of 16',    labelPt: 'Oitavas',        bg: 'rgba(20,184,166,0.09)',  border: 'rgba(20,184,166,0.22)',  accent: '#14b8a6' },
+  round_of_32:   { label: 'Round of 32',    labelPt: 'Rodada de 32',   bg: 'rgba(20,184,166,0.09)',  border: 'rgba(20,184,166,0.22)',  accent: '#14b8a6' },
+  round_of_16:   { label: 'Round of 16',    labelPt: 'Oitavas',        bg: 'rgba(251,191,36,0.09)',  border: 'rgba(251,191,36,0.22)',  accent: '#fbbf24' },
   quarter_final: { label: 'Quarter-final',  labelPt: 'Quartas',        bg: 'rgba(249,115,22,0.08)',  border: 'rgba(249,115,22,0.22)',  accent: '#f97316' },
   semi_final:    { label: 'Semi-final',     labelPt: 'Semifinal',      bg: 'rgba(168,85,247,0.08)',  border: 'rgba(168,85,247,0.22)',  accent: '#a855f7' },
   third_place:   { label: '3rd Place',      labelPt: '3º Lugar',       bg: 'rgba(148,163,184,0.07)', border: 'rgba(148,163,184,0.18)', accent: '#94a3b8' },
@@ -254,11 +255,9 @@ function DayCell({
   view: 'month' | 'week'
 }) {
   const t = useTranslations('calendar')
-  const today = new Date()
-  const isToday =
-    date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear()
+  const cellKey = formatInTimeZone(date, timezone || 'UTC', 'yyyy-MM-dd')
+  const todayKey = formatInTimeZone(new Date(), timezone || 'UTC', 'yyyy-MM-dd')
+  const isToday = cellKey === todayKey
 
   const filteredMatches = filterTeam
     ? matches.filter(m => m.home_team === filterTeam || m.away_team === filterTeam)
@@ -352,7 +351,7 @@ export default function CalendarView({ matches, timezone, view, anchorDate, filt
       {weeks.map((week, wi) => (
         <div key={wi} className="grid grid-cols-7">
           {week.map((date, di) => {
-            const key = formatDateKey(date)
+            const key = formatInTimeZone(date, timezone || 'UTC', 'yyyy-MM-dd')
             const dayMatches = matchesByDate.get(key) ?? []
             const inMonth = view === 'week' || isSameMonth(date, anchorDate)
             return (
