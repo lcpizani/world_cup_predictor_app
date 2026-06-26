@@ -380,6 +380,30 @@ function BestThirdSection({ groups }: { groups: GroupData[] }) {
   )
 }
 
+// ── Slot → venue lookup (derived from KNOCKOUT_SCHEDULE + match IDs) ─────────
+
+const SLOT_VENUE: Record<number, string> = {
+  // R32 (slot_id = FIFA match number)
+  73: 'SoFi Stadium',          74: 'Gillette Stadium',     75: 'Estadio BBVA',
+  76: 'NRG Stadium',           77: 'MetLife Stadium',      78: 'AT&T Stadium',
+  79: 'Estadio Azteca',        80: 'Mercedes-Benz Stadium', 81: "Levi's Stadium",
+  82: 'Lumen Field',           83: 'BMO Field',            84: 'SoFi Stadium',
+  85: 'BC Place',              86: 'Hard Rock Stadium',    87: 'Arrowhead Stadium',
+  88: 'AT&T Stadium',
+  // R16 (per R32_TO_R16 match numbering)
+  89: 'Lincoln Financial Field', 90: 'NRG Stadium',
+  91: 'MetLife Stadium',         92: 'Estadio Azteca',
+  93: 'AT&T Stadium',            94: 'Lumen Field',
+  95: 'Mercedes-Benz Stadium',   96: 'BC Place',
+  // QF
+  97: 'Gillette Stadium',     98: 'SoFi Stadium',
+  99: 'Hard Rock Stadium',   100: 'Arrowhead Stadium',
+  // SF
+  101: 'AT&T Stadium',       102: 'Mercedes-Benz Stadium',
+  // Final
+  104: 'MetLife Stadium',
+}
+
 // ── Bracket geometry ──────────────────────────────────────────────────────────
 //
 // Every bracket card has a fixed pixel height (CARD_H).  For proper vertical
@@ -392,7 +416,7 @@ function BestThirdSection({ groups }: { groups: GroupData[] }) {
 // This guarantees that every card in round n+1 is vertically centred between
 // its two feeder cards in round n.
 
-const CARD_H  = 80   // px — enforced on every BracketSlotCard
+const CARD_H  = 100  // px — enforced on every BracketSlotCard
 const COL_W   = 160  // px — width of every round column
 const COL_GAP = 20   // px — horizontal space between columns
 const R32_GAP = 4    // px — gap between adjacent cards in the R32 column
@@ -450,7 +474,7 @@ const TOTAL_W   = MAIN_ROUNDS.length * COL_W + (MAIN_ROUNDS.length - 1) * COL_GA
 
 // ── BracketSlotCard ───────────────────────────────────────────────────────────
 
-function BracketSlotCard({ slot }: { slot: BracketSlot }) {
+function BracketSlotCard({ slot, timezone }: { slot: BracketSlot; timezone?: string | null }) {
   const locale     = useLocale()
   const t          = useTranslations('standings')
   const match      = slot.match
@@ -512,6 +536,8 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
     )
   }
 
+  const venue = SLOT_VENUE[slot.slot_id]
+
   return (
     <div style={{
       // Fixed height is the cornerstone of bracket alignment — do not remove
@@ -521,31 +547,50 @@ function BracketSlotCard({ slot }: { slot: BracketSlot }) {
       border: isLive ? '1px solid rgba(240,180,41,0.3)' : '1px solid rgba(255,255,255,0.08)',
       borderRadius: 8, overflow: 'hidden',
     }}>
-      {/* Status bar — always rendered (keeps CARD_H consistent even for pending slots) */}
+      {/* Header bar — gold gradient when match is scheduled */}
       <div style={{
-        flexShrink: 0, height: 22,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 8px',
-        background: isLive
-          ? 'linear-gradient(90deg,rgba(200,144,10,.25),rgba(240,180,41,.12))'
+        flexShrink: 0,
+        padding: match ? '3px 8px 2px' : '0 8px',
+        height: match ? undefined : 22,
+        display: 'flex',
+        flexDirection: match ? 'column' : 'row',
+        alignItems: match ? undefined : 'center',
+        gap: 0,
+        background: match
+          ? 'linear-gradient(135deg, #c8900a 0%, #f0b429 55%, #f5c842 100%)'
           : 'rgba(255,255,255,.025)',
-        borderBottom: '1px solid rgba(255,255,255,.05)',
+        borderBottom: match ? 'none' : '1px solid rgba(255,255,255,.05)',
       }}>
-        <span style={{ fontSize: 9, color: '#3a5070', textTransform: 'uppercase', letterSpacing: '.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {match ? formatMatchDate(match.kickoff_at, null, locale) : ''}
-        </span>
-        <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
-          {isLive && (
-            <>
-              <span className="animate-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#f0b429', letterSpacing: '.06em' }}>
-                {isHalftime ? t('ht') : match?.minute != null ? formatMinute(match.minute, match.injury_time ?? null) : 'LIVE'}
+        {match ? (
+          <>
+            <span style={{ fontSize: 9, fontWeight: 600, color: '#3a2200', lineHeight: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', whiteSpace: 'nowrap' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {formatMatchDate(match.kickoff_at, timezone, locale)}
               </span>
-            </>
-          )}
-          {isFinished && <span style={{ fontSize: 9, fontWeight: 700, color: '#3a5070' }}>{isAet ? t('aet') : t('ft')}</span>}
-          {match && !isLive && !isFinished && <span style={{ fontSize: 9, color: '#2a4060' }}>{formatMatchTime(match.kickoff_at, null, locale)}</span>}
-        </span>
+              <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3, marginLeft: 4 }}>
+                {isLive && (
+                  <>
+                    <span className="animate-pulse" style={{ width: 5, height: 5, borderRadius: '50%', background: '#7a2000', display: 'inline-block' }} />
+                    <span style={{ fontSize: 9, fontWeight: 800, color: '#3a2200', letterSpacing: '.06em' }}>
+                      {isHalftime ? t('ht') : match.minute != null ? formatMinute(match.minute, match.injury_time ?? null) : 'LIVE'}
+                    </span>
+                  </>
+                )}
+                {isFinished && <span style={{ fontSize: 9, fontWeight: 700, color: '#3a2200' }}>{isAet ? t('aet') : t('ft')}</span>}
+                {!isLive && !isFinished && (
+                  <span style={{ fontSize: 9, fontWeight: 600, color: '#3a2200' }}>
+                    {formatMatchTime(match.kickoff_at, timezone, locale)}
+                  </span>
+                )}
+              </span>
+            </span>
+            {venue && (
+              <span style={{ fontSize: 8.5, color: '#5a3800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '12px' }}>
+                {venue}
+              </span>
+            )}
+          </>
+        ) : null}
       </div>
 
       {/* Teams — flex:1 fills the remaining CARD_H - 22px - 1px(border) = 57px */}
@@ -613,7 +658,7 @@ function BracketConnectors({ slotsByRound }: { slotsByRound: Record<string, Brac
 
 // ── BracketView ───────────────────────────────────────────────────────────────
 
-function BracketView({ slots }: { slots: BracketSlot[] }) {
+function BracketView({ slots, timezone }: { slots: BracketSlot[]; timezone?: string | null }) {
   const t = useTranslations('standings')
   const isUnresolvedLabel = (label: string) =>
     label.startsWith('1st ') || label.startsWith('2nd ') || label.startsWith('Best ')
@@ -681,7 +726,7 @@ function BracketView({ slots }: { slots: BracketSlot[] }) {
                 <div key={round} style={{ width: COL_W, flexShrink: 0, paddingTop }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap }}>
                     {roundSlots.map(slot => (
-                      <BracketSlotCard key={slot.slot_id} slot={slot} />
+                      <BracketSlotCard key={slot.slot_id} slot={slot} timezone={timezone} />
                     ))}
                   </div>
                 </div>
@@ -702,7 +747,7 @@ function BracketView({ slots }: { slots: BracketSlot[] }) {
             {t('rounds.third_place')}
           </span>
           <div style={{ width: COL_W }}>
-            {thirdPlace.map(slot => <BracketSlotCard key={slot.slot_id} slot={slot} />)}
+            {thirdPlace.map(slot => <BracketSlotCard key={slot.slot_id} slot={slot} timezone={timezone} />)}
           </div>
         </div>
       )}
@@ -735,8 +780,8 @@ export default function StandingsPage() {
 
   async function handleReload() {
     setReloading(true)
-    await qc.invalidateQueries({ queryKey: ['standings'] })
-    await qc.invalidateQueries({ queryKey: ['bracket'] })
+    await qc.refetchQueries({ queryKey: ['standings'] })
+    await qc.refetchQueries({ queryKey: ['bracket'] })
     setReloading(false)
   }
 
@@ -833,7 +878,7 @@ export default function StandingsPage() {
                 {(() => {
                   const qualifyingThirdGroups = new Set(
                     standingsData
-                      .flatMap(g => g.standings.filter(r => r.position === 3))
+                      .flatMap(g => g.standings.filter(r => r.position === 3 && r.played > 0))
                       .sort((a, b) =>
                         b.points - a.points ||
                         b.goal_difference - a.goal_difference ||
@@ -860,7 +905,7 @@ export default function StandingsPage() {
           {bracketLoading ? (
             <div className="h-44 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.04)' }} />
           ) : (
-            <BracketView slots={bracketData} />
+            <BracketView slots={bracketData} timezone={me?.timezone} />
           )}
         </div>
       )}

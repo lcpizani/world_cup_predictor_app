@@ -33,7 +33,8 @@ export function formatInUserTz(
 }
 
 export function formatMatchDate(date: string | Date, timezone?: string | null, locale?: string | null): string {
-  return formatInUserTz(date, 'MMM d', timezone, locale)
+  const s = formatInUserTz(date, 'MMM d', timezone, locale)
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
 export function formatMatchTime(date: string | Date, timezone?: string | null, locale?: string | null): string {
@@ -54,6 +55,6 @@ export function formatMatchDateTime(date: string | Date, timezone?: string | nul
 }
 
 export function formatShortDateTime(date: string | Date, timezone?: string | null, locale?: string | null): string {
-  const s = formatInUserTz(date, 'EEE MMM d, h:mm aa', timezone, locale)
+  const s = formatInUserTz(date, 'EEE MMM d, h:mm a', timezone, locale)
   return locale === 'pt' ? applyPtDayAbbr(s) : s
 }
