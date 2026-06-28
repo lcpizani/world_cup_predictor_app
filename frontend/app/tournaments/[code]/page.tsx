@@ -87,7 +87,7 @@ function StatusBadge({ status, kickoff_at, timezone, minute, injuryTime, duratio
   )
 }
 
-function MatchCard({ match, prediction, timezone, scoring, code }: { match: Match; prediction?: Prediction; timezone?: string | null; scoring?: ScoringRules; code: string }) {
+function MatchCard({ match, prediction, timezone, scoring, code, joinedAt }: { match: Match; prediction?: Prediction; timezone?: string | null; scoring?: ScoringRules; code: string; joinedAt?: string }) {
   const t = useTranslations('tournament')
   const locale = useLocale()
   const minutesLeft = useMinutesUntil(match.kickoff_at)
@@ -255,6 +255,17 @@ function MatchCard({ match, prediction, timezone, scoring, code }: { match: Matc
         </div>
         {(match.status === 'finished' || match.status === 'live' || match.status === 'halftime') && scoring && prediction &&
           match.home_score !== null && match.away_score !== null && (() => {
+            const notCounted = joinedAt != null && new Date(match.kickoff_at) < new Date(joinedAt)
+            if (notCounted) {
+              return (
+                <span
+                  className="ml-auto text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                  style={{ color: '#3f5068', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+                >
+                  {t('not_counted')}
+                </span>
+              )
+            }
             const pts = computeProvisionalPoints(
               prediction.predicted_home, prediction.predicted_away,
               match.home_score, match.away_score, scoring, match.stage,
@@ -326,7 +337,7 @@ function AccordionSection({
 // ── TournamentGroupStageView ───────────────────────────────────────────────────
 
 function TournamentGroupStageView({
-  matches, predByMatch, openSections, onToggle, timezone, scoring, code,
+  matches, predByMatch, openSections, onToggle, timezone, scoring, code, joinedAt,
 }: {
   matches: Match[]
   predByMatch: Record<string, Prediction>
@@ -335,6 +346,7 @@ function TournamentGroupStageView({
   timezone?: string | null
   scoring?: ScoringRules
   code: string
+  joinedAt?: string
 }) {
   const tP = useTranslations('predictions')
   const locale = useLocale()
@@ -390,7 +402,7 @@ function TournamentGroupStageView({
             onToggle={onToggle}
           >
             {gMatches.map(m => (
-              <MatchCard key={m.id} match={m} prediction={predByMatch[m.id]} timezone={timezone} scoring={scoring} code={code} />
+              <MatchCard key={m.id} match={m} prediction={predByMatch[m.id]} timezone={timezone} scoring={scoring} code={code} joinedAt={joinedAt} />
             ))}
           </AccordionSection>
         )
@@ -402,7 +414,7 @@ function TournamentGroupStageView({
 // ── TournamentKnockoutStageView ────────────────────────────────────────────────
 
 function TournamentKnockoutStageView({
-  matches, predByMatch, openSections, onToggle, timezone, scoring, code,
+  matches, predByMatch, openSections, onToggle, timezone, scoring, code, joinedAt,
 }: {
   matches: Match[]
   predByMatch: Record<string, Prediction>
@@ -411,6 +423,7 @@ function TournamentKnockoutStageView({
   timezone?: string | null
   scoring?: ScoringRules
   code: string
+  joinedAt?: string
 }) {
   const tP = useTranslations('predictions')
   const locale = useLocale()
@@ -461,7 +474,7 @@ function TournamentKnockoutStageView({
             isOpen={isOpen}
             onToggle={onToggle}
           >
-            <MatchCard match={m} prediction={predByMatch[m.id]} timezone={timezone} scoring={scoring} code={code} />
+            <MatchCard match={m} prediction={predByMatch[m.id]} timezone={timezone} scoring={scoring} code={code} joinedAt={joinedAt} />
           </AccordionSection>
         )
       })}
@@ -542,6 +555,15 @@ export default function TournamentPage() {
     enabled: !!tournamentId,
   })
 
+  const { data: members = [] } = useQuery({
+    queryKey: ['members', code],
+    queryFn: () => api.getMembers(code),
+    enabled: !!code,
+  })
+
+  const myMembership = me ? members.find(m => m.user_id === me.id) : undefined
+  const myJoinedAt = myMembership?.joined_at
+
   const predByMatch = Object.fromEntries(predictions.map((p) => [p.match_id, p]))
 
   const sorted = useMemo(
@@ -589,7 +611,11 @@ export default function TournamentPage() {
   }, [sorted, teamSearch, groupFilter, locale])
 
   const upcoming = filteredMatches.filter(m => m.status === 'scheduled' || m.status === 'live' || m.status === 'halftime')
-  const finished = filteredMatches.filter(m => m.status === 'finished').reverse()
+  const leagueCreatedAt = tournament?.created_at
+  const finished = filteredMatches.filter(m =>
+    m.status === 'finished' &&
+    (leagueCreatedAt == null || new Date(m.kickoff_at) >= new Date(leagueCreatedAt))
+  ).reverse()
 
   const upcomingMissing = upcoming.filter(m => !predByMatch[m.id]).length
   const finishedWithPred = finished.filter(m => !!predByMatch[m.id]).length
@@ -964,7 +990,7 @@ export default function TournamentPage() {
                 </div>
               )}
               {upcoming.map(m => (
-                <MatchCard key={m.id} match={m} prediction={predByMatch[m.id]} timezone={me?.timezone} scoring={tournament?.scoring_rules} code={code} />
+                <MatchCard key={m.id} match={m} prediction={predByMatch[m.id]} timezone={me?.timezone} scoring={tournament?.scoring_rules} code={code} joinedAt={myJoinedAt} />
               ))}
             </div>
           )}
@@ -980,7 +1006,7 @@ export default function TournamentPage() {
                 </div>
               )}
               {finished.map(m => (
-                <MatchCard key={m.id} match={m} prediction={predByMatch[m.id]} timezone={me?.timezone} scoring={tournament?.scoring_rules} code={code} />
+                <MatchCard key={m.id} match={m} prediction={predByMatch[m.id]} timezone={me?.timezone} scoring={tournament?.scoring_rules} code={code} joinedAt={myJoinedAt} />
               ))}
             </div>
           )}
@@ -1034,6 +1060,7 @@ export default function TournamentPage() {
                   timezone={me?.timezone}
                   scoring={tournament?.scoring_rules}
                   code={code}
+                  joinedAt={myJoinedAt}
                 />
               )}
 
@@ -1047,6 +1074,7 @@ export default function TournamentPage() {
                   timezone={me?.timezone}
                   scoring={tournament?.scoring_rules}
                   code={code}
+                  joinedAt={myJoinedAt}
                 />
               )}
             </>

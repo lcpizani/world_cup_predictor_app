@@ -327,7 +327,8 @@
     "edit": "Editar",
     "double_active": "Pontos em dobro a partir de {stage}",
     "aet": "AET",
-    "live_now": "Ao vivo agora"
+    "live_now": "Ao vivo agora",
+    "not_counted": "Não pontuado"
   },
   "leagueSettings": {
     "back": "← Voltar à liga",
