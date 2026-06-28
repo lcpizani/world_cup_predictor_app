@@ -327,7 +327,8 @@
     "edit": "Edit",
     "double_active": "Points double from {stage}",
     "aet": "AET",
-    "live_now": "Live now"
+    "live_now": "Live now",
+    "not_counted": "Not counted"
   },
   "leagueSettings": {
     "back": "← Back to league",
