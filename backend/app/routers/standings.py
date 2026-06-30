@@ -404,21 +404,28 @@ def get_bracket(
             else:
                 home = _resolve_label(slot_id, "home", knockout_by_slot)
                 away = _resolve_label(slot_id, "away", knockout_by_slot)
-                if home is None or away is None:
+                # Neither side known yet — nothing to match on.
+                if home is None and away is None:
                     continue
                 for match in remaining:
-                    if {match.home_team, match.away_team} == {home, away}:
+                    match_teams = {match.home_team, match.away_team} - {"TBD"}
+                    known = {t for t in (home, away) if t is not None}
+                    if match_teams and match_teams == known:
                         knockout_by_slot[slot_id] = match
                         remaining.remove(match)
                         break
+                    # One feeder winner is known and appears in the fixture;
+                    # the other side is still TBD in the API. Each team plays
+                    # exactly one fixture per round so this is unambiguous.
+                    if match_teams and match_teams <= known | {"TBD"}:
+                        if known & match_teams:
+                            knockout_by_slot[slot_id] = match
+                            remaining.remove(match)
+                            break
 
-        # Fallback: fixtures not resolved by team names fill remaining empty slots
-        # by ascending external-ID order. Only applies to R16+ — for R32 every
-        # fixture must match a known team; positional assignment would be wrong.
-        if round_name != "round_of_32":
-            empty_slots = [s for s in slot_ids if s not in knockout_by_slot]
-            for slot_id, match in zip(empty_slots, remaining):
-                knockout_by_slot[slot_id] = match
+        # No positional fallback for R16+: external_match_id order does not align
+        # with bracket slot order, so zipping would assign matches to wrong slots.
+        # Unresolved slots stay empty and display their topology labels instead.
 
     slots: list[BracketSlot] = []
     for entry in _BRACKET_TOPOLOGY:

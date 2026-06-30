@@ -184,6 +184,35 @@ def test_r32_best_third_label_resolves_to_highest_ranked(client, db):
     assert "C3" in teams, f"C3 should be the Best 3rd ABCDF winner; got {teams}"
 
 
+# ── R16: half-filled fixture (one team known, other still TBD) ───────────────
+
+def test_r16_half_filled_fixture_links_by_single_known_winner(client, db):
+    """When the API forward-propagates only one winner into an R16 fixture
+    (e.g. 'Canada / TBD'), the slot must be linked immediately via that single
+    known team rather than waiting for both sides to resolve."""
+    _minimal_standings(db)
+
+    # M73 (2A vs 2B): B2 wins → feeds R16 slot 90 (home side = Winner M73).
+    _match(db, 537417, "round_of_32", "A2", "B2", hs=0, as_=2)   # M73 → B2
+    _match(db, 200,    "round_of_32", "F1", "C2", hs=2, as_=0)   # M75 → F1
+
+    # API puts B2 into the R16 fixture but opponent not known yet (other R32 unfinished).
+    _match(db, 537376, "round_of_16", "B2", "TBD", status="scheduled",
+           hs=None, as_=None)
+    db.commit()
+
+    resp = client.get("/standings/bracket", headers=auth_headers(_token(client)))
+    assert resp.status_code == 200, resp.text
+    by_slot = {s["slot_id"]: s for s in resp.json()}
+
+    slot90 = by_slot[90]
+    assert slot90["match"] is not None, "slot 90 must link as soon as B2 appears in fixture"
+    assert slot90["match"]["external_match_id"] == "537376"
+    # Known side shows real name; unknown side shows feeder label
+    assert slot90["home_label"] == "B2"
+    assert slot90["away_label"] == "Winner M75"
+
+
 # ── R16: resolution from R32 winners ─────────────────────────────────────────
 
 def test_round_of_16_slot_resolves_from_r32_winners(client, db):
@@ -271,35 +300,60 @@ def test_round_of_16_fixtures_link_by_teams_not_position(client, db):
 # ── QF: still resolves from R16 winners (unchanged) ──────────────────────────
 
 def test_quarter_final_resolves_from_round_of_16_winners(client, db):
-    # R16 played (ids 537375-537382 -> slots 89-96 by ascending order), home wins.
-    # QF slot 98 = Winner M93 vs Winner M94 -> must resolve to those R16 winners.
-    for ext_id in range(537375, 537383):
-        _match(db, ext_id, "round_of_16", f"H{ext_id}", f"A{ext_id}", hs=2, as_=0)
+    """QF slot links by team-name once both R16 feeders are finished.
+
+    Slot 97 = Winner M89 vs Winner M90.
+    M89 = W74 vs W77  →  need R32 standings + R32 results to know those winners.
+    M90 = W73 vs W75  →  same.
+
+    Build the full chain: standings → R32 → R16 → QF fixture.
+    """
+    _minimal_standings(db)
+
+    # R32: finish M73 (A2 vs B2 → A2 wins) and M75 (F1 vs C2 → F1 wins)
+    # so M90 = A2 vs F1.
+    _match(db, 200, "round_of_32", "A2", "B2", hs=2, as_=0)   # M73 → A2
+    _match(db, 100, "round_of_32", "E1", "A3", hs=2, as_=0)   # M74 → E1
+    _match(db, 300, "round_of_32", "F1", "C2", hs=2, as_=0)   # M75 → F1
+    _match(db, 400, "round_of_32", "C1", "F2", hs=2, as_=0)   # M76 → C1
+    _match(db, 500, "round_of_32", "I1", "C3", hs=2, as_=0)   # M77 → I1
+    _match(db, 600, "round_of_32", "E2", "I2", hs=2, as_=0)   # M78 → E2
+    # R16: finish M89 (E1 vs I1 → E1) and M90 (A2 vs F1 → A2)
+    _match(db, 700, "round_of_16", "E1", "I1", hs=3, as_=0)   # M89 → E1
+    _match(db, 800, "round_of_16", "A2", "F1", hs=3, as_=0)   # M90 → A2
+    # QF fixture for slot 97 = Winner M89 (E1) vs Winner M90 (A2).
+    # ID is deliberately far from bracket slot numbers.
+    _match(db, 999, "quarter_finals", "E1", "A2", status="scheduled", hs=None, as_=None)
     db.commit()
 
     resp = client.get("/standings/bracket", headers=auth_headers(_token(client)))
+    assert resp.status_code == 200, resp.text
     by_slot = {s["slot_id"]: s for s in resp.json()}
 
-    # Slots 89..96 map to ids 537375..537382 (ascending within R16 → correct).
-    # M93 → 537379, M94 → 537380.
-    slot98 = by_slot[98]
-    assert slot98["match"] is None
-    assert slot98["home_label"] == "H537379", slot98["home_label"]
-    assert slot98["away_label"] == "H537380", slot98["away_label"]
+    slot97 = by_slot[97]
+    assert slot97["match"] is not None, "slot 97 should be linked once R16 feeders are done"
+    assert slot97["match"]["external_match_id"] == "999"
+    assert {slot97["home_label"], slot97["away_label"]} == {"E1", "A2"}
 
 
-def test_quarter_finals_map_to_slots_97_100_not_by_raw_id(client, db):
-    # QF ids 537383-537386 must land in slots 97-100 via the positional fallback
-    # (no R16 feeder results in DB, so team-name matching produces None for all).
+def test_quarter_finals_stay_empty_without_r16_results(client, db):
+    """QF fixtures with TBD teams must NOT be force-assigned to slots.
+
+    The old positional fallback (zip) would misplace them — verify it's gone.
+    QF slots stay empty and show their topology labels until R16 feeders finish.
+    """
     for ext_id in range(537383, 537387):
-        _match(db, ext_id, "quarter_finals", f"H{ext_id}", f"A{ext_id}",
-               status="scheduled")
+        _match(db, ext_id, "quarter_finals", "TBD", "TBD", status="scheduled",
+               hs=None, as_=None)
     db.commit()
 
     resp = client.get("/standings/bracket", headers=auth_headers(_token(client)))
+    assert resp.status_code == 200, resp.text
     by_slot = {s["slot_id"]: s for s in resp.json()}
 
-    for offset, ext_id in enumerate(range(537383, 537387)):
-        slot = by_slot[97 + offset]
-        assert slot["match"] is not None, f"slot {97+offset} unattached"
-        assert slot["match"]["external_match_id"] == str(ext_id)
+    for slot_id in range(97, 101):
+        slot = by_slot[slot_id]
+        assert slot["match"] is None, (
+            f"slot {slot_id} should be unlinked when no R16 feeders are resolved; "
+            f"got match {slot['match']}"
+        )
