@@ -576,6 +576,7 @@
     "apply": "Aplicar",
     "recomputing": "Recalculando…",
     "recompute": "Recalcular",
+    "recompute_all": "Recalcular Todas as Ligas",
     "no_invite_env_pre": "Nenhuma variável de ambiente",
     "no_invite_env_post": "definida — o cadastro está aberto no momento.",
     "registration_share_desc": "Compartilhe este link com quem você quiser dar acesso para se cadastrar na plataforma.",
