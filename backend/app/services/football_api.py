@@ -180,8 +180,52 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
         if match is None:
             continue
 
-        # Already settled — nothing to do
+        # Already settled — but retroactively correct 0-0 scores caused by the
+        # extraTime-is-incremental bug before the fix was deployed.
         if match.status == "finished":
+            if (
+                internal_status == "finished"
+                and match.duration in ("EXTRA_TIME", "PENALTY_SHOOTOUT")
+            ):
+                score_obj = fixture.get("score", {})
+                needs_db_add = False
+
+                # Fix main score if it was incorrectly stored as 0-0.
+                if match.home_score == 0 and match.away_score == 0:
+                    regular = score_obj.get("regularTime") or {}
+                    et = score_obj.get("extraTime") or {}
+                    corrected_home = (regular.get("home") or 0) + (et.get("home") or 0)
+                    corrected_away = (regular.get("away") or 0) + (et.get("away") or 0)
+                    if corrected_home != 0 or corrected_away != 0:
+                        match.home_score = corrected_home
+                        match.away_score = corrected_away
+                        needs_db_add = True
+                        logger.warning(
+                            "Retroactively corrected ET/penalty score",
+                            ext_id=ext_id,
+                            home_score=corrected_home,
+                            away_score=corrected_away,
+                        )
+
+                # Populate missing penalty scores. Use match.duration (stored value)
+                # rather than api_duration — the API can drift after the fact.
+                if match.duration == "PENALTY_SHOOTOUT" and match.home_score_penalties is None:
+                    pen = score_obj.get("penalties") or {}
+                    pen_home = pen.get("home")
+                    pen_away = pen.get("away")
+                    if pen_home is not None or pen_away is not None:
+                        match.home_score_penalties = pen_home
+                        match.away_score_penalties = pen_away
+                        needs_db_add = True
+                        logger.warning(
+                            "Retroactively set missing penalty scores",
+                            ext_id=ext_id,
+                            pen_home=pen_home,
+                            pen_away=pen_away,
+                        )
+
+                if needs_db_add:
+                    db.add(match)
             continue
 
         if internal_status == "suspended":
@@ -199,11 +243,14 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
         if internal_status in ("live", "halftime"):
             score_obj = fixture.get("score", {})
             api_duration = score_obj.get("duration", "REGULAR")
-            # During ET/penalties use the running extraTime total; fall back to fullTime
             if api_duration in ("EXTRA_TIME", "PENALTY_SHOOTOUT"):
+                # extraTime is incremental (only ET goals), so add to regularTime for the real score.
+                regular = score_obj.get("regularTime") or {}
                 et = score_obj.get("extraTime") or {}
-                home_score = et.get("home")
-                away_score = et.get("away")
+                reg_home, et_home = regular.get("home"), et.get("home")
+                reg_away, et_away = regular.get("away"), et.get("away")
+                home_score = (reg_home or 0) + (et_home or 0) if (reg_home is not None or et_home is not None) else None
+                away_score = (reg_away or 0) + (et_away or 0) if (reg_away is not None or et_away is not None) else None
             else:
                 ft = score_obj.get("fullTime") or {}
                 home_score = ft.get("home")
@@ -226,13 +273,17 @@ def sync_results(db: Session, competition_code: str = "WC") -> dict:
         if internal_status == "finished":
             score_obj = fixture.get("score", {})
             api_duration = score_obj.get("duration", "REGULAR")
-            ft = score_obj.get("fullTime") or {}
-            # Use extraTime total when available (it's cumulative, includes 90-min goals)
             if api_duration in ("EXTRA_TIME", "PENALTY_SHOOTOUT"):
+                # extraTime is incremental (only ET goals), so add to regularTime for the real score.
+                # Treat both-null as None so the guard below defers the write until real data arrives.
+                regular = score_obj.get("regularTime") or {}
                 et = score_obj.get("extraTime") or {}
-                home_score = et.get("home") if et.get("home") is not None else ft.get("home")
-                away_score = et.get("away") if et.get("away") is not None else ft.get("away")
+                reg_home, et_home = regular.get("home"), et.get("home")
+                reg_away, et_away = regular.get("away"), et.get("away")
+                home_score = (reg_home or 0) + (et_home or 0) if (reg_home is not None or et_home is not None) else None
+                away_score = (reg_away or 0) + (et_away or 0) if (reg_away is not None or et_away is not None) else None
             else:
+                ft = score_obj.get("fullTime") or {}
                 home_score = ft.get("home")
                 away_score = ft.get("away")
             if home_score is None or away_score is None:

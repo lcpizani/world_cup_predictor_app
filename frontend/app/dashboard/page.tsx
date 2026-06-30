@@ -458,8 +458,8 @@ function MatchRailCard({ match, prediction, timezone }: { match: Match; predicti
       {/* Team rows — each row is fixed height; flag uses object-contain so no cropping */}
       <div className="px-3 py-4 space-y-2.5">
         {[
-          { name: match.home_team, score: match.home_score },
-          { name: match.away_team, score: match.away_score },
+          { name: match.home_team, score: match.home_score, penScore: match.home_score_penalties },
+          { name: match.away_team, score: match.away_score, penScore: match.away_score_penalties },
         ].map((team) => {
           const flagCode = getTeamFlagCode(team.name)
           const displayName = translateTeamName(team.name, locale)
@@ -491,12 +491,19 @@ function MatchRailCard({ match, prediction, timezone }: { match: Match; predicti
                 {getTeamAbbr(team.name)}
               </span>
               {/* Score — always rendered; invisible for upcoming to lock card height */}
-              <span
-                className="font-[family-name:var(--font-oswald)] font-bold text-[1.75rem] text-[#f0b429] leading-none tabular-nums shrink-0 w-8 text-right"
+              <div
+                className="flex items-baseline gap-1 shrink-0"
                 style={{ visibility: (isFinished || isLive) ? 'visible' : 'hidden' }}
               >
-                {team.score ?? '—'}
-              </span>
+                <span className="font-[family-name:var(--font-oswald)] font-bold text-[1.75rem] text-[#f0b429] leading-none tabular-nums w-8 text-right">
+                  {team.score ?? '—'}
+                </span>
+                {team.penScore != null && (
+                  <span className="font-[family-name:var(--font-oswald)] text-xs" style={{ color: '#2d3e52' }}>
+                    ({team.penScore})
+                  </span>
+                )}
+              </div>
             </div>
           )
         })}
