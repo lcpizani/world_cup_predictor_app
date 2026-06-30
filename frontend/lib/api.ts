@@ -164,6 +164,11 @@ export const api = {
       `/admin/tournaments/${tournament_id}/recompute`,
       { method: 'POST' }
     ),
+  recomputeAll: () =>
+    request<{ recomputed_tournaments: number; recomputed_matches: number; recomputed_predictions: number; failed_tournament_ids: string[] }>(
+      `/admin/recompute-all`,
+      { method: 'POST' }
+    ),
   resetAllMatches: (expectedMatchCount: number) =>
     request<{ ok: boolean }>('/admin/matches/reset', {
       method: 'DELETE',

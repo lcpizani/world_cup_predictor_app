@@ -18,7 +18,7 @@ from app.services.scoring import update_provisional_points
 from app.models.match import Match
 from app.models.prediction import Prediction
 from app.models.point_event import PointEvent
-from app.models.tournament import TournamentMember
+from app.models.tournament import Tournament, TournamentMember
 
 router = APIRouter()
 
@@ -72,6 +72,35 @@ def recompute_tournament_scores(
         raise
     logger.info("Tournament scores recomputed", tournament_id=str(tournament_id), result=result)
     return result
+
+
+@router.post("/recompute-all", status_code=status.HTTP_200_OK)
+def recompute_all_tournament_scores(
+    db: Session = Depends(get_db),
+    admin=Depends(get_admin_user),
+) -> dict:
+    logger.info("Recomputing all tournament scores", admin=str(admin.id))
+    tournament_ids = [row.id for row in db.query(Tournament.id).all()]
+    total_matches = 0
+    total_predictions = 0
+    failed: list[str] = []
+    for tid in tournament_ids:
+        try:
+            result = scoring_service.recompute_tournament_scores(db, tid)
+            total_matches += result.get("recomputed_matches", 0)
+            total_predictions += result.get("recomputed_predictions", 0)
+        except Exception as exc:
+            logger.error("Failed to recompute tournament", tournament_id=str(tid), error=str(exc))
+            db.rollback()
+            failed.append(str(tid))
+    logger.info("All tournament scores recomputed", tournaments=len(tournament_ids),
+                matches=total_matches, predictions=total_predictions, failed=len(failed))
+    return {
+        "recomputed_tournaments": len(tournament_ids) - len(failed),
+        "recomputed_matches": total_matches,
+        "recomputed_predictions": total_predictions,
+        "failed_tournament_ids": failed,
+    }
 
 
 @router.delete("/matches/reset", status_code=status.HTTP_200_OK)

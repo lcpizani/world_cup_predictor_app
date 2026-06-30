@@ -268,6 +268,37 @@ function RecomputeButton({ tournamentId }: { tournamentId: string }) {
   )
 }
 
+function RecomputeAllButton() {
+  const t = useTranslations('admin')
+  const [msg, setMsg] = useState('')
+  const queryClient = useQueryClient()
+
+  const mutation = useMutation({
+    mutationFn: () => api.recomputeAll(),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries()
+      const failNote = data.failed_tournament_ids.length > 0
+        ? ` ⚠ ${data.failed_tournament_ids.length} failed`
+        : ''
+      setMsg(`✓ ${data.recomputed_tournaments} leagues / ${data.recomputed_matches} matches / ${data.recomputed_predictions} predictions${failNote}`)
+    },
+    onError: (e: Error) => setMsg(`✗ ${e.message}`),
+  })
+
+  return (
+    <div className="flex items-center gap-3 pb-3 mb-3 border-b border-white/10">
+      {msg && <span className="text-xs text-[#64748b] font-mono flex-1">{msg}</span>}
+      <button
+        onClick={() => mutation.mutate()}
+        disabled={mutation.isPending}
+        className="ml-auto bg-amber-500/20 border border-amber-400/30 text-amber-300 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-amber-500/30 disabled:opacity-40 transition whitespace-nowrap"
+      >
+        {mutation.isPending ? t('recomputing') : t('recompute_all')}
+      </button>
+    </div>
+  )
+}
+
 // ── Registration invite card ─────────────────────────────────────────────────
 
 function RegistrationInviteCard() {
@@ -541,6 +572,7 @@ export default function AdminPage() {
 
       {/* Recompute */}
       <AdminCard title={t('card_recompute')} icon="🧮">
+        <RecomputeAllButton />
         {tournaments.length === 0 ? (
           <p className="text-sm text-[#475569]">{t('no_tournaments')}</p>
         ) : (

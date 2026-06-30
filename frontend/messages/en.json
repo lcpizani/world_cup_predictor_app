@@ -576,6 +576,7 @@
     "apply": "Apply",
     "recomputing": "Recomputing…",
     "recompute": "Recompute",
+    "recompute_all": "Recompute All Leagues",
     "no_invite_env_pre": "No",
     "no_invite_env_post": "env var set — registration is currently open.",
     "registration_share_desc": "Share this link with anyone you want to give access to register on the platform.",
