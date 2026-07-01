@@ -434,6 +434,7 @@ def send_calendar_email(to_email: str, matches: list["Match"], ics_bytes: bytes,
             {
                 "filename": "wc2026-fixtures.ics",
                 "content": base64.b64encode(ics_bytes).decode("utf-8"),
+                "content_type": "application/ics; charset=utf-8",
             }
         ],
     }
