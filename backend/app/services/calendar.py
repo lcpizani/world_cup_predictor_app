@@ -14,6 +14,7 @@ def generate_fixtures_ics(matches: List[Match], locale: str = "en") -> bytes:
     cal.add("prodid", "-//WC Football Predictions//wcfootballpredictions.com//EN")
     cal.add("version", "2.0")
     cal.add("calscale", "GREGORIAN")
+    cal.add("method", "PUBLISH")
     cal.add("x-wr-calname", "WC 2026 Fixtures")
 
     for match in matches:

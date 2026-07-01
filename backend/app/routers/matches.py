@@ -46,7 +46,7 @@ def download_calendar(db: Session = Depends(get_db), current_user=Depends(get_cu
     ics_bytes = calendar_service.generate_fixtures_ics(matches)
     return Response(
         content=ics_bytes,
-        media_type="text/calendar",
+        media_type="text/calendar; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="wc2026-fixtures.ics"'},
     )
 
