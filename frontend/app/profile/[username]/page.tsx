@@ -59,7 +59,7 @@ function EditProfileForm({
       qc.invalidateQueries({ queryKey: ['profile', currentUsername] })
       onClose()
       if (usernameChanged) {
-        router.replace(`/profile/${username}`)
+        router.replace(`/profile/${encodeURIComponent(username)}`)
       } else if (languageChanged) {
         router.refresh()
       }
