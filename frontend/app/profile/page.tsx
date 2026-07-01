@@ -25,7 +25,7 @@ export default function ProfileRedirect() {
       return
     }
     if (user) {
-      router.replace(`/profile/${user.username}`)
+      router.replace(`/profile/${encodeURIComponent(user.username)}`)
     }
     if (isError) {
       router.replace('/auth/login')

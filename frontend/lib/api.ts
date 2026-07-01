@@ -45,8 +45,8 @@ export const api = {
     request<User>('/users/me', { method: 'PUT', body: JSON.stringify(data) }),
 
   // ── Users ─────────────────────────────────────────────────────────────────
-  getUserProfile: (username: string) => request<UserProfile>(`/users/${username}`),
-  getUserPredictions: (username: string) => request<PredictionHistoryItem[]>(`/users/${username}/predictions`),
+  getUserProfile: (username: string) => request<UserProfile>(`/users/${encodeURIComponent(username)}`),
+  getUserPredictions: (username: string) => request<PredictionHistoryItem[]>(`/users/${encodeURIComponent(username)}/predictions`),
 
   // ── Tournaments ───────────────────────────────────────────────────────────
   listTournaments: () => request<Tournament[]>('/tournaments'),
