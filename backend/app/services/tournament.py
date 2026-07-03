@@ -711,6 +711,20 @@ def get_prediction_stats(db: Session, invite_code: str, user: User) -> Predictio
     member_ids = {m.user_id for m in members}
     member_joined_at = {m.user_id: m.joined_at for m in members}
 
+    # Points per (user, match) scoped to this tournament via PointEvent
+    from collections import defaultdict
+    point_events = (
+        db.query(PointEvent)
+        .filter(
+            PointEvent.tournament_id == tournament.id,
+            PointEvent.user_id.in_(member_ids),
+        )
+        .all()
+    )
+    pts_by_user_match: dict = defaultdict(int)
+    for pe in point_events:
+        pts_by_user_match[(pe.user_id, pe.match_id)] += pe.points
+
     # Fetch all predictions for league members that have been scored
     predictions = (
         db.query(Prediction)
@@ -727,7 +741,6 @@ def get_prediction_stats(db: Session, invite_code: str, user: User) -> Predictio
     )
 
     # Group predictions by match_id, respecting joined_at eligibility
-    from collections import defaultdict
     by_match: dict = defaultdict(list)
     for pred in predictions:
         joined = member_joined_at.get(pred.user_id)
@@ -745,7 +758,7 @@ def get_prediction_stats(db: Session, invite_code: str, user: User) -> Predictio
         exacts = 0
         total_pts = 0
         for p in preds:
-            total_pts += p.points_awarded
+            total_pts += pts_by_user_match.get((p.user_id, match_id), 0)
             if _outcome(p.predicted_home, p.predicted_away) == actual_outcome:
                 hits += 1
             if p.predicted_home == match.home_score and p.predicted_away == match.away_score:
@@ -773,7 +786,7 @@ def get_prediction_stats(db: Session, invite_code: str, user: User) -> Predictio
     for pred in predictions:
         joined = member_joined_at.get(pred.user_id)
         if joined is not None and joined <= pred.match.kickoff_at:
-            pts_by_user[pred.user_id] += pred.points_awarded
+            pts_by_user[pred.user_id] += pts_by_user_match.get((pred.user_id, pred.match_id), 0)
             games_by_user[pred.user_id] += 1
 
     player_stats: list[PlayerStatEntry] = []
