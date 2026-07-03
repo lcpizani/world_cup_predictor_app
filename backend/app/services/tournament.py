@@ -21,6 +21,9 @@ from app.schemas.leaderboard import (
     LiveLeaderboardResponse, LiveLeaderboardEntry,
     RankingHistoryResponse, RankingHistorySeries, RankingHistoryUser,
 )
+from app.schemas.prediction_stats import (
+    PredictionStatsResponse, GameStatEntry, GameStatMatch, PlayerStatEntry, PredictionStatsUser,
+)
 from app.models.match import Match as MatchModel
 
 RANK_DELTA_WINDOW_MINUTES = 30
@@ -679,3 +682,114 @@ def get_compare(db: Session, invite_code: str, current_user: User) -> List[Tourn
         ))
 
     return result
+
+
+def _outcome(home: int, away: int) -> int:
+    if home > away:
+        return 1
+    if home < away:
+        return -1
+    return 0
+
+
+def get_prediction_stats(db: Session, invite_code: str, user: User) -> PredictionStatsResponse:
+    tournament = db.query(Tournament).filter(Tournament.invite_code == invite_code).first()
+    if tournament is None:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    membership = db.query(TournamentMember).filter(
+        TournamentMember.tournament_id == tournament.id, TournamentMember.user_id == user.id
+    ).first()
+    if membership is None:
+        raise HTTPException(status_code=403, detail="Not a member of tournament")
+
+    members = (
+        db.query(TournamentMember)
+        .filter(TournamentMember.tournament_id == tournament.id)
+        .options(joinedload(TournamentMember.user))
+        .all()
+    )
+    member_ids = {m.user_id for m in members}
+    member_joined_at = {m.user_id: m.joined_at for m in members}
+
+    # Fetch all predictions for league members that have been scored
+    predictions = (
+        db.query(Prediction)
+        .join(MatchModel, Prediction.match_id == MatchModel.id)
+        .filter(
+            Prediction.user_id.in_(member_ids),
+            Prediction.points_awarded.isnot(None),
+            MatchModel.status == "finished",
+            MatchModel.home_score.isnot(None),
+            MatchModel.away_score.isnot(None),
+        )
+        .options(joinedload(Prediction.match))
+        .all()
+    )
+
+    # Group predictions by match_id, respecting joined_at eligibility
+    from collections import defaultdict
+    by_match: dict = defaultdict(list)
+    for pred in predictions:
+        joined = member_joined_at.get(pred.user_id)
+        if joined is not None and joined <= pred.match.kickoff_at:
+            by_match[pred.match_id].append(pred)
+
+    # Build game stats — only matches with >1 qualifying prediction
+    game_stats: list[GameStatEntry] = []
+    for match_id, preds in by_match.items():
+        if len(preds) <= 1:
+            continue
+        match = preds[0].match
+        actual_outcome = _outcome(match.home_score, match.away_score)
+        hits = 0
+        exacts = 0
+        total_pts = 0
+        for p in preds:
+            total_pts += p.points_awarded
+            if _outcome(p.predicted_home, p.predicted_away) == actual_outcome:
+                hits += 1
+            if p.predicted_home == match.home_score and p.predicted_away == match.away_score:
+                exacts += 1
+        count = len(preds)
+        game_stats.append(GameStatEntry(
+            match=GameStatMatch(
+                id=match.id,
+                home_team=match.home_team,
+                away_team=match.away_team,
+                home_score=match.home_score,
+                away_score=match.away_score,
+                stage=match.stage,
+                kickoff_at=match.kickoff_at.isoformat(),
+            ),
+            avg_points=round(total_pts / count, 2),
+            hit_rate=round(hits / count, 4),
+            exact_rate=round(exacts / count, 4),
+            prediction_count=count,
+        ))
+
+    # Build player stats for all members
+    pts_by_user: dict = defaultdict(int)
+    games_by_user: dict = defaultdict(int)
+    for pred in predictions:
+        joined = member_joined_at.get(pred.user_id)
+        if joined is not None and joined <= pred.match.kickoff_at:
+            pts_by_user[pred.user_id] += pred.points_awarded
+            games_by_user[pred.user_id] += 1
+
+    player_stats: list[PlayerStatEntry] = []
+    for m in members:
+        total = pts_by_user.get(m.user_id, 0)
+        games = games_by_user.get(m.user_id, 0)
+        player_stats.append(PlayerStatEntry(
+            user=PredictionStatsUser(
+                id=m.user.id,
+                username=m.user.username,
+                display_name=m.user.display_name,
+                avatar_url=m.user.avatar_url,
+            ),
+            total_points=total,
+            games_predicted=games,
+            avg_points_per_game=round(total / games, 2) if games > 0 else 0.0,
+        ))
+
+    return PredictionStatsResponse(game_stats=game_stats, player_stats=player_stats)

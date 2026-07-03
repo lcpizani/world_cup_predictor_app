@@ -518,9 +518,18 @@ export default function TournamentPage() {
   function copyInviteLink() {
     if (!tournament) return
     const link = `${window.location.origin}/join/${encodeInviteCode(tournament.invite_code)}`
-    navigator.clipboard.writeText(link).then(() => {
+    const confirm = () => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    }
+    navigator.clipboard.writeText(link).then(confirm).catch(() => {
+      // Fallback for browsers that block clipboard API
+      const el = document.createElement('textarea')
+      el.value = link
+      el.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
+      document.body.appendChild(el)
+      el.select()
+      try { document.execCommand('copy'); confirm() } finally { document.body.removeChild(el) }
     })
   }
 
@@ -688,7 +697,7 @@ export default function TournamentPage() {
             )}
           </div>
 
-          {/* Utility icons — reload + edit (creator) */}
+          {/* Utility icons — reload + invite + edit (creator) */}
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleRefresh}
@@ -710,6 +719,32 @@ export default function TournamentPage() {
               </svg>
             </button>
 
+            <button
+              onClick={copyInviteLink}
+              disabled={!tournament}
+              aria-label={copied ? t('copied') : t('invite')}
+              title={copied ? t('copied') : t('invite')}
+              className="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200 disabled:opacity-40"
+              style={{
+                background: copied ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.05)',
+                border: copied ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(255,255,255,0.1)',
+                color: copied ? '#22c55e' : '#8496af',
+              }}
+              onMouseEnter={e => !copied && Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.18)', color: 'white' })}
+              onMouseLeave={e => !copied && Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#8496af' })}
+            >
+              {copied ? (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+              )}
+            </button>
+
             {isCreator && (
               <Link
                 href={`/tournaments/${code}/settings`}
@@ -729,17 +764,23 @@ export default function TournamentPage() {
           </div>
         </div>
 
-        {/* Action buttons — primary leaderboard, secondary compare/invite */}
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-          {/* Leaderboard — primary, full-width on mobile */}
+        {/* Action buttons — primary leaderboard + secondary nav row */}
+        <div className="mt-5 flex flex-col gap-2">
+          {/* Leaderboard — single dominant primary action */}
           <Link
             href={`/tournaments/${code}/leaderboard`}
-            className="col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-2 text-sm sm:text-xs font-bold uppercase tracking-wide px-4 py-3 sm:py-2.5 rounded-xl transition-all duration-200"
-            style={{ background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.3)', color: '#f0b429' }}
-            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.18)', borderColor: 'rgba(240,180,41,0.5)', color: '#fcd86e' })}
-            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.1)', borderColor: 'rgba(240,180,41,0.3)', color: '#f0b429' })}
+            className="w-full inline-flex items-center justify-center gap-2.5 font-bold uppercase tracking-wide px-4 py-3.5 rounded-xl transition-all duration-200"
+            style={{
+              fontSize: 14,
+              background: 'rgba(240,180,41,0.12)',
+              border: '1px solid rgba(240,180,41,0.35)',
+              color: '#f0b429',
+              boxShadow: '0 0 20px rgba(240,180,41,0.08)',
+            }}
+            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.2)', borderColor: 'rgba(240,180,41,0.55)', color: '#fcd86e', boxShadow: '0 0 28px rgba(240,180,41,0.15)' })}
+            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(240,180,41,0.12)', borderColor: 'rgba(240,180,41,0.35)', color: '#f0b429', boxShadow: '0 0 20px rgba(240,180,41,0.08)' })}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
               <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
               <path d="M4 22h16" />
@@ -750,44 +791,38 @@ export default function TournamentPage() {
             {t('leaderboard')}
           </Link>
 
-          {/* Compare — secondary */}
-          <Link
-            href={`/tournaments/${code}/compare`}
-            className="inline-flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#8496af' }}
-            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.18)', color: 'white' })}
-            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#8496af' })}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            {t('compare')}
-          </Link>
-
-          {/* Invite — secondary */}
-          <button
-            onClick={copyInviteLink}
-            disabled={!tournament}
-            className="inline-flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200 disabled:opacity-40"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#8496af' }}
-            onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.09)', borderColor: 'rgba(255,255,255,0.18)', color: 'white' })}
-            onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#8496af' })}
-          >
-            {copied ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
+          {/* Secondary nav — Compare + Stats side by side */}
+          <div className="grid grid-cols-2 gap-2">
+            <Link
+              href={`/tournaments/${code}/compare`}
+              className="inline-flex items-center justify-center gap-2 font-semibold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
+              style={{ fontSize: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', color: '#6a7f98' }}
+              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.16)', color: '#cdd6e8' })}
+              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.09)', color: '#6a7f98' })}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
-            ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              {t('compare')}
+            </Link>
+            <Link
+              href={`/tournaments/${code}/prediction-stats`}
+              className="inline-flex items-center justify-center gap-2 font-semibold uppercase tracking-wide px-4 py-2.5 rounded-xl transition-all duration-200"
+              style={{ fontSize: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', color: '#6a7f98' }}
+              onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.16)', color: '#cdd6e8' })}
+              onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.09)', color: '#6a7f98' })}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
               </svg>
-            )}
-            {copied ? t('copied') : t('invite')}
-          </button>
+              {t('stats')}
+            </Link>
+          </div>
         </div>
       </div>
 

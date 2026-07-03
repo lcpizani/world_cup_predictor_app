@@ -7,6 +7,7 @@ import type {
   Match,
   Prediction,
   PredictionHistoryItem,
+  PredictionStatsResponse,
   RankingHistoryResponse,
   Tournament,
   TournamentCompareMatch,
@@ -103,6 +104,8 @@ export const api = {
     request<RankingHistoryResponse>(`/tournaments/${code}/ranking-history`),
   listCompare: (code: string) =>
     request<TournamentCompareMatch[]>(`/tournaments/${code}/compare`),
+  getTournamentPredictionStats: (code: string) =>
+    request<PredictionStatsResponse>(`/tournaments/${code}/prediction-stats`),
 
   // ── Matches ───────────────────────────────────────────────────────────────
   createMatch: (data: {

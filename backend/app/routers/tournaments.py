@@ -20,6 +20,7 @@ from app.schemas.tournament import (
     TransferOwnershipRequest,
 )
 from app.schemas.leaderboard import LeaderboardResponse, LiveLeaderboardResponse, RankingHistoryResponse
+from app.schemas.prediction_stats import PredictionStatsResponse
 
 router = APIRouter()
 
@@ -82,6 +83,11 @@ def ranking_history(invite_code: str, db: Session = Depends(get_db), current_use
 @router.get("/{invite_code}/compare", response_model=List[TournamentCompareMatch])
 def compare(invite_code: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     return tournament_service.get_compare(db, invite_code, current_user)
+
+
+@router.get("/{invite_code}/prediction-stats", response_model=PredictionStatsResponse)
+def prediction_stats(invite_code: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    return tournament_service.get_prediction_stats(db, invite_code, current_user)
 
 
 @router.get("/{invite_code}", response_model=TournamentResponse)
