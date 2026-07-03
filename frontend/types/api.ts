@@ -197,6 +197,41 @@ export interface CrowdWisdomTopScore {
   pct: number
 }
 
+export interface GameStatMatch {
+  id: string
+  home_team: string
+  away_team: string
+  home_score: number
+  away_score: number
+  stage: string
+  kickoff_at: string
+}
+
+export interface GameStatEntry {
+  match: GameStatMatch
+  avg_points: number
+  hit_rate: number
+  exact_rate: number
+  prediction_count: number
+}
+
+export interface PlayerStatEntry {
+  user: {
+    id: string
+    username: string
+    display_name: string | null
+    avatar_url: string | null
+  }
+  total_points: number
+  games_predicted: number
+  avg_points_per_game: number
+}
+
+export interface PredictionStatsResponse {
+  game_stats: GameStatEntry[]
+  player_stats: PlayerStatEntry[]
+}
+
 export interface CrowdWisdom {
   total_predictors: number
   total_members?: number
