@@ -719,6 +719,7 @@ def get_prediction_stats(db: Session, invite_code: str, user: User) -> Predictio
             PointEvent.tournament_id == tournament.id,
             PointEvent.user_id.in_(member_ids),
         )
+        .options(joinedload(PointEvent.match))
         .all()
     )
     pts_by_user_match: dict = defaultdict(int)
@@ -789,10 +790,47 @@ def get_prediction_stats(db: Session, invite_code: str, user: User) -> Predictio
             pts_by_user[pred.user_id] += pts_by_user_match.get((pred.user_id, pred.match_id), 0)
             games_by_user[pred.user_id] += 1
 
+    # ── Average daily rank ────────────────────────────────────────────────────
+    # Group point events by match date, compute cumulative pts per player per
+    # day, rank active members (joined_at <= day), then average those ranks.
+    member_joined_date = {
+        uid: jat.date() for uid, jat in member_joined_at.items() if jat is not None
+    }
+
+    day_pts: dict = defaultdict(lambda: defaultdict(int))
+    for pe in point_events:
+        if pe.match and pe.match.kickoff_at:
+            day = pe.match.kickoff_at.date()
+            day_pts[day][pe.user_id] += pe.points
+
+    sorted_days = sorted(day_pts.keys())
+    rank_sum: dict = defaultdict(int)
+    rank_count: dict = defaultdict(int)
+    cumulative_pts: dict = defaultdict(int)
+
+    for day in sorted_days:
+        for uid, pts in day_pts[day].items():
+            cumulative_pts[uid] += pts
+
+        active = [uid for uid in member_ids if member_joined_date.get(uid, None) is not None and member_joined_date[uid] <= day]
+        if not active:
+            continue
+
+        scores = sorted(active, key=lambda uid: -cumulative_pts.get(uid, 0))
+        current_rank = 1
+        for i, uid in enumerate(scores):
+            if i > 0 and cumulative_pts.get(uid, 0) < cumulative_pts.get(scores[i - 1], 0):
+                current_rank = i + 1
+            rank_sum[uid] += current_rank
+            rank_count[uid] += 1
+
+    # ─────────────────────────────────────────────────────────────────────────
+
     player_stats: list[PlayerStatEntry] = []
     for m in members:
         total = pts_by_user.get(m.user_id, 0)
         games = games_by_user.get(m.user_id, 0)
+        avg_rank = round(rank_sum[m.user_id] / rank_count[m.user_id], 2) if rank_count.get(m.user_id) else None
         player_stats.append(PlayerStatEntry(
             user=PredictionStatsUser(
                 id=m.user.id,
@@ -803,6 +841,7 @@ def get_prediction_stats(db: Session, invite_code: str, user: User) -> Predictio
             total_points=total,
             games_predicted=games,
             avg_points_per_game=round(total / games, 2) if games > 0 else 0.0,
+            avg_daily_rank=avg_rank,
         ))
 
     return PredictionStatsResponse(game_stats=game_stats, player_stats=player_stats)

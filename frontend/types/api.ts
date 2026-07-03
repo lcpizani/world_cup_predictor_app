@@ -225,11 +225,40 @@ export interface PlayerStatEntry {
   total_points: number
   games_predicted: number
   avg_points_per_game: number
+  avg_daily_rank: number | null
 }
 
 export interface PredictionStatsResponse {
   game_stats: GameStatEntry[]
   player_stats: PlayerStatEntry[]
+}
+
+export interface GlobalGameStatScore {
+  home: number
+  away: number
+}
+
+export interface GlobalGameStatEntry {
+  match: GameStatMatch
+  hit_rate: number
+  exact_rate: number
+  prediction_count: number
+  max_consensus_count: number
+  consensus_pick: 'home' | 'draw' | 'away'
+  max_same_score_count: number
+  most_common_score: GlobalGameStatScore
+}
+
+export interface GlobalPredictionStatsSummary {
+  total_users: number
+  total_predictions: number
+  overall_hit_rate: number
+  overall_exact_rate: number
+}
+
+export interface GlobalPredictionStatsResponse {
+  game_stats: GlobalGameStatEntry[]
+  summary: GlobalPredictionStatsSummary
 }
 
 export interface CrowdWisdom {

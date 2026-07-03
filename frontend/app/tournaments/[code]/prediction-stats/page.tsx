@@ -1,13 +1,15 @@
 'use client'
 
-import Image from 'next/image'
+import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useTranslations, useLocale } from 'next-intl'
 import { api } from '@/lib/api'
 import { useOnboardingGuard } from '@/lib/hooks'
-import { getTeamFlagCode, getFlagUrl, translateTeamName, getTeamAbbr } from '@/lib/flags'
+import { translateTeamName, getTeamAbbr } from '@/lib/flags'
+import { STAGE_LABELS, pct } from '@/lib/stats-utils'
+import { TeamFlag } from '@/components/TeamFlag'
 import type { GameStatEntry, PlayerStatEntry } from '@/types/api'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -29,45 +31,6 @@ const C = {
   redBorder: 'rgba(239,68,68,0.22)',
   greenBorder: 'rgba(34,197,94,0.22)',
   blueBorder: 'rgba(96,165,250,0.22)',
-}
-
-const STAGE_LABELS: Record<string, string> = {
-  group_stage: 'Group',
-  round_of_32: 'R32',
-  round_of_16: 'R16',
-  quarter_finals: 'QF',
-  semi_finals: 'SF',
-  third_place: '3rd',
-  final: 'Final',
-}
-
-function pct(rate: number) {
-  return `${Math.round(rate * 100)}%`
-}
-
-// ── TeamFlag ──────────────────────────────────────────────────────────────────
-
-function TeamFlag({ name, size = 20 }: { name: string; size?: number }) {
-  const locale = useLocale()
-  const code = getTeamFlagCode(name)
-  return (
-    <div style={{
-      width: size, height: Math.round(size * 0.7),
-      flexShrink: 0, borderRadius: 2, overflow: 'hidden',
-      background: 'rgba(255,255,255,0.04)',
-    }}>
-      {code && (
-        <Image
-          src={getFlagUrl(code, 40)}
-          alt={translateTeamName(name, locale)}
-          width={size}
-          height={Math.round(size * 0.7)}
-          className="w-full h-full object-contain"
-          unoptimized
-        />
-      )}
-    </div>
-  )
 }
 
 // ── SectionTitle ──────────────────────────────────────────────────────────────
@@ -102,16 +65,12 @@ function GameRow({
   rank: number
   mode: 'hardest' | 'easiest'
 }) {
-  const locale = useLocale()
   const { match } = entry
   const isEasiest = mode === 'easiest'
   const accentColor = isEasiest ? C.green : C.red
 
-  const homeName = translateTeamName(match.home_team, locale)
-  const awayName = translateTeamName(match.away_team, locale)
-  const useAbbr = homeName.length > 9 || awayName.length > 9
-  const displayHome = useAbbr ? getTeamAbbr(match.home_team) : homeName
-  const displayAway = useAbbr ? getTeamAbbr(match.away_team) : awayName
+  const displayHome = getTeamAbbr(match.home_team)
+  const displayAway = getTeamAbbr(match.away_team)
 
   return (
     <div style={{ padding: '13px 0', borderBottom: `1px solid ${C.borderSubtle}` }}>
@@ -335,6 +294,81 @@ function PlayerRow({ entry, rank, maxAvg }: { entry: PlayerStatEntry; rank: numb
   )
 }
 
+// ── RankingView ───────────────────────────────────────────────────────────────
+
+function RankingView({
+  playerStats,
+  t,
+}: {
+  playerStats: PlayerStatEntry[]
+  t: ReturnType<typeof useTranslations<'predictionStats'>>
+}) {
+  const rankColors: Record<number, string> = { 1: C.gold, 2: '#a8b8c8', 3: '#cd7f32' }
+
+  // Sort by avg_daily_rank ascending (null = never active, goes last)
+  const sorted = [...playerStats].sort((a, b) => {
+    if (a.avg_daily_rank === null && b.avg_daily_rank === null) return 0
+    if (a.avg_daily_rank === null) return 1
+    if (b.avg_daily_rank === null) return -1
+    return a.avg_daily_rank - b.avg_daily_rank
+  })
+
+  return (
+    <>
+      {/* Column headers */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        fontSize: 9, color: C.textFaint, fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: '0.08em',
+        paddingBottom: 10, borderBottom: `1px solid ${C.border}`,
+      }}>
+        <span style={{ width: 20, flexShrink: 0 }}>#</span>
+        <span style={{ flex: 1 }}>{t('col_player')}</span>
+        <span style={{ flexShrink: 0, minWidth: 52, textAlign: 'right' }}>{t('col_avg_rank')}</span>
+      </div>
+
+      {sorted.map((entry, i) => {
+        const pos = i + 1
+        const rankColor = rankColors[pos] ?? C.textFaint
+
+        return (
+          <div key={entry.user.id.toString()} style={{ padding: '11px 0', borderBottom: `1px solid ${C.borderSubtle}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{
+                width: 20, textAlign: 'right', flexShrink: 0,
+                fontFamily: 'var(--font-oswald)', fontWeight: 700,
+                fontSize: pos <= 3 ? 13 : 11, color: rankColor,
+              }}>
+                {pos}
+              </span>
+              <span style={{
+                flex: 1, minWidth: 0,
+                color: pos === 1 ? '#f0e6c8' : C.text,
+                fontWeight: pos === 1 ? 600 : 400,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                fontSize: 14,
+              }}>
+                {entry.user.display_name ?? entry.user.username}
+              </span>
+              <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 52 }}>
+                <p style={{
+                  fontFamily: 'var(--font-oswald)', fontWeight: 700, fontSize: 17,
+                  color: pos === 1 ? C.gold : C.text, fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+                }}>
+                  {entry.avg_daily_rank !== null ? entry.avg_daily_rank.toFixed(2) : '—'}
+                </p>
+                <p style={{ fontSize: 8, color: C.textFaint, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>
+                  {t('col_avg_rank_label')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </>
+  )
+}
+
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
 function Skeleton() {
@@ -364,6 +398,7 @@ function Skeleton() {
 export default function PredictionStatsPage() {
   const t = useTranslations('predictionStats')
   const { code } = useParams<{ code: string }>()
+  const [playerView, setPlayerView] = useState<'avg' | 'rank'>('avg')
 
   const { data: me, isLoading: meLoading } = useQuery({ queryKey: ['me'], queryFn: api.getMe })
   useOnboardingGuard(me, meLoading)
@@ -373,6 +408,13 @@ export default function PredictionStatsPage() {
     queryFn: () => api.getTournamentPredictionStats(code),
     enabled: !!me,
   })
+
+  const { data: preview } = useQuery({
+    queryKey: ['tournament-preview', code],
+    queryFn: () => api.getTournamentPreview(code),
+    enabled: !!me,
+  })
+
 
   if (isLoading || meLoading) return <Skeleton />
 
@@ -434,7 +476,7 @@ export default function PredictionStatsPage() {
         className="font-[family-name:var(--font-oswald)] leading-none uppercase"
         style={{ fontSize: 'clamp(26px, 6vw, 36px)', fontWeight: 700, color: C.text, letterSpacing: '0.03em' }}
       >
-        {t('title')}
+        {preview?.name ?? t('title')}
       </h1>
       <p style={{ color: C.textFaint, fontSize: 13, marginTop: 6, fontWeight: 400 }}>
         {t('subtitle')}
@@ -463,8 +505,8 @@ export default function PredictionStatsPage() {
           <div className="grid grid-cols-3 gap-3 mt-7">
             {[
               { label: t('summary_games'), value: gameStats.length.toString() },
-              { label: t('summary_avg'), value: leagueAvgPts.toFixed(1) },
-              { label: t('summary_top_hit'), value: pct(topHitRate) },
+              { label: t('summary_participants'), value: playerStats.length.toString() },
+              { label: t('summary_avg_ppg'), value: leagueAvgPts.toFixed(1) },
             ].map(({ label, value }) => (
               <div key={label} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 10px' }}>
                 <p style={{ fontSize: 9, color: C.textFaint, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</p>
@@ -565,23 +607,49 @@ export default function PredictionStatsPage() {
 
           {/* ── Player Averages ── */}
           <SectionTitle>{t('player_averages')}</SectionTitle>
-          <div style={cardStyle}>
-            {/* Column headers */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              fontSize: 9, color: C.textFaint, fontWeight: 700,
-              textTransform: 'uppercase', letterSpacing: '0.08em',
-              paddingBottom: 10, borderBottom: `1px solid ${C.border}`,
-            }}>
-              <span style={{ width: 20, flexShrink: 0 }} />
-              <span style={{ flex: 1 }}>{t('col_player')}</span>
-              <span style={{ flexShrink: 0, minWidth: 22, textAlign: 'right' }}>{t('col_games')}</span>
-              <span style={{ flexShrink: 0, minWidth: 38, textAlign: 'right' }}>{t('col_total')}</span>
-              <span style={{ flexShrink: 0, minWidth: 42, textAlign: 'right' }}>{t('col_avg')}</span>
-            </div>
-            {playerSorted.map((entry, i) => (
-              <PlayerRow key={entry.user.id.toString()} entry={entry} rank={i + 1} maxAvg={maxPlayerAvg} />
+
+          {/* View toggle */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: 4, border: `1px solid ${C.border}` }}>
+            {(['avg', 'rank'] as const).map(view => (
+              <button
+                key={view}
+                onClick={() => setPlayerView(view)}
+                style={{
+                  flex: 1, padding: '7px 12px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                  fontSize: 12, fontWeight: 600, letterSpacing: '0.02em',
+                  background: playerView === view ? 'rgba(255,255,255,0.09)' : 'transparent',
+                  color: playerView === view ? C.text : C.textFaint,
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+              >
+                {view === 'avg' ? t('view_avg') : t('view_rank')}
+              </button>
             ))}
+          </div>
+
+          <div style={cardStyle}>
+            {playerView === 'avg' ? (
+              <>
+                {/* Column headers — avg view */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  fontSize: 9, color: C.textFaint, fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.08em',
+                  paddingBottom: 10, borderBottom: `1px solid ${C.border}`,
+                }}>
+                  <span style={{ width: 20, flexShrink: 0 }} />
+                  <span style={{ flex: 1 }}>{t('col_player')}</span>
+                  <span style={{ flexShrink: 0, minWidth: 22, textAlign: 'right' }}>{t('col_games')}</span>
+                  <span style={{ flexShrink: 0, minWidth: 38, textAlign: 'right' }}>{t('col_total')}</span>
+                  <span style={{ flexShrink: 0, minWidth: 42, textAlign: 'right' }}>{t('col_avg')}</span>
+                </div>
+                {playerSorted.map((entry, i) => (
+                  <PlayerRow key={entry.user.id.toString()} entry={entry} rank={i + 1} maxAvg={maxPlayerAvg} />
+                ))}
+              </>
+            ) : (
+              <RankingView playerStats={playerStats} t={t} />
+            )}
           </div>
         </>
       )}

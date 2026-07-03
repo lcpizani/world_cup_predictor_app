@@ -1,6 +1,7 @@
 import type {
   BracketSlot,
   CrowdWisdom,
+  GlobalPredictionStatsResponse,
   GroupData,
   LeaderboardResponse,
   LiveLeaderboardResponse,
@@ -106,6 +107,8 @@ export const api = {
     request<TournamentCompareMatch[]>(`/tournaments/${code}/compare`),
   getTournamentPredictionStats: (code: string) =>
     request<PredictionStatsResponse>(`/tournaments/${code}/prediction-stats`),
+  getGlobalPredictionStats: () =>
+    request<GlobalPredictionStatsResponse>('/stats/prediction-stats'),
 
   // ── Matches ───────────────────────────────────────────────────────────────
   createMatch: (data: {

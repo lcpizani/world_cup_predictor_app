@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Cookies from 'js-cookie'
@@ -155,6 +155,9 @@ export function Navbar() {
   const hasToken = useSyncExternalStore(subscribeNoop, getAuthSnapshot, getAuthServerSnapshot)
   const [open, setOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [desktopStatsOpen, setDesktopStatsOpen] = useState(false)
+  const [mobileStatsOpen, setMobileStatsOpen] = useState(false)
+  const desktopStatsRef = useRef<HTMLDivElement>(null)
   const [locale, setLocale] = useState<SupportedLocale>('en')
 
   useEffect(() => {
@@ -166,6 +169,24 @@ export function Navbar() {
     setLocale(lang)
     router.refresh()
   }
+
+  // Close both dropdowns on route change
+  useEffect(() => { setDesktopStatsOpen(false); setMobileStatsOpen(false) }, [pathname])
+
+  // Close mobile accordion when drawer closes
+  useEffect(() => { if (!open) setMobileStatsOpen(false) }, [open])
+
+  // Close desktop dropdown on outside click (ref-based, no stopPropagation needed)
+  useEffect(() => {
+    if (!desktopStatsOpen) return
+    const handler = (e: MouseEvent) => {
+      if (desktopStatsRef.current && !desktopStatsRef.current.contains(e.target as Node)) {
+        setDesktopStatsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [desktopStatsOpen])
 
   // Lock body scroll while drawer is open
   useEffect(() => {
@@ -225,7 +246,62 @@ export function Navbar() {
                 <NavLink href="/predictions" active={isActive('/predictions')}>{t('my_picks')}</NavLink>
                 <NavLink href="/standings" active={isActive('/standings')}>{t('standings')}</NavLink>
                 <NavLink href="/calendar" active={isActive('/calendar')}>{t('calendar')}</NavLink>
-                <NavLink href="/stats" active={isActive('/stats')}>{t('stats')}</NavLink>
+                {/* Stats dropdown */}
+                <div className="relative" ref={desktopStatsRef}>
+                  <button
+                    onClick={() => setDesktopStatsOpen(o => !o)}
+                    className={`relative px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1 ${
+                      isActive('/stats')
+                        ? 'text-white bg-white/10'
+                        : 'text-[#6b7f96] hover:text-white hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    {t('stats')}
+                    <svg
+                      width="10" height="10" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                      style={{ transition: 'transform 0.15s', transform: desktopStatsOpen ? 'rotate(180deg)' : 'none', opacity: 0.7 }}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                    {isActive('/stats') && (
+                      <span
+                        className="absolute -bottom-px left-1/2 -translate-x-1/2 h-px bg-[#f0b429] rounded-full"
+                        style={{ width: '55%' }}
+                      />
+                    )}
+                  </button>
+                  {desktopStatsOpen && (
+                    <div
+                      className="absolute top-full left-1/2 -translate-x-1/2 mt-2 rounded-xl border shadow-xl overflow-hidden z-50"
+                      style={{
+                        background: 'rgba(10,16,28,0.97)',
+                        border: '1px solid rgba(255,255,255,0.09)',
+                        minWidth: 148,
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                      }}
+                    >
+                      {[
+                        { href: '/stats', label: t('stats_world_cup') },
+                        { href: '/stats/predictions', label: t('stats_predictions') },
+                      ].map(({ href, label }) => {
+                        const isItemActive = pathname === href
+                        return (
+                          <Link
+                            key={href}
+                            href={href}
+                            onClick={() => setDesktopStatsOpen(false)}
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/[0.06]"
+                            style={{ color: isItemActive ? '#f0b429' : '#cdd6e8' }}
+                          >
+                            <span className={`w-1 h-1 rounded-full bg-[#f0b429] shrink-0 transition-opacity ${isItemActive ? 'opacity-100' : 'opacity-0'}`} />
+                            {label}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
                 <NavLink href="/simulate" active={isActive('/simulate')}>{t('simulate')}</NavLink>
                 {user.is_admin && (
                   <NavLink href="/admin" active={isActive('/admin')}>{t('admin')}</NavLink>
@@ -353,7 +429,38 @@ export function Navbar() {
                 <MobileNavLink href="/predictions" active={isActive('/predictions')} onClick={() => setOpen(false)}>{t('my_picks')}</MobileNavLink>
                 <MobileNavLink href="/standings" active={isActive('/standings')} onClick={() => setOpen(false)}>{t('standings')}</MobileNavLink>
                 <MobileNavLink href="/calendar" active={isActive('/calendar')} onClick={() => setOpen(false)}>{t('calendar')}</MobileNavLink>
-                <MobileNavLink href="/stats" active={isActive('/stats')} onClick={() => setOpen(false)}>{t('stats')}</MobileNavLink>
+                <div>
+                  <button
+                    onClick={() => setMobileStatsOpen(o => !o)}
+                    className={`flex items-center justify-between w-full px-4 py-3 rounded-xl text-[15px] font-semibold transition-colors ${
+                      isActive('/stats')
+                        ? 'text-white bg-white/[0.07] border border-white/[0.08]'
+                        : 'text-[#7a8fa8] hover:text-white hover:bg-white/[0.04] border border-transparent'
+                    }`}
+                  >
+                    <span>{t('stats')}</span>
+                    <span className="flex items-center gap-1.5">
+                      {isActive('/stats') && <span className="w-1.5 h-1.5 rounded-full bg-[#f0b429]" />}
+                      <svg
+                        width="10" height="10" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                        style={{ transition: 'transform 0.2s', transform: mobileStatsOpen ? 'rotate(180deg)' : 'none', opacity: 0.5 }}
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </span>
+                  </button>
+                  {mobileStatsOpen && (
+                    <div className="ml-4 mt-1 space-y-1">
+                      <MobileNavLink href="/stats" active={pathname === '/stats'} onClick={() => setOpen(false)}>
+                        {t('stats_world_cup')}
+                      </MobileNavLink>
+                      <MobileNavLink href="/stats/predictions" active={pathname === '/stats/predictions'} onClick={() => setOpen(false)}>
+                        {t('stats_predictions')}
+                      </MobileNavLink>
+                    </div>
+                  )}
+                </div>
                 <MobileNavLink href="/simulate" active={isActive('/simulate')} onClick={() => setOpen(false)}>{t('simulate')}</MobileNavLink>
                 {user.is_admin && (
                   <MobileNavLink href="/admin" active={isActive('/admin')} onClick={() => setOpen(false)}>{t('admin')}</MobileNavLink>
