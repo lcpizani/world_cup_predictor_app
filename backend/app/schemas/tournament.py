@@ -61,6 +61,10 @@ class TournamentResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TournamentDetailResponse(TournamentResponse):
+    wrapped_seen: bool = False
+
+
 class TournamentMemberResponse(BaseModel):
     id: UUID
     tournament_id: UUID

@@ -781,6 +781,71 @@
     "stage_semi_finals": "SF",
     "stage_final": "Final"
   },
+  "wrapped": {
+    "intro": {
+      "itsAWrap": "É um Wrap",
+      "season": "Copa do Mundo 2026 · Sua Temporada"
+    },
+    "volume": {
+      "youPredicted": "Você previu",
+      "ofMatches": "de 104 jogos",
+      "totalGames": "A Copa do Mundo 2026 tem 104 jogos no total"
+    },
+    "accuracy": {
+      "title": "Sua precisão",
+      "exactScores": "Placares exatos",
+      "correctWinners": "Vencedores corretos",
+      "hitRate": "Taxa de acerto"
+    },
+    "badges": {
+      "title": "Suas conquistas",
+      "empty": "Continue prevendo na próxima vez!",
+      "champion": "Campeão",
+      "championDesc": "Terminou em #1 na liga",
+      "runnerUp": "Vice-campeão",
+      "runnerUpDesc": "Terminou em 2º na liga",
+      "bronze": "Bronze",
+      "bronzeDesc": "Top 3 — ainda no pódio",
+      "wizard": "Mago",
+      "sniper": "Franco-atirador",
+      "sharpEye": "Olho Aguçado",
+      "exactScoresDesc": "{count} placares exatos",
+      "oracle": "Oráculo",
+      "analyst": "Analista",
+      "hitRateDesc": "{rate}% de acerto",
+      "allIn": "All In",
+      "allInDesc": "Previu quase todos os jogos",
+      "fanatic": "Fanático",
+      "fanaticDesc": "{count} jogos previstos"
+    },
+    "journey": {
+      "title": "Sua jornada",
+      "subtitle": "Pontos conquistados por fase",
+      "stage_group_stage": "Fase de Grupos",
+      "stage_round_of_32": "Rodada de 32",
+      "stage_round_of_16": "Oitavas de Final",
+      "stage_quarter_finals": "Quartas de Final",
+      "stage_semi_finals": "Semifinais",
+      "stage_third_place": "Terceiro Lugar",
+      "stage_final": "Final"
+    },
+    "team": {
+      "title": "Seu time",
+      "predictedToWin": "Previsto para vencer {count}×",
+      "youLikedDraws": "Você gostou de empates",
+      "bestAtCalling": "Melhor em prever",
+      "exactTimes": "{count}× exato"
+    },
+    "rank": {
+      "title": "Sua classificação",
+      "ofPlayers": "de {count} jogadores"
+    },
+    "podium": {
+      "title": "Classificação Final",
+      "subtitle": "Pódio",
+      "done": "Concluído"
+    }
+  },
   "calendar": {
     "title": "Calendário",
     "view_month": "Mês",

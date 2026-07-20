@@ -48,6 +48,46 @@ export interface Tournament {
   created_at: string
   created_by: string
   creator: User
+  wrapped_seen?: boolean
+}
+
+export interface WrappedBestMatch {
+  home_team: string
+  away_team: string
+  actual_home: number | null
+  actual_away: number | null
+  predicted_home: number
+  predicted_away: number
+  points_awarded: number
+}
+
+export interface WrappedTopThreeEntry {
+  rank: number
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+  total_points: number
+  is_current_user: boolean
+}
+
+export interface WrappedBestScoreTeam {
+  team: string
+  count: number
+}
+
+export interface WrappedStats {
+  total_predictions: number
+  exact_scores: number
+  correct_winners: number
+  hit_rate_pct: number
+  best_match: WrappedBestMatch | null
+  points_by_stage: Record<string, number>
+  favorite_team: string | null
+  favorite_team_count: number
+  best_score_teams: WrappedBestScoreTeam[]
+  user_rank: number
+  total_members: number
+  top_three: WrappedTopThreeEntry[]
 }
 
 export interface TournamentMember {

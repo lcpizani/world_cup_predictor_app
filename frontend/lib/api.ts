@@ -15,6 +15,7 @@ import type {
   TournamentMember,
   User,
   UserProfile,
+  WrappedStats,
 } from '@/types/api'
 
 const BASE_URL = typeof window === 'undefined'
@@ -107,6 +108,10 @@ export const api = {
     request<TournamentCompareMatch[]>(`/tournaments/${code}/compare`),
   getTournamentPredictionStats: (code: string) =>
     request<PredictionStatsResponse>(`/tournaments/${code}/prediction-stats`),
+  getWrappedStats: (code: string) =>
+    request<WrappedStats>(`/tournaments/${code}/wrapped`),
+  markWrappedSeen: (code: string) =>
+    request<{ ok: boolean }>(`/tournaments/${code}/wrapped/seen`, { method: 'POST' }),
   getGlobalPredictionStats: () =>
     request<GlobalPredictionStatsResponse>('/stats/prediction-stats'),
 

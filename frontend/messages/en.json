@@ -781,6 +781,71 @@
     "email_error": "Failed to send — try again",
     "import_hint": "Open the file to import. Google Calendar: Settings → Import."
   },
+  "wrapped": {
+    "intro": {
+      "itsAWrap": "It's a Wrap",
+      "season": "World Cup 2026 · Your Season"
+    },
+    "volume": {
+      "youPredicted": "You predicted",
+      "ofMatches": "of 104 matches",
+      "totalGames": "World Cup 2026 has 104 games total"
+    },
+    "accuracy": {
+      "title": "Your accuracy",
+      "exactScores": "Exact scores",
+      "correctWinners": "Correct winners",
+      "hitRate": "Hit rate"
+    },
+    "badges": {
+      "title": "Your badges",
+      "empty": "Keep predicting next time!",
+      "champion": "Champion",
+      "championDesc": "Finished #1 in the league",
+      "runnerUp": "Runner-Up",
+      "runnerUpDesc": "Finished 2nd in the league",
+      "bronze": "Bronze",
+      "bronzeDesc": "Top 3 — still on the podium",
+      "wizard": "Wizard",
+      "sniper": "Sniper",
+      "sharpEye": "Sharp Eye",
+      "exactScoresDesc": "{count} exact scores",
+      "oracle": "Oracle",
+      "analyst": "Analyst",
+      "hitRateDesc": "{rate}% hit rate",
+      "allIn": "All In",
+      "allInDesc": "Predicted nearly every match",
+      "fanatic": "Fanatic",
+      "fanaticDesc": "{count} matches predicted"
+    },
+    "journey": {
+      "title": "Your journey",
+      "subtitle": "Points earned per stage",
+      "stage_group_stage": "Group Stage",
+      "stage_round_of_32": "Round of 32",
+      "stage_round_of_16": "Round of 16",
+      "stage_quarter_finals": "Quarter-Finals",
+      "stage_semi_finals": "Semi-Finals",
+      "stage_third_place": "Third Place",
+      "stage_final": "Final"
+    },
+    "team": {
+      "title": "Your team",
+      "predictedToWin": "Predicted to win {count}×",
+      "youLikedDraws": "You liked draws",
+      "bestAtCalling": "Best at calling",
+      "exactTimes": "{count}× exact"
+    },
+    "rank": {
+      "title": "Your finish",
+      "ofPlayers": "of {count} players"
+    },
+    "podium": {
+      "title": "Final Standings",
+      "subtitle": "Podium",
+      "done": "Done"
+    }
+  },
   "calendar": {
     "title": "Calendar",
     "view_month": "Month",
