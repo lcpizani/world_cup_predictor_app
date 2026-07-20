@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -10,11 +10,12 @@ import { api } from '@/lib/api'
 import { getTeamFlagCode, getFlagUrl, translateTeamName, translateGroupName, getTeamAbbr } from '@/lib/flags'
 import { formatMatchDateTime } from '@/lib/date'
 import { formatMinute } from '@/lib/formatMinute'
-import type { Match, Prediction, ScoringRules } from '@/types/api'
+import type { Match, Prediction, ScoringRules, WrappedStats } from '@/types/api'
 import { useOnboardingGuard } from '@/lib/hooks'
 import { encodeInviteCode } from '@/lib/invite'
 import { useLocale, useTranslations } from 'next-intl'
 import ScoringExplanationModal from '@/components/ScoringExplanationModal'
+import WrappedExperience from '@/components/WrappedExperience'
 
 const STAGE_ORDER = ['group_stage', 'round_of_32', 'round_of_16', 'quarter_finals', 'semi_finals', 'third_place', 'final']
 
@@ -492,7 +493,10 @@ export default function TournamentPage() {
   const [copied, setCopied] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showScoringHelp, setShowScoringHelp] = useState(false)
+  const [wrappedOpen, setWrappedOpen] = useState(false)
+  const [wrappedStats, setWrappedStats] = useState<WrappedStats | null>(null)
   const qc = useQueryClient()
+  const closeWrapped = useCallback(() => setWrappedOpen(false), [])
 
   // View mode state
   const [viewMode, setViewMode] = useState<'chronological' | 'stage-group'>('chronological')
@@ -514,6 +518,23 @@ export default function TournamentPage() {
   useOnboardingGuard(me, meLoading)
 
   const isCreator = !!me && !!tournament && me.id === tournament.created_by
+
+  const openWrapped = useCallback(async (markSeen = false) => {
+    if (!code) return
+    try {
+      const stats = await api.getWrappedStats(code)
+      setWrappedStats(stats)
+      setWrappedOpen(true)
+      if (markSeen) {
+        await api.markWrappedSeen(code).catch(() => {})
+        qc.setQueryData(['tournament', code], (prev: Record<string, unknown>) =>
+          prev ? { ...prev, wrapped_seen: true } : prev
+        )
+      }
+    } catch {
+      // silently fail — wrapped is non-critical
+    }
+  }, [code, qc])
 
   function copyInviteLink() {
     if (!tournament) return
@@ -572,6 +593,18 @@ export default function TournamentPage() {
 
   const myMembership = me ? members.find(m => m.user_id === me.id) : undefined
   const myJoinedAt = myMembership?.joined_at
+
+  const tournamentIsOver = !!tournament && (
+    !tournament.is_active ||
+    (matches.length > 0 && matches.every(m => m.status === 'finished'))
+  )
+
+  useEffect(() => {
+    if (!tournamentIsOver) return
+    if (!tournament) return
+    if (tournament.wrapped_seen) return
+    openWrapped(true)
+  }, [tournamentIsOver, tournament, code, openWrapped])
 
   const predByMatch = Object.fromEntries(predictions.map((p) => [p.match_id, p]))
 
@@ -697,8 +730,21 @@ export default function TournamentPage() {
             )}
           </div>
 
-          {/* Utility icons — reload + invite + edit (creator) */}
+          {/* Utility icons — wrapped + reload + invite + edit (creator) */}
           <div className="flex items-center gap-2 shrink-0">
+            {tournamentIsOver && (
+              <button
+                onClick={openWrapped}
+                aria-label="Wrapped"
+                title="Wrapped"
+                className="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200"
+                style={{ background: 'rgba(192,132,252,0.12)', border: '1px solid rgba(192,132,252,0.3)', color: '#c084fc' }}
+                onMouseEnter={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(192,132,252,0.22)', borderColor: 'rgba(192,132,252,0.5)' })}
+                onMouseLeave={e => Object.assign((e.currentTarget as HTMLElement).style, { background: 'rgba(192,132,252,0.12)', borderColor: 'rgba(192,132,252,0.3)' })}
+              >
+                ⭐
+              </button>
+            )}
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -1118,6 +1164,14 @@ export default function TournamentPage() {
       )}
 
       <ScoringExplanationModal open={showScoringHelp} onClose={() => setShowScoringHelp(false)} />
+
+      {wrappedOpen && wrappedStats && tournament && (
+        <WrappedExperience
+          stats={wrappedStats}
+          leagueName={tournament.name}
+          onClose={closeWrapped}
+        />
+      )}
     </div>
   )
 }
