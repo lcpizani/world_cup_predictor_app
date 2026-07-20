@@ -734,7 +734,7 @@ export default function TournamentPage() {
           <div className="flex items-center gap-2 shrink-0">
             {tournamentIsOver && (
               <button
-                onClick={openWrapped}
+                onClick={() => openWrapped()}
                 aria-label="Wrapped"
                 title="Wrapped"
                 className="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-200"
