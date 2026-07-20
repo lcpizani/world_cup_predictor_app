@@ -202,22 +202,22 @@ function SlideStageJourney({ stats, accent }: { stats: WrappedStats; accent: str
       </div>
       <div className="flex flex-col gap-3 w-full max-w-sm">
         {entries.map(([stage, pts], i) => (
-          <div key={stage} className="flex items-center gap-3">
-            <span className="text-white/40 text-xs w-24 text-right shrink-0">
+          <div key={stage} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+            <span className="text-white/40 text-[11px] sm:text-xs leading-tight w-full sm:w-24 text-left sm:text-right shrink-0">
               {t(`journey.stage_${stage}` as Parameters<typeof t>[0])}
             </span>
-            <div className="flex-1 h-8 rounded-lg overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <div className="flex-1 h-7 sm:h-8 rounded-lg overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
               <div
-                className="h-full rounded-lg flex items-center justify-end pr-3"
+                className="h-full rounded-lg flex items-center justify-end pr-2 sm:pr-3"
                 style={{
                   width: `${(pts / maxPts) * 100}%`,
                   background: accent,
                   animation: `growBar 0.6s cubic-bezier(0.34,1.56,0.64,1) ${i * 200}ms both`,
-                  minWidth: pts > 0 ? '2rem' : '0',
+                  minWidth: pts > 0 ? '2.75rem' : '0',
                 }}
               >
                 {pts > 0 && (
-                  <span className="font-[family-name:var(--font-oswald)] font-bold text-sm text-black/80">
+                  <span className="font-[family-name:var(--font-oswald)] font-bold text-xs sm:text-sm text-black/80 whitespace-nowrap">
                     {pts} pts
                   </span>
                 )}
@@ -387,7 +387,7 @@ function SlidePodium({ stats, accent, onClose }: { stats: WrappedStats; accent: 
 
           return (
             <div
-              key={entry.rank}
+              key={i}
               className="flex flex-col items-center gap-2"
               style={{
                 opacity: isVisible ? 1 : 0,
