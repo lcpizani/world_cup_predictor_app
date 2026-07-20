@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import type { WrappedStats } from '@/types/api'
@@ -48,7 +48,7 @@ function SlideIntro({ leagueName, accent }: { leagueName: string; accent: string
     <div className="flex flex-col items-center justify-center h-full text-center px-8 gap-6">
       <div className="text-6xl animate-bounce-in">⚽</div>
       <div
-        className="font-[family-name:var(--font-oswald)] text-5xl sm:text-6xl font-bold uppercase tracking-wider leading-none animate-fade-up"
+        className="font-[family-name:var(--font-oswald)] text-4xl sm:text-6xl font-bold uppercase tracking-wider leading-tight animate-fade-up w-full break-words"
         style={{ color: accent }}
       >
         {leagueName}
@@ -236,7 +236,7 @@ function SlideYourTeam({ stats, accent }: { stats: WrappedStats; accent: string 
   const flagCode = team ? getTeamFlagCode(team) : null
 
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-8 gap-5">
+    <div className="flex flex-col items-center justify-center h-full text-center px-8 gap-5 overflow-y-auto py-4">
       <p className="text-white/50 uppercase tracking-widest text-sm font-bold">{t('team.title')}</p>
 
       {/* Favourite team block */}
@@ -361,11 +361,17 @@ function SlidePodium({ stats, accent, onClose }: { stats: WrappedStats; accent: 
     podium[0] ?? null, // 1st (center)
     podium[2] ?? null, // 3rd (right)
   ]
-  const podiumHeights = ['h-28', 'h-40', 'h-20']
+  const podiumHeights = ['h-20 sm:h-28', 'h-28 sm:h-40', 'h-14 sm:h-20']
   const podiumVisibleIdx = [1, 0, 2] // which podium.index matches
 
   return (
-    <div className="flex flex-col items-center justify-between h-full px-6 py-8 gap-4">
+    <div
+      className="flex flex-col items-center justify-between h-full px-6 gap-4"
+      style={{
+        paddingTop: '1.5rem',
+        paddingBottom: 'max(2rem, env(safe-area-inset-bottom))',
+      }}
+    >
       <div className="text-center">
         <p className="text-white/50 uppercase tracking-widest text-xs font-bold mb-1">{t('podium.title')}</p>
         <p className="font-[family-name:var(--font-oswald)] text-2xl font-bold text-white uppercase">{t('podium.subtitle')}</p>
@@ -458,6 +464,7 @@ export default function WrappedExperience({ stats, leagueName, onClose }: Wrappe
   const [slide, setSlide] = useState(0)
   const totalSlides = 8
   const theme = SLIDE_THEMES[slide] ?? SLIDE_THEMES[0]
+  const touchStartX = useRef<number | null>(null)
 
   // Escape key handler
   useEffect(() => {
@@ -473,6 +480,19 @@ export default function WrappedExperience({ stats, leagueName, onClose }: Wrappe
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = '' }
   }, [])
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null) return
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    touchStartX.current = null
+    if (Math.abs(dx) < 50) return
+    if (dx < 0) setSlide(s => Math.min(totalSlides - 1, s + 1))
+    else setSlide(s => Math.max(0, s - 1))
+  }
 
   const slides = [
     <SlideIntro key={0} leagueName={leagueName} accent={theme.accent} />,
@@ -541,8 +561,11 @@ export default function WrappedExperience({ stats, leagueName, onClose }: Wrappe
           transition: 'background 0.5s ease',
         }}
       >
-        {/* Top bar — progress dots + controls */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-2 shrink-0">
+        {/* Top bar — progress dots + controls (safe-area aware) */}
+        <div
+          className="flex items-center justify-between px-5 pb-2 shrink-0"
+          style={{ paddingTop: 'max(1.25rem, env(safe-area-inset-top))' }}
+        >
           <div className="flex gap-1.5">
             {Array.from({ length: totalSlides }).map((_, i) => (
               <div
@@ -557,27 +580,35 @@ export default function WrappedExperience({ stats, leagueName, onClose }: Wrappe
           </div>
           <button
             onClick={onClose}
-            className="flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200"
+            className="flex items-center justify-center w-11 h-11 rounded-full transition-all duration-200"
             style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)' }}
             aria-label="Close"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Slide content */}
-        <div className="flex-1 min-h-0 overflow-hidden" key={slide}>
+        {/* Slide content — swipeable */}
+        <div
+          className="flex-1 min-h-0 overflow-hidden"
+          key={slide}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           {slides[slide]}
         </div>
 
         {/* Bottom nav — only show on slides 0–6; slide 7 has its own Done button */}
         {slide < totalSlides - 1 && (
-          <div className="flex items-center justify-between px-6 pb-8 pt-4 shrink-0">
+          <div
+            className="flex items-center justify-between px-6 pt-4 shrink-0"
+            style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+          >
             <button
               onClick={() => setSlide(s => Math.max(0, s - 1))}
-              className="text-sm font-bold uppercase tracking-widest transition-opacity"
+              className="px-4 py-3 text-sm font-bold uppercase tracking-widest transition-opacity"
               style={{ color: 'rgba(255,255,255,0.35)', opacity: slide === 0 ? 0 : 1, pointerEvents: slide === 0 ? 'none' : 'auto' }}
             >
               Back
