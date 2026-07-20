@@ -451,3 +451,206 @@ def send_calendar_email(to_email: str, matches: list["Match"], ics_bytes: bytes,
     except httpx.HTTPError as exc:
         logger.error("Failed to send calendar email", to=to_email, error=str(exc))
         raise
+
+
+_THANKS_COPY = {
+    "pt": {
+        "subject": "🏆 Obrigado por jogar — WC Football Predictions",
+        "label": "Fim de Torneio",
+        "title_tpl": "Valeu, {name}!",
+        "body": (
+            "Essa foi, sem dúvida, a melhor Copa do Mundo que eu já vi. E poder acompanhar cada jogo "
+            "com você, através dos seus palpites e das suas ligas, tornou tudo ainda mais especial. "
+            "Sou muito grato por você ter participado do WC Football Predictions — de verdade. "
+            "Espero que você tenha se divertido tanto com a plataforma quanto com a própria Copa."
+        ),
+        "signature": "Com carinho,<br>Lucas Pizani",
+        "wrapped_intro": "O seu Wrapped já está pronto — veja o resumo da sua temporada em cada liga:",
+        "wrapped_button": "Ver Wrapped",
+        "button": "Ver Meus Resultados",
+        "footer": "Até a próxima competição! ⚽",
+    },
+}
+_THANKS_COPY_DEFAULT = {
+    "subject": "🏆 Thanks for playing — WC Football Predictions",
+    "label": "Tournament Wrap-Up",
+    "title_tpl": "Thanks, {name}!",
+    "body": (
+        "This was, without a doubt, the best World Cup I've ever watched. And getting to follow along "
+        "with you — through your predictions and your leagues — made it even more special. "
+        "I'm truly grateful that you were part of WC Football Predictions. "
+        "I hope you enjoyed the platform as much as you enjoyed the World Cup itself."
+    ),
+    "signature": "With gratitude,<br>Lucas Pizani",
+    "wrapped_intro": "Your Wrapped is ready — go see your season recap for each league:",
+    "wrapped_button": "View Wrapped",
+    "button": "See My Results",
+    "footer": "Until the next competition! ⚽",
+}
+
+
+def send_thank_you_email(
+    to_email: str,
+    username: str,
+    leagues: list[tuple[str, str]] | None = None,
+    app_url: str = "https://wcfootballpredictions.com",
+    locale: str = "en",
+) -> bool:
+    """leagues is a list of (tournament_name, invite_code) the user belongs to,
+    each linked to that league's page where Wrapped can be viewed.
+
+    Returns True if the email was actually sent, False if it was skipped
+    (e.g. RESEND_API_KEY not configured) — callers use this to distinguish
+    "sent" from "silently skipped" rather than assuming success.
+    """
+    if not settings.RESEND_API_KEY:
+        logger.warning("RESEND_API_KEY not set — skipping thank-you email", to=to_email)
+        return False
+
+    c = _THANKS_COPY.get(locale, _THANKS_COPY_DEFAULT)
+    display_name = _html.escape(username)
+    title = c["title_tpl"].format(name=display_name)
+
+    if leagues:
+        league_rows = "".join(
+            f"""<tr>
+              <td style="padding:12px 0;border-bottom:1px solid #edf2f7;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="font-size:15px;font-weight:700;color:#1a2332;">{_html.escape(name)}</td>
+                    <td align="right">
+                      <a href="{app_url}/tournaments/{code}"
+                         style="display:inline-block;background-color:#f0b429;color:#1a2332;font-size:12px;font-weight:800;
+                                letter-spacing:1px;text-transform:uppercase;text-decoration:none;
+                                padding:10px 18px;border-radius:8px;white-space:nowrap;">
+                        {c['wrapped_button']}
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>"""
+            for name, code in leagues
+        )
+        cta_html = f"""<tr>
+                  <td style="padding:0 48px 8px;">
+                    <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#1a2332;">{c['wrapped_intro']}</p>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #edf2f7;">
+                      {league_rows}
+                    </table>
+                  </td>
+                </tr>
+                <tr><td style="padding:0 48px 32px;"></td></tr>"""
+    else:
+        cta_html = f"""<tr>
+                  <td align="center" style="padding:0 48px 40px;">
+                    <a href="{app_url}"
+                       style="display:inline-block;background-color:#f0b429;color:#1a2332;font-size:14px;font-weight:800;
+                              letter-spacing:2px;text-transform:uppercase;text-decoration:none;
+                              padding:16px 40px;border-radius:10px;">
+                      {c['button']}
+                    </a>
+                  </td>
+                </tr>"""
+
+    html = f"""<!DOCTYPE html>
+<html lang="{locale}">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#f4f6f9;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f9;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+
+          <!-- Header -->
+          <tr>
+            <td align="center" style="padding-bottom:24px;">
+              <span style="font-family:Arial,sans-serif;font-size:22px;font-weight:900;letter-spacing:4px;text-transform:uppercase;">
+                <span style="color:#f0b429;">WC</span><span style="color:#1a2332;">26</span>
+              </span>
+            </td>
+          </tr>
+
+          <!-- Card -->
+          <tr>
+            <td style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+              <!-- Gold top bar -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="height:4px;background:linear-gradient(90deg,#f0b429,#fcd86e,#f0b429);"></td>
+                </tr>
+              </table>
+
+              <!-- Trophy banner -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding:36px 48px 0;">
+                    <span style="font-size:44px;line-height:1;">🏆</span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Body -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding:16px 48px 8px;">
+                    <p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#f0b429;">{c['label']}</p>
+                    <h1 style="margin:0 0 20px;font-size:28px;font-weight:800;color:#1a2332;line-height:1.2;">{title}</h1>
+                    <p style="margin:0 auto 20px;max-width:420px;font-size:15px;color:#4a5568;line-height:1.7;">
+                      {c['body']}
+                    </p>
+                    <p style="margin:0 auto 28px;max-width:420px;font-size:14px;color:#1a2332;font-style:italic;line-height:1.6;">
+                      {c['signature']}
+                    </p>
+                  </td>
+                </tr>
+                {cta_html}
+                <tr>
+                  <td style="padding:0 48px 36px;border-top:1px solid #edf2f7;">
+                    <p style="margin:24px 0 0;text-align:center;font-size:13px;color:#a0aec0;line-height:1.6;">
+                      {c['footer']}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding:28px 0 0;">
+              <p style="margin:0;font-size:12px;color:#a0aec0;">
+                WC Football Predictions &nbsp;·&nbsp; wcfootballpredictions.com
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+    payload = {
+        "from": FROM_ADDRESS,
+        "to": [to_email],
+        "subject": c["subject"],
+        "html": html,
+    }
+
+    try:
+        response = httpx.post(
+            RESEND_API_URL,
+            json=payload,
+            headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
+            timeout=10,
+        )
+        response.raise_for_status()
+        logger.info("Thank-you email sent", to=to_email)
+        return True
+    except httpx.HTTPError as exc:
+        logger.error("Failed to send thank-you email", to=to_email, error=str(exc))
+        raise
