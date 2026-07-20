@@ -299,6 +299,64 @@ function RecomputeAllButton() {
   )
 }
 
+// ── Send thank-you emails ────────────────────────────────────────────────────
+
+function SendThankYouEmailsButton() {
+  const t = useTranslations('admin')
+  const [confirm, setConfirm] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: () => api.sendThankYouEmails(),
+    onSuccess: (data) => {
+      setConfirm(false)
+      const failNote = data.failed > 0 ? ` ⚠ ${data.failed} failed` : ''
+      const skipNote = data.skipped > 0 ? ` (${data.skipped} skipped — no RESEND_API_KEY)` : ''
+      setMsg(`✓ ${t('thank_you_sent', { count: data.sent })}${failNote}${skipNote}`)
+    },
+    onError: (e: Error) => {
+      setConfirm(false)
+      setMsg(
+        /disabled in this environment/i.test(e.message)
+          ? t('thank_you_disabled')
+          : `✗ ${e.message}`,
+      )
+    },
+  })
+
+  return (
+    <div>
+      <p className="text-sm text-[#64748b] mb-4">{t('thank_you_desc')}</p>
+      {!confirm ? (
+        <button
+          onClick={() => setConfirm(true)}
+          className="bg-[#f0b429]/10 border border-[#f0b429]/30 text-[#f0b429] px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-[#f0b429]/20 transition"
+        >
+          {t('thank_you_button')}
+        </button>
+      ) : (
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-[#f0b429] font-semibold">{t('thank_you_confirm')}</span>
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="bg-[#f0b429] text-[#080c14] px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide hover:bg-white disabled:opacity-50 transition"
+          >
+            {mutation.isPending ? t('thank_you_sending') : t('yes_send')}
+          </button>
+          <button
+            onClick={() => setConfirm(false)}
+            className="text-[#64748b] hover:text-white text-xs font-bold uppercase tracking-wide transition"
+          >
+            {t('cancel')}
+          </button>
+        </div>
+      )}
+      {msg && <p className="text-xs text-[#64748b] mt-3">{msg}</p>}
+    </div>
+  )
+}
+
 // ── Registration invite card ─────────────────────────────────────────────────
 
 function RegistrationInviteCard() {
@@ -461,6 +519,11 @@ export default function AdminPage() {
       {/* Registration invite */}
       <AdminCard title={t('card_registration')} icon="🔑">
         <RegistrationInviteCard />
+      </AdminCard>
+
+      {/* Thank-you emails */}
+      <AdminCard title={t('card_thank_you')} icon="🏆">
+        <SendThankYouEmailsButton />
       </AdminCard>
 
       {/* Danger zone */}

@@ -15,6 +15,7 @@ from app.services import football_api
 from app.services.football_api import FOOTBALL_API_BASE
 from app.services.standings import recalculate_standings_from_matches
 from app.services.scoring import update_provisional_points
+from app.services.thank_you import get_pending_recipients, send_thank_you_batch
 from app.models.match import Match
 from app.models.prediction import Prediction
 from app.models.point_event import PointEvent
@@ -188,6 +189,26 @@ def recalculate_standings(
     logger.info("Recalculating standings from match results", admin=str(admin.id))
     result = recalculate_standings_from_matches(db)
     logger.info("Standings recalculated", recalculated=result.get("recalculated"))
+    return result
+
+
+@router.post("/send-thank-you-emails", status_code=status.HTTP_200_OK)
+def send_thank_you_emails(
+    confirm: str = Body(..., embed=True),
+    db: Session = Depends(get_db),
+    admin=Depends(require_admin_mutations),
+) -> dict:
+    """Send the end-of-tournament thank-you email to every user who hasn't
+    already received it. Idempotent — already-thanked users (tracked via
+    User.thank_you_sent_at) are skipped, so an accidental re-run or a
+    double-click can't re-spam the whole user base."""
+    if confirm != "SEND":
+        raise HTTPException(status_code=400, detail='Pass {"confirm": "SEND"} to confirm')
+
+    users = get_pending_recipients(db)
+    logger.warning("Sending thank-you emails to pending users", admin=str(admin.id), recipients=len(users))
+    result = send_thank_you_batch(db, users)
+    logger.info("Thank-you emails sent", **result)
     return result
 
 

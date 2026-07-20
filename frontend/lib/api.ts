@@ -186,6 +186,11 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ confirm: 'RESET', expected_match_count: expectedMatchCount }),
     }),
+  sendThankYouEmails: () =>
+    request<{ sent: number; skipped: number; failed: number }>('/admin/send-thank-you-emails', {
+      method: 'POST',
+      body: JSON.stringify({ confirm: 'SEND' }),
+    }),
   syncMatches: (competition_code = 'WC') =>
     request<{ upserted: number }>(
       `/admin/sync/matches?competition_code=${competition_code}`,
